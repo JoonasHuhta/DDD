@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Dopamine Dealer Dan",
+    "slug": "dopamine-dealer-dan", 
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["android"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.metaman.dopaminedan",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "911e1b74-ebad-4d5c-a204-abdb6a530c14"
+      }
+    }
+  }
+}

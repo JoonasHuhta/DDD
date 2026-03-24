@@ -1,0 +1,232 @@
+import React, { useState } from 'react';
+import { Zap, Diamond, Pickaxe, Star, Sparkles } from 'lucide-react';
+import { useMetamanGame } from '../lib/stores/useMetamanGame';
+import AdaptivePanel from './AdaptivePanel';
+
+// Icon mapping based on gem type to avoid storing React nodes in state
+const getGemIcon = (type: string) => {
+  switch (type) {
+    case 'speed': return <Zap className="w-5 h-5" />;
+    case 'power': return <Star className="w-5 h-5" />;
+    case 'collection': return <Diamond className="w-5 h-5" />;
+    case 'efficiency': return <Sparkles className="w-5 h-5" />;
+    case 'influence': return <Star className="w-5 h-5 text-yellow-400" />;
+    case 'lucky': return <Sparkles className="w-5 h-5 text-green-400" />;
+    case 'viral': return <Zap className="w-5 h-5 text-purple-400" />;
+    case 'chaos': return <Sparkles className="w-5 h-5 text-rainbow" />;
+    case 'corrupt': return <Pickaxe className="w-5 h-5 text-red-600" />;
+    case 'reality': return <Star className="w-5 h-5 text-rainbow" />;
+    case 'temporal': return <Zap className="w-5 h-5 text-cyan-400" />;
+    case 'meta': return <Diamond className="w-5 h-5 text-gold" />;
+    default: return <Diamond className="w-5 h-5" />;
+  }
+};
+
+interface DiamondGem {
+  id: string;
+  type: string;
+  name: string;
+  description: string;
+  color: string;
+  modifier: number;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+interface SinisterLabProps {
+  onClose: () => void;
+}
+
+export default function SinisterLab({ onClose }: SinisterLabProps) {
+  const { 
+    dataInventory, 
+    sinisterLab,
+    addGemToInventory,
+    addGemToSlot,
+    removeGemFromSlot,
+    addDiscoveredGem,
+    incrementOrbBreakCount,
+    setDataInventory
+  } = useMetamanGame();
+  
+  const [orbBreakAnimation, setOrbBreakAnimation] = useState<number | null>(null);
+  
+  const slots = (sinisterLab?.slots || [null, null, null]) as (DiamondGem | null)[];
+  const inventory = (sinisterLab?.inventory || []) as DiamondGem[];
+  const discoveredItems = (sinisterLab?.discoveredItems || []) as DiamondGem[];
+  const orbBreakCount = sinisterLab?.orbBreakCount || 0;
+
+  // Expanded laboratory item pool
+  const diamondTypes: Omit<DiamondGem, 'id'>[] = [
+    { type: 'speed', name: 'Speed Crystal', description: 'Generates users/sec', color: 'text-blue-400', modifier: 5, rarity: 'common' },
+    { type: 'power', name: 'Basic Amplifier', description: '+15% click power', color: 'text-gray-400', modifier: 15, rarity: 'common' },
+    { type: 'collection', name: 'Data Magnet', description: '+20% collection rate', color: 'text-cyan-400', modifier: 20, rarity: 'common' },
+    { type: 'speed', name: 'Power Ruby', description: 'Generates 10 users/sec', color: 'text-red-400', modifier: 10, rarity: 'rare' },
+    { type: 'efficiency', name: 'Focus Sapphire', description: '+35% efficiency', color: 'text-blue-500', modifier: 35, rarity: 'rare' },
+    { type: 'influence', name: 'Charm Topaz', description: '+50% influence', color: 'text-orange-400', modifier: 50, rarity: 'rare' },
+    { type: 'lucky', name: 'Lucky Emerald', description: '+60% orb drop', color: 'text-green-400', modifier: 60, rarity: 'epic' },
+    { type: 'viral', name: 'Viral Diamond', description: '+75% campaign boost', color: 'text-yellow-400', modifier: 75, rarity: 'epic' },
+    { type: 'chaos', name: 'Chaos Prism', description: 'Random +100% bonus', color: 'text-purple-400', modifier: 100, rarity: 'epic' },
+    { type: 'corrupt', name: 'Corrupt Onyx', description: '+200% energy', color: 'text-purple-600', modifier: 200, rarity: 'legendary' },
+    { type: 'reality', name: 'Reality Shard', description: '+500% ALL stats', color: 'text-pink-500', modifier: 500, rarity: 'legendary' },
+    { type: 'temporal', name: 'Time Crystal', description: '2x passive income', color: 'text-cyan-300', modifier: 100, rarity: 'legendary' },
+    { type: 'meta', name: 'Metaman Core', description: 'Ultimate power', color: 'text-yellow-500', modifier: 1000, rarity: 'legendary' }
+  ];
+
+  const breakOrbForGems = () => {
+    if (dataInventory < 50) return;
+    
+    setOrbBreakAnimation(Date.now());
+    setDataInventory(dataInventory - 50);
+    incrementOrbBreakCount();
+    
+    setTimeout(() => {
+      const roll = Math.random() * 100;
+      let targetRarity: 'common' | 'rare' | 'epic' | 'legendary' = 'common';
+      
+      if (roll < 0.5 && orbBreakCount >= 100) targetRarity = 'legendary';
+      else if (roll < 5) targetRarity = 'epic';
+      else if (roll < 15) targetRarity = 'rare';
+      
+      const pool = diamondTypes.filter(g => g.rarity === targetRarity);
+      const lootTemplate = pool[Math.floor(Math.random() * pool.length)];
+      
+      if (lootTemplate) {
+        const newGem: DiamondGem = {
+          ...lootTemplate,
+          id: `${lootTemplate.type}_${Date.now()}`
+        };
+        
+        addDiscoveredGem(newGem);
+        const emptySlot = slots.findIndex(s => s === null);
+        
+        if (emptySlot !== -1) addGemToSlot(newGem, emptySlot);
+        else addGemToInventory(newGem);
+      }
+      
+      setOrbBreakAnimation(null);
+    }, 800);
+  };
+
+  const getRarityClass = (rarity: string) => {
+    switch (rarity) {
+      case 'common': return 'bg-gray-100 border-gray-400 text-gray-800';
+      case 'rare': return 'bg-blue-100 border-blue-400 text-blue-800';
+      case 'epic': return 'bg-purple-100 border-purple-400 text-purple-800';
+      case 'legendary': return 'bg-amber-100 border-amber-400 text-amber-800 animate-pulse';
+      default: return 'bg-gray-100 border-gray-400 text-gray-800';
+    }
+  };
+
+  return (
+    <AdaptivePanel title="SINISTER LAB" onClose={onClose}>
+      <div className="space-y-6 pb-20 px-2">
+        {/* Lab Header/Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+            <div className="text-[10px] font-black text-gray-500 uppercase">Data Orbs</div>
+            <div className="text-2xl font-black text-black">{dataInventory}</div>
+          </div>
+          <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+            <div className="text-[10px] font-black text-gray-500 uppercase">Discoveries</div>
+            <div className="text-2xl font-black text-black">{discoveredItems.length}</div>
+          </div>
+        </div>
+
+        {/* Break Orb Action */}
+        <div className="relative">
+          <button
+            onClick={breakOrbForGems}
+            disabled={dataInventory < 50 || !!orbBreakAnimation}
+            className={`w-full py-6 rounded-2xl border-4 border-black font-black uppercase italic tracking-widest text-xl transition-all shadow-[6px_6px_0_0_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1 ${
+              dataInventory < 50 ? 'bg-gray-200 text-gray-500' : 'bg-[#FF6B35] text-white hover:bg-[#FF8B55]'
+            }`}
+          >
+            {orbBreakAnimation ? 'SHATTERING...' : 'BREAK ORB (50)'}
+            {!orbBreakAnimation && dataInventory >= 50 && (
+              <Sparkles className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 animate-spin-slow" />
+            )}
+          </button>
+          {orbBreakAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-2xl animate-ping" />
+          )}
+        </div>
+
+        {/* Equipment Slots */}
+        <div>
+          <h3 className="text-sm font-black text-black uppercase mb-3 px-1 italic">Active Augments</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {slots.map((gem, i) => (
+              <button
+                key={i}
+                onClick={() => gem && removeGemFromSlot(i)}
+                className={`aspect-square rounded-2xl border-4 border-black flex flex-col items-center justify-center transition-all p-1 relative ${
+                  gem 
+                    ? `bg-white hover:bg-red-50 hover:border-red-600 group shadow-[4px_4px_0_0_rgba(0,0,0,1)]` 
+                    : 'bg-black/5 border-dashed opacity-40'
+                }`}
+              >
+                {gem ? (
+                  <>
+                    <div className={gem.color}>{getGemIcon(gem.type)}</div>
+                    <div className="text-[8px] font-black text-black truncate w-full text-center px-1">
+                      {gem.name}
+                    </div>
+                    <div className="text-[10px] font-black text-green-600">+{gem.modifier}%</div>
+                    <div className="hidden group-hover:flex absolute inset-0 bg-red-600/90 rounded-xl items-center justify-center text-white text-[10px] font-black uppercase">
+                      Remove
+                    </div>
+                  </>
+                ) : (
+                  <Pickaxe className="w-6 h-6 text-black/20" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Inventory */}
+        <div>
+          <h3 className="text-sm font-black text-black uppercase mb-3 px-1 italic">
+            Inventory ({inventory.length})
+          </h3>
+          {inventory.length === 0 ? (
+            <div className="p-8 text-center bg-black/5 rounded-2xl border-4 border-dashed border-black/10">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">Your lab is empty...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {inventory.map((gem) => (
+                <button
+                  key={gem.id}
+                  onClick={() => {
+                    const emptySlot = slots.findIndex(s => s === null);
+                    if (emptySlot !== -1) addGemToSlot(gem, emptySlot);
+                  }}
+                  className={`p-3 rounded-2xl border-4 border-black text-left transition-all hover:-translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${getRarityClass(gem.rarity)}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={gem.color}>{getGemIcon(gem.type)}</div>
+                    <div className="font-black text-[10px] leading-none uppercase truncate">{gem.name}</div>
+                  </div>
+                  <div className="text-[8px] font-bold opacity-80 leading-none mb-1">{gem.description}</div>
+                  <div className="text-[10px] font-black uppercase italic">+{gem.modifier}%</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Lab Guide */}
+        <div className="p-4 bg-black text-white rounded-2xl border-4 border-black">
+          <h4 className="text-xs font-black uppercase mb-2 text-[#FFD700]">Laboratory Protocol</h4>
+          <ul className="text-[9px] font-bold space-y-1 opacity-90 uppercase tracking-tighter">
+            <li>• Shatter orbs for rare augmentations</li>
+            <li>• Maximum 3 active augments per session</li>
+            <li>• Legendary finds require 100+ breaks</li>
+            <li>• Removal restores items to inventory</li>
+          </ul>
+        </div>
+      </div>
+    </AdaptivePanel>
+  );
+}
