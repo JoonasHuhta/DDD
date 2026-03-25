@@ -3,6 +3,7 @@ export class Metaman {
   private y: number;
   private animationFrame: number = 0;
   private lastClick: number = 0;
+  private smileTimer: number = 0;
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -20,6 +21,9 @@ export class Metaman {
 
   public update(deltaTime: number): void {
     this.animationFrame += deltaTime * 0.005;
+    if (this.smileTimer > 0) {
+      this.smileTimer -= deltaTime;
+    }
   }
 
   public render(ctx: CanvasRenderingContext2D, isMobile: boolean = false): void {
@@ -117,25 +121,48 @@ export class Metaman {
     ctx.fill();
     ctx.stroke();
 
-    // Smile - Wide toothy smile
+    // Smile logic
+    const isBigSmile = this.smileTimer > 0;
+    
+    // Smile - Wide toothy smile vs Moderate subtle smile
     ctx.fillStyle = 'white';
     ctx.beginPath();
-    ctx.arc(this.x, faceY + size * 0.55, size * 0.35, 0, Math.PI);
+    if (isBigSmile) {
+      // Big Wide Smile (Award mode)
+      ctx.arc(this.x, faceY + size * 0.55, size * 0.35, 0, Math.PI);
+    } else {
+      // Moderate Smile (Standard mode)
+      ctx.arc(this.x, faceY + size * 0.65, size * 0.22, 0, Math.PI);
+    }
     ctx.fill();
     ctx.stroke();
     
-    // Teeth lines - fewer for cleaner look
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(this.x - size * 0.35, faceY + size * 0.72);
-    ctx.lineTo(this.x + size * 0.35, faceY + size * 0.72); 
-    ctx.stroke();
-    
-    for (let i = -1; i <= 1; i++) {
+    // Teeth lines - only if mouth is open enough (Big Smile)
+    if (isBigSmile) {
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      
+      // Horizontal mid-line
       ctx.beginPath();
-      ctx.moveTo(this.x + i * size * 0.18, faceY + size * 0.58);
-      ctx.lineTo(this.x + i * size * 0.18, faceY + size * 0.88);
+      ctx.moveTo(this.x - size * 0.32, faceY + size * 0.73);
+      ctx.lineTo(this.x + size * 0.32, faceY + size * 0.73); 
+      ctx.stroke();
+      
+      // Vertical separators (shortened to avoid edge bleed)
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(this.x + i * size * 0.18, faceY + size * 0.58);
+        ctx.lineTo(this.x + i * size * 0.18, faceY + size * 0.85); // 0.85 instead of 0.88 to fix gray pixels
+        ctx.stroke();
+      }
+    } else {
+      // Optional: tiny teeth highlight for moderate smile if desired, 
+      // but keeping it simple for cleaner look as requested
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(this.x - size * 0.1, faceY + size * 0.78);
+      ctx.lineTo(this.x + size * 0.1, faceY + size * 0.78);
       ctx.stroke();
     }
 
@@ -255,5 +282,10 @@ export class Metaman {
 
   public onClick(): void {
     this.lastClick = Date.now();
+  }
+
+  public triggerSmile(duration: number = 8000): void {
+    this.smileTimer = duration;
+    console.log(`😊 Dan is smiling wide for ${duration/1000}s!`);
   }
 }

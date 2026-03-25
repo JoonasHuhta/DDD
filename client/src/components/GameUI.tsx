@@ -17,7 +17,8 @@ import CampaignVisualEffects from "./CampaignVisualEffects";
 import LawsuitPanel from "./LawsuitPanel";
 import SuitcasePanel from "./SuitcasePanel";
 import ShopPanel from "./ShopPanel";
-import AchievementShowcase from "./AchievementShowcase";
+import AchievementShowcase from './AchievementShowcase';
+import ProgressionOverview from './ProgressionOverview';
 import AdaptiveText from "./AdaptiveText";
 import AdaptiveButton from "./AdaptiveButton";
 import { useResponsiveUI } from "../hooks/useResponsiveUI";
@@ -35,6 +36,7 @@ import CharacterDialogue from "./CharacterDialogue";
 import EspionageMinigame from "./minigames/EspionageMinigame";
 import { ServerDefense } from "./minigames/ServerDefense";
 import SenateHearing from "./minigames/SenateHearing";
+import HeatMeter from "./HeatMeter";
 // StyleShowcase removed - using original theme only
 
 
@@ -96,6 +98,7 @@ export default function GameUI() {
   const panels = usePanelState();
   
   const [clickCooldownPercent, setClickCooldownPercent] = useState(0);
+  const [showProgressionOverview, setShowProgressionOverview] = useState(false);
 
   // Panel management via usePanelState — only one panel open at a time
   const closeAllPanels = () => {
@@ -307,85 +310,99 @@ export default function GameUI() {
         </div>
       ))}
 
-      {/* Top HUD - Responsive, avoiding suitcase */}
-      <div className={`absolute ${
-        responsive.isMobile ? 'top-2 left-2 right-16' : 'top-4 left-4 right-20'
-      } pointer-events-none z-20`}>
-        <div className={`flex flex-nowrap ${responsive.gap} justify-start`}>
-          <motion.div 
-            key={`income-${Math.floor(income / 1000)}`} // Trigger larger flash on 1k milestones
-            animate={{ 
-              scale: [1, 1.05, 1],
-              filter: ["brightness(1)", "brightness(1.5)", "brightness(1)"]
-            }}
-            transition={{ duration: 0.3 }}
-            className={`bg-[#FFD700] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
-          >
-            <div className="flex items-center gap-1 text-black font-black">
-              <DollarSign className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-              <motion.span 
-                key={income}
-                animate={{ scale: [1, 1.1, 1], color: ['#000', '#fff', '#000'] }}
-                transition={{ duration: 0.2 }}
-                className={`${responsive.fontSize}`}
-              >
-                {formatNumber(Math.floor(income))}
-              </motion.span>
-            </div>
-          </motion.div>
-          <motion.div 
-            key={`users-${Math.floor(users / 1000)}`} // Trigger larger flash on 1k milestones
-            animate={{ 
-              scale: [1, 1.05, 1],
-              filter: ["brightness(1)", "brightness(1.5)", "brightness(1)"]
-            }}
-            transition={{ duration: 0.3 }}
-            className={`bg-[#4ECDC4] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
-          >
-            <div className="flex items-center gap-1 text-white font-black stroke-black stroke-1">
-              <Users className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-              <motion.span 
-                key={users}
-                animate={{ scale: [1, 1.1, 1], color: ['#fff', '#000', '#fff'] }}
-                transition={{ duration: 0.2 }}
-                className={`${responsive.fontSize}`}
-              >
-                {formatNumber(Math.floor(users))}
-              </motion.span>
-            </div>
-          </motion.div>
-          {/* Dollar generation display hidden per user request */}
-          {currentView === 'basement' && (
-            <div className={`bg-[#FF6B35] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}>
-              <div className="flex items-center gap-1 text-white font-black">
-                <Database className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-                <span className={`${responsive.fontSize}`}>{dataInventory}</span>
-                <span className="text-xs uppercase ml-1">data</span>
-              </div>
-            </div>
-          )}
-          {/* Orb Counter - Always visible with separate value */}
-          <div className={`bg-[#FF1744] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}>
-            <div className="flex items-center gap-1 text-white font-black">
-              <span className="text-lg">◈</span>
-              <span className={`${responsive.fontSize}`}>{orbsInventory || 0}</span>
-              <span className="text-xs uppercase ml-1">orbs</span>
-            </div>
-          </div>
-          {/* Click Cooldown Indicator */}
-          {clickCooldownPercent < 100 && (
-            <div className={`bg-white px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}>
+      {/* Left HUD - Dynamic Resource Meters (Money, Users, Orbs) */}
+      <div className="fixed top-2 left-2 sm:left-4 z-[45] pointer-events-none flex justify-start">
+        <div className="flex flex-col items-start gap-2 pointer-events-auto">
+          {/* Top Row: Main Stats (Money, Users) */}
+          <div className="flex flex-wrap items-start gap-2">
+            {/* Money Counter */}
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              className={`bg-[#FFD700] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] cursor-pointer`}
+            >
               <div className="flex items-center gap-1 text-black font-black">
-                <Clock className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-                <div className="w-12 h-3 bg-gray-200 border-2 border-black rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-[#FF6B35] transition-all duration-100"
-                    style={{ width: `${clickCooldownPercent}%` }}
-                  />
+                <span className="text-lg">$</span>
+                <span className={`${responsive.fontSize}`}>{formatNumber(income)}</span>
+              </div>
+            </motion.div>
+
+            {/* User Counter */}
+            <motion.div 
+              animate={users > 0 ? {
+                scale: [1, 1.05, 1],
+                filter: ["brightness(1)", "brightness(1.5)", "brightness(1)"]
+              } : {}}
+              transition={{ duration: 0.3 }}
+              className={`bg-[#4ECDC4] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
+            >
+              <div className="flex items-center gap-1 text-white font-black stroke-black stroke-1">
+                <Users className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
+                <motion.span 
+                  key={users}
+                  animate={{ scale: [1, 1.1, 1], color: ['#fff', '#000', '#fff'] }}
+                  transition={{ duration: 0.2 }}
+                  className={`${responsive.fontSize}`}
+                >
+                  {formatNumber(Math.floor(users))}
+                </motion.span>
+              </div>
+            </motion.div>
+
+            {/* Click Cooldown Indicator - Stay in top row */}
+            {clickCooldownPercent < 100 && (
+              <div className={`bg-white px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}>
+                <div className="flex items-center gap-1 text-black font-black">
+                  <Clock className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
+                  <div className="w-12 h-3 bg-gray-200 border-2 border-black rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#FF6B35] transition-all duration-100"
+                      style={{ width: `${clickCooldownPercent}%` }}
+                    />
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Bottom Row: Basement Resources (Data, Orbs) */}
+          {currentView === 'basement' && (
+            <div className="flex items-center gap-2">
+              {/* Data Counter */}
+              <motion.div 
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className={`bg-[#FF6B35] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
+              >
+                <div className="flex items-center gap-1 text-white font-black">
+                  <Database className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
+                  <span className={`${responsive.fontSize}`}>{dataInventory}</span>
+                  <span className="text-xs uppercase ml-1">data</span>
+                </div>
+              </motion.div>
+
+              {/* Orb Counter */}
+              <motion.div 
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className={`bg-[#FF1744] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
+              >
+                <div className="flex items-center gap-1 text-white font-black">
+                  <span className="text-lg">◈</span>
+                  <span className={`${responsive.fontSize}`}>{orbsInventory || 0}</span>
+                  <span className="text-xs uppercase ml-1">orbs</span>
+                </div>
+              </motion.div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Right HUD - Fixed Stage and Heat meter */}
+      <div className="fixed top-2 right-2 sm:right-4 z-[45] pointer-events-auto">
+        <div className="w-24 sm:w-32">
+          <HeatMeter 
+            onClick={() => setShowProgressionOverview(true)} 
+          />
         </div>
       </div>
 
@@ -647,6 +664,10 @@ export default function GameUI() {
 
       {/* TEMPORARY: Test Button for Black Market (remove after testing) */}
       {/* Test button removed per user request */}
+      {/* Progression Overview Popup */}
+      {showProgressionOverview && (
+        <ProgressionOverview onClose={() => setShowProgressionOverview(false)} />
+      )}
     </div>
   );
 }

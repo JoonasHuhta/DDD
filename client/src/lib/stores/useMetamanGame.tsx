@@ -11,6 +11,7 @@ import { AchievementManager, Achievement as SimpleAchievement } from "../achieve
 import { RandomLawsuitManager, RandomLawsuit } from "../../data/randomLawsuits";
 import { MarketLogic } from "../gameEngine/MarketLogic";
 import { DEFAULT_DEPARTMENTS, Department } from "../content/departments";
+import { getStage } from "../utils/stageSystem";
 
 export type MetamanGameState = "menu" | "playing" | "paused";
 
@@ -31,6 +32,8 @@ interface MetamanGameStore {
   campaignCooldowns: Map<string, number>;
   showCampaignPanel: boolean;
   currentView: 'city' | 'basement';
+  lastRandomLawsuit: number;
+  lastRewardTimestamp: number;
   dataInventory: number;
   orbsInventory: number;
   permanentOrbs: number;
@@ -270,6 +273,7 @@ interface MetamanGameStore {
   resumeGame: () => void;
   incrementIncome: (amount: number) => void;
   incrementUsers: (amount: number) => void;
+  getTotalUserMultiplier: () => number;
   setIncome: (amount: number) => void;
   decrementIncome: (amount: number) => void;
   setSelectedCampaign: (campaignId: string) => void;
@@ -318,6 +322,7 @@ interface MetamanGameStore {
   setCampaignCharges: (charges: number) => void;
   addReward: (reward: { id?: string | number; type: 'achievement' | 'milestone' | 'daily' | 'special'; title: string; description: string; value: number; claimed?: boolean; dateAdded?: number; }) => void;
   addInfluencePoints: (amount: number) => void;
+  getMarginalIncome: (departmentId: string, amount?: number) => number;
 
   checkDanVisitTrigger: () => void;
   triggerDanVisit: () => void;
@@ -368,6 +373,12 @@ interface MetamanGameStore {
     orbCollection: number;
     departmentEfficiency: number;
     influenceGeneration: number;
+    heatDamping: number;
+    stageIncomeBonus: number;
+    dataPriceBoost: number;
+    autoClicker: boolean;
+    userMultiplier: number;
+    incomeMultiplier: number;
   };
   applyGemUserGeneration: () => void;
   updateMarketPrices: () => void;
@@ -444,6 +455,26 @@ interface MetamanGameStore {
   addMansionPurchase: (itemId: string) => void;
   achievementQueue: SimpleAchievement[];
   processAchievementQueue: () => void;
+
+  // ── HEAT SYSTEM ────────────────────────────────────────────────────────────
+  heat: number; // 0–100
+  heatLevel: 'normal' | 'elevated' | 'critical' | 'emergency'; // derived
+  modifyHeat: (delta: number) => void;   // +/- heat, clamped 0–100
+  updateHeat: () => void;               // called every tick, applies passive decay (-2/s)
+
+  // ── DIALOGUE HISTORY ───────────────────────────────────────────────────────
+  // Persists across prestige. Written by boss encounters, read by Platform Collapse.
+  dialogHistory: {
+    karen: { outcome: 'won' | 'lost' | null };
+    marcus: { choice: 'bribe' | 'threaten' | 'discredit' | null; outcome: 'won' | 'lost' | null };
+    patricia: { senateScore: number; outcome: 'won' | 'lost' | null };
+    coalition: { outcome: 'won' | 'lost' | null };
+    faceSpace: { defeated: boolean; acquireCount: number };
+    dataVault: { defeated: boolean };
+    viralVoid: { defeated: boolean };
+    connectCore: { defeated: boolean; networkRaceWon: boolean };
+  };
+  updateDialogHistory: (updates: Partial<MetamanGameStore['dialogHistory']>) => void;
 }
 
 
@@ -473,6 +504,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
       regulatoryRisk: 0,
       campaignCooldowns: new Map(),
       showCampaignPanel: false,
+      lastRandomLawsuit: 0,
+      lastRewardTimestamp: 0,
       currentView: 'city',
       dataInventory: 0,
       orbsInventory: 0,
@@ -585,7 +618,76 @@ export const useMetamanGame = create<MetamanGameStore>()(
       })),
     showCharacterDialogue: false,
     activeCharacter: null,
-    
+
+    // ── HEAT SYSTEM ────────────────────────────────────────────────────────────
+    heat: 0,
+    heatLevel: 'normal' as const,
+
+    modifyHeat: (delta: number) => {
+      set((state) => {
+        const newHeat = Math.max(0, Math.min(100, state.heat + delta));
+        let level: MetamanGameStore['heatLevel'] = 'normal';
+        if (newHeat >= 75) level = 'emergency';
+        else if (newHeat >= 50) level = 'critical';
+        else if (newHeat >= 25) level = 'elevated';
+        return { heat: newHeat, heatLevel: level };
+      });
+    },
+
+    updateHeat: () => {
+      const state = get();
+      if (state.heat <= 0) return;
+      // Passive decay: -2 per second. Called every tick (100ms), so -0.2 per call.
+      const decayAmount = 0.2;
+      const newHeat = Math.max(0, state.heat - decayAmount);
+      
+      // Stage gating for level calculation
+      const stage = getStage(state.users);
+      
+      // Platform Collapse Detection: 100% Heat + Stage 10
+      if (state.heat >= 100 && stage >= 10 && !state.grandMilestones?.platform_conqueror) {
+        // Trigger endgame state
+        setTimeout(() => {
+          get().addReward({
+            id: 'platform_collapse_trigger',
+            type: 'special',
+            title: 'PLATFORM COLLAPSE',
+            description: 'The algorithm has consumed its creator.',
+            value: 0
+          });
+          set((s) => ({
+            users: Math.floor(s.users * 0.1), // 90% user loss
+            heat: 100, // Stay pinned at max heat
+            grandMilestones: { ...s.grandMilestones, platform_conqueror: true }
+          }));
+        }, 0);
+      }
+
+      let level: MetamanGameStore['heatLevel'] = 'normal';
+      if (newHeat >= 75) level = 'emergency';
+      else if (newHeat >= 50) level = 'critical';
+      else if (newHeat >= 25) level = 'elevated';
+      set({ heat: newHeat, heatLevel: level });
+    },
+
+    // ── DIALOGUE HISTORY ────────────────────────────────────────────────────────
+    dialogHistory: {
+      karen:     { outcome: null },
+      marcus:    { choice: null, outcome: null },
+      patricia:  { senateScore: 0, outcome: null },
+      coalition: { outcome: null },
+      faceSpace: { defeated: false, acquireCount: 0 },
+      dataVault: { defeated: false },
+      viralVoid: { defeated: false },
+      connectCore: { defeated: false, networkRaceWon: false },
+    },
+
+    updateDialogHistory: (updates) => {
+      set((state) => ({
+        dialogHistory: { ...state.dialogHistory, ...updates }
+      }));
+    },
+
     // UI Panel states — showDepartments/Progression/etc. are in usePanelState hook
     showTrophyPanel: false,
     showTutorial: false,
@@ -594,7 +696,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
     
     // Systems
     sinisterLab: {
-      slots: [null, null, null],
+      slots: [null, null, null, null],
       inventory: [],
       discoveredItems: [],
       orbBreakCount: 0
@@ -675,6 +777,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           set((s) => ({
             income: s.income + value,
             totalLifetimeIncome: s.totalLifetimeIncome + value,
+            lastRewardTimestamp: Date.now(),
             rewardState: {
               ...s.rewardState,
               rewards,
@@ -1010,6 +1113,15 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const { permanentBonuses, megaMilestones } = state.progressionState;
       let multiplier = state.prestigeState.prestigeMultiplier || 1.0;
       
+      const gemBonuses = state.getGemBonuses();
+      multiplier *= (gemBonuses.incomeMultiplier || 1.0);
+
+      // Golden Ratio: Stage-scaling bonus
+      if (gemBonuses.stageIncomeBonus > 0) {
+        const stage = getStage(state.users);
+        multiplier *= (1 + (stage * gemBonuses.stageIncomeBonus / 100));
+      }
+
       // Permanent bonuses from list
       if (permanentBonuses.gettingStarted) multiplier *= 1.05;
       if (permanentBonuses.millionaire) multiplier *= 1.10;
@@ -1024,10 +1136,30 @@ export const useMetamanGame = create<MetamanGameStore>()(
       return multiplier;
     },
 
+    getTotalUserMultiplier: () => {
+      const state = get();
+      const gemBonuses = state.getGemBonuses();
+      let multiplier = 1.0;
+      
+      // Base gem multiplier
+      multiplier *= (gemBonuses.userMultiplier || 1.0);
+      
+      // Prestige multiplier also affects user lures/generation
+      multiplier *= (state.prestigeState.prestigeMultiplier || 1.0);
+      
+      return multiplier;
+    },
+
     getClickPowerMultiplier: () => {
       const state = get();
       const { permanentBonuses, megaMilestones } = state.progressionState;
+      const gemBonuses = state.getGemBonuses();
       let multiplier = 1.0;
+      
+      // Gem click power
+      if (gemBonuses.clickPower > 0) {
+        multiplier *= (1 + gemBonuses.clickPower / 100);
+      }
       
       if (permanentBonuses.clicktastic) multiplier *= 1.10;
       if (permanentBonuses.clickMaster) multiplier *= 1.25;
@@ -1065,21 +1197,31 @@ export const useMetamanGame = create<MetamanGameStore>()(
           totalLifetimeIncome: newTotalLifetime,
           friends: updatedFriends,
           sessionMoneyEarned: (state.sessionMoneyEarned || 0) + boostedAmount,
-          sessionUsersLured: (state.sessionUsersLured || 0) + (amount > 0 ? 1 : 0) // Increment lure count if amount > 0
+          sessionUsersLured: (state.sessionUsersLured || 0) + (amount > 0 ? 1 : 0)
         };
       });
+
+      // Growth = Heat: High income/click power increases heat
+      if (boostedAmount > 0) {
+        // approx +1 heat per $10k earned (adjust as needed)
+        get().modifyHeat(boostedAmount / 10000);
+      }
+
       state.checkPermanentBonuses();
       get().checkAchievements();
     },
 
     incrementUsers: (amount: number) => {
       if (amount <= 0) return;
+      const mult = get().getTotalUserMultiplier();
+      const boostedAmount = Math.floor(amount * mult);
+      
       set((state) => {
-        const teensGain = Math.floor(amount * 0.4);
-        const prosGain = Math.floor(amount * 0.3);
-        const seniorsGain = Math.floor(amount * 0.2);
-        const addictsGain = amount - (teensGain + prosGain + seniorsGain);
-        const newUsers = state.users + amount;
+        const teensGain = Math.floor(boostedAmount * 0.4);
+        const prosGain = Math.floor(boostedAmount * 0.3);
+        const seniorsGain = Math.floor(boostedAmount * 0.2);
+        const addictsGain = boostedAmount - (teensGain + prosGain + seniorsGain);
+        const newUsers = state.users + boostedAmount;
         get().checkMegaMilestones();
         get().checkGrandUserMilestones();
         get().checkLawsuitMilestones();
@@ -1093,9 +1235,15 @@ export const useMetamanGame = create<MetamanGameStore>()(
             seniors: (state.cohorts?.seniors || 0) + seniorsGain,
             addicts: (state.cohorts?.addicts || 0) + addictsGain,
           },
-          sessionUsersGained: (state.sessionUsersGained || 0) + amount
+          sessionUsersGained: (state.sessionUsersGained || 0) + boostedAmount
         };
       });
+
+      // Growth = Heat: More users = more surveillance
+      if (boostedAmount > 0) {
+        // approx +1 heat per 100 users gained
+        get().modifyHeat(boostedAmount / 100);
+      }
     },
 
     applyPassiveIncome: () => {
@@ -1114,6 +1262,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
         totalLifetimeIncome: state.totalLifetimeIncome + earnings,
         lastPassiveUpdate: now
       });
+
+      // Passive growth also generates a bit of heat (less than spikes)
+      if (earnings > 0) {
+        get().modifyHeat(earnings / 100000); // 10x slower than clicks/lures
+      }
+
       get().checkPermanentBonuses();
       get().checkAchievements();
     },
@@ -1273,6 +1427,92 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }));
     },
 
+    sellAllData: () => {
+      const state = get();
+      const orbs = state.dataInventory;
+      if (orbs <= 0) return;
+
+      // Advertiser milestone thresholds and bonuses
+      const MILESTONES = [
+        { threshold: 100,   bonus: 0.05 },
+        { threshold: 350,   bonus: 0.07 },
+        { threshold: 600,   bonus: 0.09 },
+        { threshold: 1000,  bonus: 0.11 },
+        { threshold: 1500,  bonus: 0.13 },
+        { threshold: 2500,  bonus: 0.15 },
+        { threshold: 4000,  bonus: 0.17 },
+        { threshold: 6000,  bonus: 0.19 },
+        { threshold: 9000,  bonus: 0.21 },
+        { threshold: 13000, bonus: 0.23 },
+      ];
+
+      const gemBonuses = get().getGemBonuses();
+      const currentMultiplier = state.advertiserData.incomeMultiplier * (1 + (gemBonuses.dataPriceBoost || 0));
+      const newTotalSold = state.advertiserData.totalDataSold + orbs;
+
+      // Bulk pricing: orbs × 50 × (1 + orbs/20) × advertiserMultiplier
+      const payout = Math.floor(orbs * 50 * (1 + orbs / 20) * currentMultiplier);
+
+      // Campaign cooldown reduction: -30s from all active cooldowns
+      const newCooldowns = new Map(state.campaignCooldowns);
+      newCooldowns.forEach((cooldown, id) => {
+        newCooldowns.set(id, Math.max(0, cooldown - 30000));
+      });
+
+      // Campaign charges: +1 per 10 orbs, max +5
+      const chargeBonus = Math.min(5, Math.floor(orbs / 10));
+      const newCharges = Math.min(10, state.campaignCharges + chargeBonus);
+
+      // Permanent orbs: 5% of sold orbs → orbsInventory
+      const permOrbGain = Math.floor(orbs * 0.05);
+
+      // Heat spike: +1 per 10 orbs if more than 20 orbs sold (Void gem reduces this)
+      let heatSpike = orbs > 20 ? Math.floor(orbs / 10) : 0;
+      if (gemBonuses.heatDamping > 0) {
+        heatSpike = Math.max(0, heatSpike - Math.floor(heatSpike * (gemBonuses.heatDamping / 100)));
+      }
+
+      // Check milestones
+      let newMultiplier = state.advertiserData.incomeMultiplier;
+      let newMilestonesReached = state.advertiserData.milestonesReached;
+      for (const m of MILESTONES) {
+        if (state.advertiserData.totalDataSold < m.threshold && newTotalSold >= m.threshold) {
+          newMultiplier += m.bonus;
+          newMilestonesReached += 1;
+          get().addVisualEffect('achievement', 200, 100, 'high', `ADVERTISER +${Math.round(m.bonus * 100)}%`);
+        }
+      }
+
+      const nextMilestone = MILESTONES.find(m => newTotalSold < m.threshold)?.threshold ?? 99999;
+
+      set((s) => ({
+        income: s.income + payout,
+        totalLifetimeIncome: s.totalLifetimeIncome + payout,
+        dataInventory: 0,
+        orbsInventory: s.orbsInventory + permOrbGain,
+        campaignCooldowns: newCooldowns,
+        campaignCharges: newCharges,
+        totalDataSold: s.totalDataSold + orbs,
+        sessionDataSold: (s.sessionDataSold || 0) + orbs,
+        advertiserData: {
+          totalDataSold: newTotalSold,
+          incomeMultiplier: newMultiplier,
+          nextMilestone,
+          milestonesReached: newMilestonesReached,
+        }
+      }));
+
+      if (heatSpike > 0) {
+        get().modifyHeat(heatSpike);
+      }
+
+      get().addVisualEffect('money', 200, 120, 'high', `+$${get().formatNumber(payout)}`);
+      if (permOrbGain > 0) {
+        get().addVisualEffect('users', 200, 160, 'medium', `+${permOrbGain} ◈ permanent`);
+      }
+    },
+
+
     updateMarketPrices: () => {
       set((state) => {
         const newPrices = {
@@ -1294,7 +1534,19 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     checkRandomLawsuits: () => {
       const state = get();
-      if (state.regulatoryRisk > 50 && Math.random() < 0.01) {
+      // Heat connects to Lawsuit frequency:
+      // Heat % | Chance per tick (1s)
+      // 0-25%   | 0%
+      // 25-50%  | 0.5% (Elevated)
+      // 50-75%  | 2.0% (Critical)
+      // 75-100% | 5.0% (Emergency)
+      
+      let chance = 0;
+      if (state.heat >= 75) chance = 0.05;
+      else if (state.heat >= 50) chance = 0.02;
+      else if (state.heat >= 25) chance = 0.005;
+
+      if (chance > 0 && Math.random() < chance) {
         set({ showRandomLawsuit: true, currentRandomLawsuit: state.randomLawsuitManager.getRandomLawsuit() });
       }
     },
@@ -1348,35 +1600,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     setDataInventory: (amount: number) => set({ dataInventory: amount }),
     
-    sellAllData: () => {
-      const state = get();
-      const value = state.dataInventory * 50 * state.advertiserData.incomeMultiplier;
-      if (value <= 0) return;
-      
-      const newTotalDataSold = state.advertiserData.totalDataSold + state.dataInventory;
-      let newMultiplier = state.advertiserData.incomeMultiplier;
-      let newNextMilestone = state.advertiserData.nextMilestone;
-      let newMilestonesReached = state.advertiserData.milestonesReached;
-      
-      while (newTotalDataSold >= newNextMilestone) {
-        newMilestonesReached++;
-        newMultiplier += 0.05;
-        newNextMilestone = Math.floor(newNextMilestone * 1.5);
-      }
-      
-      set({
-        income: state.income + value,
-        totalLifetimeIncome: state.totalLifetimeIncome + value,
-        dataInventory: 0,
-        advertiserData: {
-          totalDataSold: newTotalDataSold,
-          incomeMultiplier: newMultiplier,
-          nextMilestone: newNextMilestone,
-          milestonesReached: newMilestonesReached
-        }
-      });
-    },
-    
     initializeGame: () => {
       const state = get();
       if (!state.achievementManager) {
@@ -1393,7 +1616,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
     
     handleManualClick: (x = 512, y = 300) => {
-      const clickIncome = 1 + (get().getGemBonuses?.()?.clickPower || 0) / 10;
+      const gemBonuses = get().getGemBonuses?.() || { clickPower: 0, autoClicker: false };
+      const clickIncome = 1 + (gemBonuses.clickPower || 0) / 10;
       get().incrementIncome(clickIncome);
       set((state) => ({ totalClicks: state.totalClicks + 1 }));
     },
@@ -1434,15 +1658,65 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (department.owned === 0) return 0;
       let total = 0;
       for (let i = 0; i < department.owned; i++) {
-        total += department.baseIncome * Math.pow(0.95, i);
+        // Switch to 1.02 increasing returns per level instead of 0.95 penalty
+        total += department.baseIncome * Math.pow(1.02, i);
       }
       return total;
+    },
+
+    getMarginalIncome: (departmentId: string, amount = 1) => {
+      const state = get();
+      const dept = state.departments.find(d => d.id === departmentId);
+      if (!dept) return 0;
+      
+      const incomeMult = state.getTotalIncomeMultiplier();
+      const gemBonuses = state.getGemBonuses();
+      const efficiencyMult = 1 + (gemBonuses.departmentEfficiency / 100);
+      
+      let gain = 0;
+      for (let i = 0; i < amount; i++) {
+        gain += dept.baseIncome * Math.pow(1.02, dept.owned + i) * incomeMult * efficiencyMult;
+      }
+      return gain;
     },
     
     updatePassiveIncome: () => {
       const state = get();
       const totalIncome = state.departments.reduce((sum, d) => sum + get().calculateDepartmentIncome(d), 0);
       set({ totalIncomePerSecond: totalIncome });
+    },
+
+    claimAchievement: (achievementId: string) => {
+      const state = get();
+      if (state.achievementManager) {
+        // 1. Mark as unlocked in the internal achievement manager
+        // We DON'T call claimAchievement here anymore because that marks it as "claimed" (money granted).
+        // Instead we just verify it exists and is unlocked.
+        const achievement = state.achievementManager.getAchievement?.(achievementId);
+        
+        if (achievement && achievement.unlocked) {
+          const rewardId = `achievement_${achievementId}`;
+          const alreadyInRewards = state.rewardState.rewards.some(r => String(r.id) === rewardId);
+          
+          if (!alreadyInRewards) {
+            get().addReward({
+              id: rewardId,
+              type: 'achievement' as const,
+              title: achievement.name,
+              description: achievement.description,
+              value: achievement.reward,
+              claimed: false, // Force manual claim in suitcase
+              dateAdded: Date.now()
+            });
+            
+            // Notification effect
+            get().addVisualEffect('achievement', 512, 200, 'medium', achievement.name);
+          }
+          
+          // Close popups
+          set({ currentAchievementPopup: null, currentAchievementShowcase: null });
+        }
+      }
     },
 
     updateTowerHeight: () => {
@@ -1541,38 +1815,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
       return false;
     },
 
-    claimAchievement: (achievementId: string) => {
-      const state = get();
-      if (state.achievementManager) {
-        // 1. Mark as unlocked in the internal achievement manager
-        // We DON't call claimAchievement here anymore because that marks it as "claimed" (money granted).
-        // Instead we just verify it exists and is unlocked.
-        const achievement = state.achievementManager.getAchievement?.(achievementId);
-        
-        if (achievement && achievement.unlocked) {
-          const rewardId = `achievement_${achievementId}`;
-          const alreadyInRewards = state.rewardState.rewards.some(r => String(r.id) === rewardId);
-          
-          if (!alreadyInRewards) {
-            get().addReward({
-              id: rewardId,
-              type: 'achievement' as const,
-              title: achievement.name,
-              description: achievement.description,
-              value: achievement.reward,
-              claimed: false, // Force manual claim in suitcase
-              dateAdded: Date.now()
-            });
-            
-            // Notification effect
-            get().addVisualEffect('achievement', 512, 200, 'medium', achievement.name);
-          }
-          
-          // Close popups
-          set({ currentAchievementPopup: null, currentAchievementShowcase: null });
-        }
-      }
-    },
 
     closeAchievementPopup: () => set({ currentAchievementPopup: null }),
     
@@ -1723,6 +1965,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
     addGemToInventory: (gem: any) => set((state) => ({ sinisterLab: { ...state.sinisterLab, inventory: [...state.sinisterLab.inventory, gem] } })),
     addGemToSlot: (gem: any, idx: number) => {
       set((state) => {
+        // Stage gating for slots
+        const stage = getStage(state.users);
+        if (idx === 1 && stage < 3) return state;
+        if (idx === 2 && stage < 5) return state;
+        if (idx === 3 && stage < 8) return state;
+
         const slots = [...state.sinisterLab.slots];
         const old = slots[idx];
         const inv = state.sinisterLab.inventory.filter(g => g.id !== gem.id);
@@ -1746,7 +1994,20 @@ export const useMetamanGame = create<MetamanGameStore>()(
     getGemBonuses: () => {
       const state = get();
       const equipped = state.sinisterLab.slots.filter(s => s !== null);
-      const bonuses = { userGeneration: 0, clickPower: 0, orbCollection: 0, departmentEfficiency: 0, influenceGeneration: 0 };
+      const bonuses = { 
+        userGeneration: 0, 
+        clickPower: 0, 
+        orbCollection: 0, 
+        departmentEfficiency: 0, 
+        influenceGeneration: 0,
+        heatDamping: 0,
+        stageIncomeBonus: 0,
+        dataPriceBoost: 0,
+        autoClicker: false,
+        userMultiplier: 1.0,
+        incomeMultiplier: 1.0
+      };
+
       equipped.forEach(gem => {
         if (!gem) return;
         switch (gem.type) {
@@ -1755,6 +2016,17 @@ export const useMetamanGame = create<MetamanGameStore>()(
           case 'collection': bonuses.orbCollection += gem.modifier; break;
           case 'efficiency': bonuses.departmentEfficiency += gem.modifier; break;
           case 'influence': bonuses.influenceGeneration += gem.modifier; break;
+          // Legendary / Endgame
+          case 'reality': bonuses.incomeMultiplier += gem.modifier/100; bonuses.userMultiplier += gem.modifier/100; break;
+          case 'quantum': bonuses.userMultiplier += 2.5; break;
+          case 'void': bonuses.heatDamping += gem.modifier; break;
+          case 'ratio': bonuses.stageIncomeBonus += gem.modifier; break;
+          case 'neural': bonuses.autoClicker = true; bonuses.clickPower += 300; break;
+          case 'market': bonuses.dataPriceBoost += 0.5; break;
+          case 'scale': bonuses.userMultiplier += 5.0; break;
+          case 'matter': bonuses.influenceGeneration += 500; break;
+          case 'temporal': bonuses.incomeMultiplier += 1.0; break;
+          case 'meta': bonuses.incomeMultiplier += 10.0; break;
         }
       });
       return bonuses;

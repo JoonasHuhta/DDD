@@ -260,3 +260,26 @@ canvas {
   z-index: 30;
   border-color: #FFD700 !important; /* Force gold border for highlighted buttons */
 }
+/* Purchase Feedback Float Up Animation */
+@keyframes float-up-fade {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-40px);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-80px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+}
+
+.animate-float-up-fade {
+  animation: float-up-fade 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

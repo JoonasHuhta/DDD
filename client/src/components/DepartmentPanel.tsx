@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
-import { Building2, TrendingUp, Users } from 'lucide-react';
+import { Building2, TrendingUp, Users, Lock } from 'lucide-react';
 import PurchaseFeedback from './PurchaseFeedback';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
+import { getStage, DEPARTMENT_STAGE_UNLOCKS } from '../lib/utils/stageSystem';
 
 interface FeedbackPopup {
   id: string;
@@ -21,7 +22,10 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     calculateDepartmentCost,
     formatNumber,
     cohorts,
-    users
+    users,
+    getTotalIncomeMultiplier,
+    getGemBonuses,
+    getMarginalIncome
   } = useMetamanGame();
 
   const [activeTab, setActiveTab] = useState<'departments' | 'demographics'>('departments');
@@ -33,7 +37,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     return income >= calculateDepartmentCost(department);
   };
 
-  const handleBuyDepartment = (departmentId: string, event: React.MouseEvent) => {
+  const handleBuyDepartment = (departmentId: string, event: React.MouseEvent | { target: HTMLElement }) => {
     const department = departments.find(d => d.id === departmentId);
     if (!department) return;
     
@@ -41,31 +45,19 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     
     if (success) {
       const rect = (event.target as HTMLElement).getBoundingClientRect();
+      const gemBonuses = getGemBonuses();
+      const userGenMult = 1 + (gemBonuses.userGeneration / 100);
+
+      const marginalIncome = getMarginalIncome(departmentId, 1);
+      const marginalUserGen = (department.baseUserGeneration * 60) * userGenMult;
+
       const popup: FeedbackPopup = {
         id: `${departmentId}-${Date.now()}`,
-        incomeGain: department.baseIncome,
-        userGain: getUserGenerationRate(departmentId),
+        incomeGain: marginalIncome,
+        userGain: Math.round(marginalUserGen),
         position: { x: rect.left + rect.width / 2, y: rect.top }
       };
       setFeedbackPopups(prev => [...prev, popup]);
-    }
-  };
-
-  const getUserGenerationRate = (departmentId: string): number => {
-    switch (departmentId) {
-      case 'corner_operations': return 6;
-      case 'supply_networks': return 9;
-      case 'customer_relations': return 12;
-      case 'algorithm_labs': return 18;
-      case 'data_mining_centers': return 30;
-      case 'viral_content_farms': return 48;
-      case 'influencer_networks': return 72;
-      case 'neural_manipulation_labs': return 120;
-      case 'global_server_farms': return 180;
-      case 'government_relations': return 300;
-      case 'reality_distortion_centers': return 480;
-      case 'consciousness_harvesting_arrays': return 720;
-      default: return 0;
     }
   };
 
@@ -73,15 +65,67 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     setFeedbackPopups(prev => prev.filter(popup => popup.id !== id));
   };
 
-  const handleBuyMax = (departmentId: string) => {
+  const handleBuyMax = (departmentId: string, event: React.MouseEvent) => {
+    const department = departments.find(d => d.id === departmentId);
+    if (!department) return;
+
+    // Calculate how many we can afford
+    const currentOwned = department.owned;
     buyMaxDepartments(departmentId);
+    
+    // Find the updated department to see how many were bought
+    const updated = useMetamanGame.getState().departments.find(d => d.id === departmentId);
+    if (updated && updated.owned > currentOwned) {
+      const amountBought = updated.owned - currentOwned;
+      const rect = (event.target as HTMLElement).getBoundingClientRect();
+      const gemBonuses = getGemBonuses();
+      const userGenMult = 1 + (gemBonuses.userGeneration / 100);
+
+      const totalIncomeGain = getMarginalIncome(departmentId, amountBought);
+      const totalUserGain = (department.baseUserGeneration * 60 * amountBought) * userGenMult;
+
+      const popup: FeedbackPopup = {
+        id: `${departmentId}-max-${Date.now()}`,
+        incomeGain: totalIncomeGain,
+        userGain: Math.round(totalUserGain),
+        position: { x: rect.left + rect.width / 2, y: rect.top }
+      };
+      setFeedbackPopups(prev => [...prev, popup]);
+    }
   };
 
-  const renderDepartments = () => (
+  const renderDepartments = () => {
+    const currentStage = getStage(users);
+    return (
     <div className="space-y-4 pb-20">
       {departments.map((department) => {
         const cost = calculateDepartmentCost(department);
         const affordable = canAfford(department.id);
+        const requiredStage = DEPARTMENT_STAGE_UNLOCKS[department.id] ?? 1;
+        const isLocked = currentStage < requiredStage && department.owned === 0;
+
+        if (isLocked) {
+          // Render a dimmed locked card
+          return (
+            <div
+              key={department.id}
+              className="p-4 bg-gray-100 border-4 border-gray-300 rounded-2xl opacity-60 relative overflow-hidden"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-2 bg-gray-200 border-2 border-gray-300 rounded-xl">
+                  <Lock className="w-4 h-4 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs uppercase tracking-tighter text-gray-400">{department.name}</h3>
+                  <div className="text-[9px] font-bold text-gray-400 uppercase">
+                    🔒 Unlocks at Stage {requiredStage}
+                  </div>
+                </div>
+              </div>
+              <div className="text-[9px] font-bold text-gray-400 uppercase leading-none">{department.description}</div>
+            </div>
+          );
+        }
 
         return (
           <div
@@ -102,11 +146,11 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
               </div>
               <div className="text-right">
                 <div className="text-[10px] font-black text-green-600 uppercase italic">
-                  +${formatNumber(department.baseIncome)}/s
+                  +${formatNumber(getMarginalIncome(department.id, 1))}/s
                 </div>
-                {getUserGenerationRate(department.id) > 0 && (
+                {department.baseUserGeneration > 0 && (
                   <div className="text-[8px] font-black text-blue-600 uppercase">
-                    +{getUserGenerationRate(department.id)}/m citz
+                    +{Math.round(department.baseUserGeneration * 60 * (1 + (getGemBonuses().userGeneration / 100)))}/m citz
                   </div>
                 )}
               </div>
@@ -130,7 +174,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
               </button>
               {affordable && (
                 <button
-                  onClick={() => handleBuyMax(department.id)}
+                  onClick={(e) => handleBuyMax(department.id, e)}
                   className="px-4 py-2 bg-black text-white border-4 border-black rounded-xl font-black uppercase italic text-[10px] hover:bg-gray-800 active:translate-y-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:shadow-none"
                 >
                   MAX
@@ -141,7 +185,8 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         );
       })}
     </div>
-  );
+    );
+  };
 
   const renderDemographics = () => {
     const total = Math.max(1, users);

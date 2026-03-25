@@ -28,7 +28,8 @@ export default function Game() {
     currentRandomLawsuit,
     resolveRandomLawsuit,
     closeRandomLawsuit,
-    formatNumber
+    formatNumber,
+    updateHeat
   } = useMetamanGame();
   const gameState = useMetamanGame(state => state.gameState);
   const playBackgroundMusic = useAudio(state => state.playBackgroundMusic);
@@ -73,6 +74,7 @@ export default function Game() {
       updatePassiveIncome(); // Recalculate rates
       applyPassiveIncome();   // Apply money gains
       applyPassiveUserGeneration(); // Apply user generation
+      updateHeat();           // Passive Heat decay (-2/s)
       
       const state = useMetamanGame.getState();
       
@@ -89,11 +91,17 @@ export default function Game() {
         }
       }
       
+      // Neural Overload: Auto-clicking gem logic
+      const gemBonuses = state.getGemBonuses();
+      if (gemBonuses.autoClicker && state.handleManualClick) {
+        state.handleManualClick();
+      }
+      
       // VAN SYSTEM DISABLED - no automatic triggers
     }, 1000); // Every second
     
     return () => clearInterval(passiveIncomeInterval);
-  }, [gameState, updatePassiveIncome, applyPassiveIncome, applyPassiveUserGeneration]);
+  }, [gameState, updatePassiveIncome, applyPassiveIncome, applyPassiveUserGeneration, updateHeat]);
 
   const handleCampaignSelect = (campaignId: string) => {
     setSelectedCampaign(campaignId);

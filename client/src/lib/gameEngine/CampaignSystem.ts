@@ -8,6 +8,7 @@ export interface Campaign {
   riskIncrease: number;
   color: string;
   description: string;
+  requiredStage: number;
 }
 
 export const CAMPAIGNS: Campaign[] = [
@@ -18,10 +19,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 100,
     citizenCount: 5,
     radius: 60,
-    cooldown: 2000, // 2 seconds
+    cooldown: 2000, 
     riskIncrease: 0,
-    color: '#00ff88', // Electric Green
-    description: 'Hook them with freebies - classic dealer tactics'
+    color: '#00ff88', 
+    description: 'Hook them with freebies - classic dealer tactics',
+    requiredStage: 1
   },
   {
     id: 'happy_hour_special',
@@ -29,10 +31,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 500,
     citizenCount: 15,
     radius: 90,
-    cooldown: 3000, // 3 seconds
+    cooldown: 3000, 
     riskIncrease: 2,
-    color: '#ffaa00', // Electric Orange
-    description: 'Limited time offers create urgency and FOMO'
+    color: '#ffaa00', 
+    description: 'Limited time offers create urgency and FOMO',
+    requiredStage: 1
   },
   {
     id: 'social_feed',
@@ -40,10 +43,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 1000,
     citizenCount: 5,
     radius: 80,
-    cooldown: 3000, // 3 seconds
+    cooldown: 3000, 
     riskIncrease: 0,
-    color: '#00bfff', // Blue
-    description: 'Basic social media engagement'
+    color: '#00bfff', 
+    description: 'Basic social media engagement',
+    requiredStage: 2
   },
   {
     id: 'pure_bliss_guarantee',
@@ -51,10 +55,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 2000,
     citizenCount: 30,
     radius: 150,
-    cooldown: 4000, // 4 seconds
+    cooldown: 4000, 
     riskIncrease: 5,
-    color: '#ff6600', // Electric Copper
-    description: 'Promise them euphoria - satisfaction guaranteed!'
+    color: '#ff6600', 
+    description: 'Promise them euphoria - satisfaction guaranteed!',
+    requiredStage: 2
   },
   {
     id: 'viral_challenge',
@@ -62,10 +67,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 5000,
     citizenCount: 15,
     radius: 120,
-    cooldown: 5000, // 5 seconds
+    cooldown: 5000, 
     riskIncrease: 5,
-    color: '#9d4edd', // Purple
-    description: 'Trending content manipulation'
+    color: '#9d4edd', 
+    description: 'Trending content manipulation',
+    requiredStage: 3
   },
   {
     id: 'experimental_formula',
@@ -73,10 +79,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 10000,
     citizenCount: 50,
     radius: 200,
-    cooldown: 6000, // 6 seconds
+    cooldown: 6000, 
     riskIncrease: 20,
-    color: '#ff0088', // Electric Pink
-    description: 'Untested but potent - high risk, high reward'
+    color: '#ff0088', 
+    description: 'Untested but potent - high risk, high reward',
+    requiredStage: 3
   },
   {
     id: 'addiction_algorithm',
@@ -84,10 +91,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 15000,
     citizenCount: 30,
     radius: 180,
-    cooldown: 8000, // 8 seconds
+    cooldown: 8000, 
     riskIncrease: 15,
-    color: '#f72585', // Pink
-    description: 'Psychological engagement tactics'
+    color: '#f72585', 
+    description: 'Psychological engagement tactics',
+    requiredStage: 4
   },
   
   // Advanced Digital Campaigns ($25K - $1M)
@@ -97,10 +105,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 25000,
     citizenCount: 75,
     radius: 300,
-    cooldown: 10000, // 10 seconds
+    cooldown: 10000, 
     riskIncrease: 30,
-    color: '#00ffff', // Electric Cyan
-    description: 'Creates persistent addiction patterns - they never stop scrolling'
+    color: '#00ffff', 
+    description: 'Creates persistent addiction patterns - they never stop scrolling',
+    requiredStage: 4
   },
   {
     id: 'underage_targeting',
@@ -108,10 +117,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 25000,
     citizenCount: 50,
     radius: 250,
-    cooldown: 12000, // 12 seconds
+    cooldown: 12000, 
     riskIncrease: 35,
-    color: '#ff0000', // Red
-    description: 'Target vulnerable demographics'
+    color: '#ff0000', 
+    description: 'Target vulnerable demographics',
+    requiredStage: 5
   },
   {
     id: 'viral_challenge_injection',
@@ -119,10 +129,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 50000,
     citizenCount: 100,
     radius: 350,
-    cooldown: 15000, // 15 seconds
+    cooldown: 15000, 
     riskIncrease: 40,
-    color: '#8800ff', // Electric Purple
-    description: 'Injects viral content across all social networks simultaneously'
+    color: '#8800ff', 
+    description: 'Injects viral content across all social networks simultaneously',
+    requiredStage: 6
   },
   {
     id: 'algorithm_chaos_bomb',
@@ -130,10 +141,11 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 100000,
     citizenCount: 150,
     radius: 400,
-    cooldown: 20000, // 20 seconds
+    cooldown: 20000, 
     riskIncrease: 60,
-    color: '#ff4400', // Electric Red-Orange
-    description: 'Temporarily crashes competitor platforms - digital warfare'
+    color: '#ff4400', 
+    description: 'Temporarily crashes competitor platforms - digital warfare',
+    requiredStage: 7
   },
   {
     id: 'reality_hack_protocol',
@@ -141,21 +153,23 @@ export const CAMPAIGNS: Campaign[] = [
     cost: 500000,
     citizenCount: 200,
     radius: 500,
-    cooldown: 30000, // 30 seconds
+    cooldown: 30000, 
     riskIncrease: 80,
-    color: '#ff0066', // Electric Magenta
-    description: 'Manipulates user perception of truth itself - reality is optional'
+    color: '#ff0066', 
+    description: 'Manipulates user perception of truth itself - reality is optional',
+    requiredStage: 8
   },
   {
     id: 'the_perfect_storm',
     name: 'The Perfect Storm',
     cost: 1000000,
-    citizenCount: 300, // FIXED: Balanced citizen count to prevent drain
+    citizenCount: 300, 
     radius: 600,
-    cooldown: 45000, // Reduced from 60s to 45s for better flow  
-    riskIncrease: 80, // Reduced from 100 - less punishing
-    color: '#ffffff', // Electric White
-    description: 'Ultimate digital dominance - complete control over reality perception'
+    cooldown: 45000, 
+    riskIncrease: 80, 
+    color: '#ffffff', 
+    description: 'Ultimate digital dominance - complete control over reality perception',
+    requiredStage: 10
   }
 ];
 

@@ -32,7 +32,8 @@ export default function GameCanvas() {
     rewardState,
     updateStats,
     blackMarketState,
-    addVisualEffect
+    addVisualEffect,
+    lastRewardTimestamp
   } = useMetamanGame();
   
   const panels = usePanelState();
@@ -222,6 +223,13 @@ export default function GameCanvas() {
       engineRef.current.setDanVanVisibility(blackMarketState.isOpen);
     }
   }, [blackMarketState.isOpen, blackMarketState.isUnlocked]);
+  
+  // Trigger smile on reward
+  useEffect(() => {
+    if (engineRef.current && lastRewardTimestamp > 0) {
+      engineRef.current.triggerMetamanSmile(10000); // 10 second smile
+    }
+  }, [lastRewardTimestamp]);
 
   return (
     <div className="relative w-full h-full">

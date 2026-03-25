@@ -1,7 +1,8 @@
 import { useMetamanGame } from "../lib/stores/useMetamanGame";
 import { CAMPAIGNS, Campaign } from "../lib/gameEngine/CampaignSystem";
-import { Zap, AlertTriangle, X } from "lucide-react";
+import { Zap, AlertTriangle, X, Lock } from "lucide-react";
 import AdaptivePanel from "./AdaptivePanel";
+import { getStage, STAGES } from "../lib/utils/stageSystem";
 
 interface CampaignPanelProps {
   onCampaignSelect: (campaignId: string) => void;
@@ -12,7 +13,8 @@ interface CampaignPanelProps {
 }
 
 export default function CampaignPanel({ onCampaignSelect, regulatoryRisk, campaignCooldowns, campaignCharges, onClose }: CampaignPanelProps) {
-  const { income, purchaseCampaign } = useMetamanGame();
+  const { income, purchaseCampaign, users } = useMetamanGame();
+  const currentStage = getStage(users);
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
@@ -68,9 +70,30 @@ export default function CampaignPanel({ onCampaignSelect, regulatoryRisk, campai
         {/* Campaigns */}
         <div className="space-y-3">
           {CAMPAIGNS.map((campaign) => {
+            const isLocked = campaign.requiredStage > currentStage;
             const affordable = canAfford(campaign);
             const cooldown = isOnCooldown(campaign.id);
-            const disabled = !affordable || cooldown;
+            const disabled = isLocked || !affordable || cooldown;
+
+            if (isLocked) {
+              const requiredStageInfo = STAGES[campaign.requiredStage - 1];
+              return (
+                <div 
+                  key={campaign.id}
+                  className="w-full p-4 rounded-2xl border-4 border-black bg-gray-100 opacity-60 grayscale relative overflow-hidden"
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-gray-700" />
+                      <h3 className="text-lg font-black text-gray-700 uppercase italic tracking-tighter leading-none">
+                        LOCKED
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase leading-none">Requires Stage {campaign.requiredStage}: {requiredStageInfo.name}</p>
+                </div>
+              );
+            }
 
             return (
               <button

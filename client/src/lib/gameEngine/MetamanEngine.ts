@@ -806,6 +806,12 @@ export class MetamanEngine {
     return this.towerHeight;
   }
 
+  public triggerMetamanSmile(duration: number = 8000): void {
+    if (this.metaman) {
+      this.metaman.triggerSmile(duration);
+    }
+  }
+
   public getWidth(): number {
     return this.width;
   }
