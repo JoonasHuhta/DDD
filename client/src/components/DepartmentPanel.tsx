@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
-import { Building2, TrendingUp, Users, Lock } from 'lucide-react';
+import { Building2, TrendingUp, Users, Lock, Gavel } from 'lucide-react';
+import { LegalRoster } from './LegalRoster';
 import PurchaseFeedback from './PurchaseFeedback';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
@@ -28,7 +29,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     getMarginalIncome
   } = useMetamanGame();
 
-  const [activeTab, setActiveTab] = useState<'departments' | 'demographics'>('departments');
+  const [activeTab, setActiveTab] = useState<'departments' | 'demographics' | 'legal'>('departments');
   const [feedbackPopups, setFeedbackPopups] = useState<FeedbackPopup[]>([]);
 
   const canAfford = (departmentId: string) => {
@@ -264,10 +265,22 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         >
           Demographics
         </button>
+        <button
+          onClick={() => setActiveTab('legal')}
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-xs transition-all ${
+            activeTab === 'legal' 
+              ? 'bg-yellow-500 text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]' 
+              : 'bg-white hover:bg-gray-100'
+          }`}
+        >
+          Legal
+        </button>
       </div>
 
       <div className="px-1">
-        {activeTab === 'departments' ? renderDepartments() : renderDemographics()}
+        {activeTab === 'departments' ? renderDepartments() : 
+         activeTab === 'demographics' ? renderDemographics() : 
+         <LegalRoster />}
       </div>
 
       {feedbackPopups.map((popup) => (

@@ -162,26 +162,26 @@ export default function LegalSystem({ onClose }: LegalSystemProps) {
             <h3 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">Live Compliance Feed</h3>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center p-3 bg-black border-2 border-zinc-800 rounded-xl">
-              <div className="text-2xl font-black text-[#FF0055] font-mono tracking-tighter">-{activePenalty.toFixed(1)}%</div>
-              <div className="text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Exposure<br/>Penalty</div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="text-center p-2 sm:p-3 bg-black border-2 border-zinc-800 rounded-xl">
+              <div className="text-lg sm:text-2xl font-black text-[#FF0055] font-mono tracking-tighter">-{activePenalty.toFixed(1)}%</div>
+              <div className="text-[7px] sm:text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Exposure<br/>Penalty</div>
             </div>
-            <div className="text-center p-3 bg-black border-2 border-[#FFCC00]/30 rounded-xl">
-              <div className="text-2xl font-black text-[#FFCC00] font-mono tracking-tighter">+{penaltyReduction}%</div>
-              <div className="text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Defensive<br/>Shield</div>
+            <div className="text-center p-2 sm:p-3 bg-black border-2 border-[#FFCC00]/30 rounded-xl">
+              <div className="text-lg sm:text-2xl font-black text-[#FFCC00] font-mono tracking-tighter">+{penaltyReduction}%</div>
+              <div className="text-[7px] sm:text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Defensive<br/>Shield</div>
             </div>
-            <div className="text-center p-3 bg-black border-2 border-[#00FFD1]/30 rounded-xl">
-              <div className="text-2xl font-black text-[#00FFD1] font-mono tracking-tighter">+{incomeBonus}%</div>
-              <div className="text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Synergy<br/>Bonus</div>
+            <div className="text-center p-2 sm:p-3 bg-black border-2 border-[#00FFD1]/30 rounded-xl">
+              <div className="text-lg sm:text-2xl font-black text-[#00FFD1] font-mono tracking-tighter">+{incomeBonus}%</div>
+              <div className="text-[7px] sm:text-[8px] font-black text-zinc-500 uppercase mt-1 leading-tight">Synergy<br/>Bonus</div>
             </div>
           </div>
           
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Available Retainer Funds:</span>
-            <div className="flex items-center gap-1">
-               <span className="text-lg text-white font-black font-mono tracking-tighter">${formatNumber(dataInventory)}</span>
-               <span className="text-[8px] font-black text-zinc-600 uppercase">ORBS</span>
+          <div className="mt-4 flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[8px] sm:text-[9px] font-black uppercase text-zinc-500 tracking-widest shrink-0">Available Retainer Funds:</span>
+            <div className="flex items-center gap-1 ml-auto">
+               <span className="text-sm sm:text-lg text-white font-black font-mono tracking-tighter">${formatNumber(dataInventory)}</span>
+               <span className="text-[7px] sm:text-[8px] font-black text-zinc-600 uppercase">ORBS</span>
             </div>
           </div>
         </div>
@@ -201,29 +201,29 @@ export default function LegalSystem({ onClose }: LegalSystemProps) {
             return (
               <div
                 key={lawyer.id}
-                className={`p-4 rounded-2xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all ${active ? 'bg-[#00FFD1] -rotate-1' : 'bg-zinc-900'}`}
+                className={`p-3 sm:p-4 rounded-2xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all ${active ? 'bg-[#00FFD1] -rotate-1' : 'bg-zinc-900'}`}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className={`text-lg font-black uppercase italic tracking-tighter ${active ? 'text-black' : 'text-white'}`}>
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className={`text-base sm:text-lg font-black uppercase italic tracking-tighter truncate ${active ? 'text-black' : 'text-white'}`}>
                         {lawyer.name}
                       </div>
-                      {active && <div className="bg-black text-[#00FFD1] text-[8px] font-mono px-2 py-0.5 rounded font-bold animate-pulse">ACTIVE</div>}
+                      {active && <div className="bg-black text-[#00FFD1] text-[7px] sm:text-[8px] font-mono px-2 py-0.5 rounded font-bold animate-pulse">ACTIVE</div>}
                     </div>
-                    <div className={`text-[10px] font-bold uppercase mt-1 leading-tight ${active ? 'text-black/70' : 'text-zinc-500'}`}>
+                    <div className={`text-[9px] sm:text-[10px] font-bold uppercase mt-1 leading-tight ${active ? 'text-black/70' : 'text-zinc-500'}`}>
                       {lawyer.effect}
                     </div>
                     {active && timeLeft && (
-                      <div className="text-[10px] font-black text-black uppercase mt-1 bg-black/10 px-2 py-1 rounded inline-block">
+                      <div className="text-[8px] sm:text-[10px] font-black text-black uppercase mt-1 bg-black/10 px-2 py-1 rounded inline-block">
                         ⌛ {timeLeft}
                       </div>
                     )}
                   </div>
-                  <div className="text-right ml-3 shrink-0">
-                    <div className={`text-lg font-black font-mono tracking-tight ${active ? 'text-black' : 'text-white'}`}>
+                  <div className="text-right shrink-0">
+                    <div className={`text-sm sm:text-lg font-black font-mono tracking-tight ${active ? 'text-black' : 'text-white'}`}>
                       {formatNumber(lawyer.cost)}
-                      <span className="text-[8px] ml-1 opacity-50 uppercase">ORBS</span>
+                      <span className="text-[7px] sm:text-[8px] ml-1 opacity-50 uppercase tracking-tighter">ORBS</span>
                     </div>
                   </div>
                 </div>

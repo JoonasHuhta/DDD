@@ -42,6 +42,8 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     departments,
     advertiserData,
     mansionPurchases,
+    orbsInventory,
+    incrementOrbsInventory,
     addMansionPurchase,
     exportSave,
     importSave
@@ -243,11 +245,11 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
 
   const purchaseUpgrade = (upgrade: MansionUpgrade) => {
     const cost = upgrade.price;
-    const available = upgrade.currency === 'diamonds' ? availableDiamonds : dataInventory;
+    const available = upgrade.currency === 'diamonds' ? availableDiamonds : orbsInventory;
     
     if (available >= cost && !upgrade.purchased) {
       if (upgrade.currency === 'orbs') {
-        setDataInventory(dataInventory - upgrade.price);
+        incrementOrbsInventory(-upgrade.price);
       }
       addMansionPurchase(upgrade.id);
       
@@ -337,7 +339,7 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
                   </div>
                   <button
                     onClick={() => purchaseUpgrade(upgrade)}
-                    disabled={upgrade.purchased || (upgrade.currency === 'diamonds' ? availableDiamonds < upgrade.price : dataInventory < upgrade.price)}
+                    disabled={upgrade.purchased || (upgrade.currency === 'diamonds' ? availableDiamonds < upgrade.price : orbsInventory < upgrade.price)}
                     className={`px-3 py-1 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
                       upgrade.purchased ? 'bg-[#4ECDC4] opacity-50' : 'bg-[#FFD700]'
                     }`}

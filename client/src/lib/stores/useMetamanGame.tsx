@@ -12,6 +12,7 @@ import { RandomLawsuitManager, RandomLawsuit } from "../../data/randomLawsuits";
 import { MarketLogic } from "../gameEngine/MarketLogic";
 import { DEFAULT_DEPARTMENTS, Department } from "../content/departments";
 import { getStage } from "../utils/stageSystem";
+import { LAWYERS, Lawyer } from "../../data/lawyers";
 
 export type MetamanGameState = "menu" | "playing" | "paused";
 
@@ -152,6 +153,10 @@ interface MetamanGameStore {
     }>;
     orbBreakCount: number;
   };
+  
+  // LEGAL DIVISION SYSTEM
+  hiredLawyers: string[];
+  activeLawyerSlots: (string | null)[];
   
   friends: Array<{
     id: string;
@@ -382,6 +387,17 @@ interface MetamanGameStore {
   };
   applyGemUserGeneration: () => void;
   updateMarketPrices: () => void;
+  
+  // Legal Actions
+  buyLawyer: (lawyerId: string) => boolean;
+  equipLawyer: (lawyerId: string, slotIndex: number) => void;
+  getLegalBonuses: () => {
+    heatDecay: number;
+    clickHeat: number;
+    dataHeat: number;
+    lawsuitDefense: number;
+    globalGeneration: number;
+  };
 
   // Data Market actions & state
   showDataMarket: boolean;
@@ -637,8 +653,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
     updateHeat: () => {
       const state = get();
       if (state.heat <= 0) return;
-      // Passive decay: -2 per second. Called every tick (100ms), so -0.2 per call.
-      const decayAmount = 0.2;
+      
+      const legalBonuses = get().getLegalBonuses();
+      // Passive decay: -2 per second base. Called every tick (100ms), so -0.2 base per call.
+      // Legal bonus adds to this.
+      const decayAmount = 0.2 + (legalBonuses.heatDecay / 10); 
+      
       const newHeat = Math.max(0, state.heat - decayAmount);
       
       // Stage gating for level calculation
@@ -701,6 +721,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
       discoveredItems: [],
       orbBreakCount: 0
     },
+    hiredLawyers: [],
+    activeLawyerSlots: [null, null, null],
     grandMilestones: {
       guardian_10m: false,
       guardian_50m: false,
@@ -1599,6 +1621,56 @@ export const useMetamanGame = create<MetamanGameStore>()(
     })),
 
     setDataInventory: (amount: number) => set({ dataInventory: amount }),
+
+    buyLawyer: (lawyerId: string) => {
+      const state = get();
+      const lawyer = LAWYERS.find(l => l.id === lawyerId);
+      if (!lawyer || state.hiredLawyers.includes(lawyerId)) return false;
+      if (state.income < lawyer.cost) return false;
+
+      set((s) => ({
+        income: s.income - lawyer.cost,
+        hiredLawyers: [...s.hiredLawyers, lawyerId]
+      }));
+      return true;
+    },
+
+    equipLawyer: (lawyerId: string, slotIndex: number) => {
+      set((state) => {
+        const slots = [...state.activeLawyerSlots];
+        // If lawyer is already in another slot, remove them from there
+        const existingIdx = slots.indexOf(lawyerId);
+        if (existingIdx !== -1) slots[existingIdx] = null;
+        
+        slots[slotIndex] = lawyerId;
+        return { activeLawyerSlots: slots };
+      });
+    },
+
+    getLegalBonuses: () => {
+      const state = get();
+      const equipped = state.activeLawyerSlots
+        .map(id => id ? LAWYERS.find(l => l.id === id) : null)
+        .filter((l): l is Lawyer => !!l);
+      
+      const bonuses = {
+        heatDecay: 0,
+        clickHeat: 0,
+        dataHeat: 0,
+        lawsuitDefense: 0, globalGeneration: 0
+      };
+
+      equipped.forEach(lawyer => {
+        switch (lawyer.bonusType) {
+          case 'heatDecay': bonuses.heatDecay += lawyer.bonusValue; break;
+          case 'clickHeat': bonuses.clickHeat += lawyer.bonusValue; break;
+          case 'dataHeat': bonuses.dataHeat += lawyer.bonusValue; break;
+          case 'lawsuitDefense': bonuses.lawsuitDefense += lawyer.bonusValue; break;
+          case 'globalGeneration': bonuses.globalGeneration += lawyer.bonusValue; break;
+        }
+      });
+      return bonuses;
+    },
     
     initializeGame: () => {
       const state = get();

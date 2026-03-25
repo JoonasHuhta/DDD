@@ -28,13 +28,13 @@ export default function AdaptivePanel({
   // Position classes
   const positionClasses = {
     left: responsive.isMobile 
-      ? 'left-4 right-4' 
+      ? 'left-4 right-4 top-12' 
       : 'left-4 top-20 bottom-32',
     right: responsive.isMobile 
-      ? 'left-4 right-4' 
+      ? 'left-4 right-4 top-12' 
       : 'right-4 top-20 bottom-32',
     center: responsive.isMobile 
-      ? 'left-4 right-4' 
+      ? 'left-4 right-4 top-12' 
       : 'left-1/2 top-20 bottom-32 transform -translate-x-1/2',
   };
   
