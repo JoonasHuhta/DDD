@@ -37,6 +37,8 @@ import EspionageMinigame from "./minigames/EspionageMinigame";
 import { ServerDefense } from "./minigames/ServerDefense";
 import SenateHearing from "./minigames/SenateHearing";
 import HeatMeter from "./HeatMeter";
+import CrisisManager from "./CrisisManager";
+import GameOverScreen from "./GameOverScreen";
 // StyleShowcase removed - using original theme only
 
 
@@ -70,13 +72,8 @@ export default function GameUI() {
     toggleLawsuitPanel,
     triggerLawsuit,
     rewardState,
-    // Suitcase functions will be handled by SuitcasePanel directly
-    currentAchievementPopup,
-    currentAchievementShowcase,
     visualEffects,
     achievementManager,
-    claimAchievement,
-    closeAchievementPopup,
     showAchievementShowcase,
     closeAchievementShowcase,
     removeVisualEffect,
@@ -92,6 +89,9 @@ export default function GameUI() {
     showSenateHearing,
     setShowSenateHearing,
     activeTipTarget,
+    isGameOver,
+    lastUserLossTime,
+    currentAchievementShowcase
   } = useMetamanGame();
   const { isMuted, toggleMute } = useAudio();
   const responsive = useResponsiveUI();
@@ -215,7 +215,7 @@ export default function GameUI() {
           </h1>
           
           <p className={`text-black font-black ${responsive.isMobile ? 'text-sm' : 'text-xl'} ${responsive.isMobile ? 'mb-4' : 'mb-8'} uppercase tracking-widest bg-white/50 py-2 rounded-full inline-block px-6 border-2 border-black`}>
-            Rule the digital empire!
+            The World's Most Addictive App!
           </p>
           
           <div className={`flex flex-col ${responsive.isMobile ? 'gap-3' : 'gap-6'} ${responsive.isMobile ? 'mb-4' : 'mb-8'} max-w-sm mx-auto`}>
@@ -328,18 +328,27 @@ export default function GameUI() {
 
             {/* User Counter */}
             <motion.div 
-              animate={users > 0 ? {
+              animate={Date.now() - lastUserLossTime < 1000 ? {
+                x: [0, -5, 5, -5, 5, 0],
+                backgroundColor: ["#4ECDC4", "#FF1744", "#4ECDC4"]
+              } : users > 0 ? {
                 scale: [1, 1.05, 1],
                 filter: ["brightness(1)", "brightness(1.5)", "brightness(1)"]
               } : {}}
-              transition={{ duration: 0.3 }}
+              transition={Date.now() - lastUserLossTime < 1000 ? {
+                duration: 0.2,
+                repeat: 2
+              } : { duration: 0.3 }}
               className={`bg-[#4ECDC4] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
             >
               <div className="flex items-center gap-1 text-white font-black stroke-black stroke-1">
                 <Users className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
                 <motion.span 
                   key={users}
-                  animate={{ scale: [1, 1.1, 1], color: ['#fff', '#000', '#fff'] }}
+                  animate={Date.now() - lastUserLossTime < 1000 ? {
+                    scale: [1, 1.2, 1],
+                    color: ["#fff", "#000", "#fff"]
+                  } : { scale: [1, 1.1, 1], color: ['#fff', '#000', '#fff'] }}
                   transition={{ duration: 0.2 }}
                   className={`${responsive.fontSize}`}
                 >
@@ -625,12 +634,7 @@ export default function GameUI() {
         />
       </ErrorBoundary>
       
-      {/* Achievement Popup */}
-      <AchievementPopup
-        achievement={currentAchievementPopup}
-        onClaim={claimAchievement}
-        onClose={closeAchievementPopup}
-      />
+      {/* Achievement Popup (Removed, achievements go to Suitcase) */}
       
 
 
@@ -662,12 +666,17 @@ export default function GameUI() {
       {/* Senate Hearing Minigame Overlay */}
       {showSenateHearing && <SenateHearing />}
 
-      {/* TEMPORARY: Test Button for Black Market (remove after testing) */}
-      {/* Test button removed per user request */}
       {/* Progression Overview Popup */}
       {showProgressionOverview && (
         <ProgressionOverview onClose={() => setShowProgressionOverview(false)} />
       )}
+
+      {/* SCANDAL SYSTEM - Crisis Manager */}
+      <CrisisManager />
+      {/* Game Over Screen */}
+      <AnimatePresence>
+        {isGameOver && <GameOverScreen />}
+      </AnimatePresence>
     </div>
   );
 }

@@ -3,11 +3,12 @@ import { DollarSign, Users, Shield, Zap, Box } from 'lucide-react';
 
 interface Effect {
   id: number;
-  type: 'money' | 'users' | 'purchase' | 'achievement';
+  type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis';
   x: number;
   y: number;
   duration: number;
   intensity: 'low' | 'medium' | 'high' | 'extreme';
+  color?: string;
   value?: string | number;
 }
 
@@ -42,7 +43,7 @@ const VisualEffectItem = React.memo(({ effect, onComplete }: { effect: Effect, o
             style={{
               width: '4px',
               height: '4px',
-              left: `${Math.random() * 40 - 20}px`,
+              left: `${Math.random() * 40 - 20}px`, // Corrected 'h.random()' to 'Math.random()'
               top: `${Math.random() * 40 - 20}px`,
               animationDelay: `${Math.random() * 0.5}s`,
               animationDuration: `${0.4 + Math.random() * 0.4}s`
@@ -55,24 +56,29 @@ const VisualEffectItem = React.memo(({ effect, onComplete }: { effect: Effect, o
 
   switch (effect.type) {
     case 'money':
+      const isLoss = effect.color === 'red' || (typeof effect.value === 'string' && effect.value.startsWith('-'));
+      const colorClass = effect.color === 'red' ? 'text-red-500' : 'text-green-400';
+      const borderColor = effect.color === 'red' ? 'border-red-500/40' : 'border-green-500/40';
+      const glowColor = effect.color === 'red' ? 'shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_15px_rgba(34,197,94,0.4)]';
+
       return (
         <div className={baseClasses} style={effectStyle}>
-          <div className="flex items-center gap-1 bg-black/95 border border-green-500/40 rounded-full px-3 py-1 scale-75 md:scale-100 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-            <DollarSign className="w-3 h-3 md:w-4 h-4 text-green-400" />
-            <span className="text-xs md:text-sm font-black whitespace-nowrap font-mono text-green-400">{effect.value || '+$'}</span>
+          <div className={`flex items-center gap-1 bg-black/95 border ${borderColor} rounded-full px-3 py-1 scale-75 md:scale-100 ${glowColor}`}>
+            <DollarSign className={`w-3 h-3 md:w-4 h-4 ${colorClass}`} />
+            <span className={`text-xs md:text-sm font-black whitespace-nowrap font-mono ${colorClass}`}>{effect.value || '+'}</span>
           </div>
-          {renderParticles(effect.intensity === 'extreme' ? 8 : 4, 'bg-yellow-400')}
+          {renderParticles(effect.intensity === 'extreme' ? 8 : 4, isLoss ? 'bg-red-500' : 'bg-yellow-400')}
         </div>
       );
 
     case 'users':
       return (
         <div className={baseClasses} style={effectStyle}>
-          <div className="flex items-center gap-1 bg-black/95 border border-blue-500/40 rounded-full px-3 py-1 scale-75 md:scale-100 shadow-[0_0_15px_rgba(59,130,246,0.4)]">
-            <Users className="w-3 h-3 md:w-4 h-4 text-blue-400" />
-            <span className="text-xs md:text-sm font-black whitespace-nowrap font-mono text-blue-400">{effect.value || '+USERS'}</span>
+          <div className={`flex items-center gap-1 bg-black/95 border ${effect.color === 'red' ? 'border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.4)]'} rounded-full px-3 py-1 scale-75 md:scale-100`}>
+            <Users className={`w-3 h-3 md:w-4 h-4 ${effect.color === 'red' ? 'text-red-500' : 'text-blue-400'}`} />
+            <span className={`text-xs md:text-sm font-black whitespace-nowrap font-mono ${effect.color === 'red' ? 'text-red-500' : 'text-blue-400'}`}>{effect.value || '+USERS'}</span>
           </div>
-          {renderParticles(5, 'bg-blue-400')}
+          {renderParticles(5, effect.color === 'red' ? 'bg-red-500' : 'bg-blue-400')}
         </div>
       );
 
@@ -99,6 +105,18 @@ const VisualEffectItem = React.memo(({ effect, onComplete }: { effect: Effect, o
               </span>
             </div>
             {renderParticles(15, 'bg-yellow-400')}
+          </div>
+        </div>
+      );
+
+    case 'crisis': // Added new 'crisis' effect type
+      return (
+        <div className={baseClasses} style={{...effectStyle, animation: `crisisPulse 1s ease-in-out infinite alternate`}}>
+          <div className="relative p-4 bg-red-800/80 border-2 border-red-500 rounded-lg shadow-xl text-center">
+            <div className="text-white font-black text-3xl uppercase whitespace-nowrap animate-pulse">
+              🚨 PR DISASTER! 🚨 SCANDALS! 🚨 DEFEND THE HQ! 🚨 STOCK PRICES PLUMMETING! 🚨
+            </div>
+            {renderParticles(effect.intensity === 'extreme' ? 20 : 10, 'bg-red-500')}
           </div>
         </div>
       );

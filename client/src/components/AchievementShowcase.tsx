@@ -20,7 +20,7 @@ interface Particle {
 }
 
 export default function AchievementShowcase({ achievement, onComplete }: AchievementShowcaseProps) {
-  const { formatNumber, claimAchievement } = useMetamanGame();
+  const { formatNumber } = useMetamanGame();
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showContent, setShowContent] = useState(false);
   const [animationPhase, setAnimationPhase] = useState<'entrance' | 'display' | 'exit'>('entrance');
@@ -97,9 +97,6 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
       
       // Clean timeout for claiming
       setTimeout(() => {
-        if (achievement.id) {
-          claimAchievement(achievement.id);
-        }
         onComplete();
       }, 500); // Brief delay for exit animation
     }, 8000);
@@ -148,9 +145,6 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
     setAnimationPhase('exit');
     
     setTimeout(() => {
-      if (achievement.id) {
-        claimAchievement(achievement.id);
-      }
       onComplete();
     }, 500);
   };

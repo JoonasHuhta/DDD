@@ -29,7 +29,8 @@ export default function Game() {
     resolveRandomLawsuit,
     closeRandomLawsuit,
     formatNumber,
-    updateHeat
+    updateHeat,
+    checkGameOver
   } = useMetamanGame();
   const gameState = useMetamanGame(state => state.gameState);
   const playBackgroundMusic = useAudio(state => state.playBackgroundMusic);
@@ -96,6 +97,8 @@ export default function Game() {
       if (gemBonuses.autoClicker && state.handleManualClick) {
         state.handleManualClick();
       }
+      
+      checkGameOver();          // Check for loss conditions
       
       // VAN SYSTEM DISABLED - no automatic triggers
     }, 1000); // Every second

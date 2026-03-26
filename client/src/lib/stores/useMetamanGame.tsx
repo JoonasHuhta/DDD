@@ -215,6 +215,8 @@ interface MetamanGameStore {
     firstLawsuitTriggered: boolean;
     initialDelayPassed: boolean;
     redNpcAngles: number[];
+    isCrisisActive: boolean;
+    isCrisisWarning: boolean;
   };
   
   lawsuitMilestones: {
@@ -244,18 +246,21 @@ interface MetamanGameStore {
   };
 
   achievementManager: AchievementManager | null;
-  currentAchievementPopup: SimpleAchievement | null;
   currentAchievementShowcase: SimpleAchievement | null;
+  isGameOver: boolean;
+  peakUsers: number;
+  lastUserLossTime: number;
   showOfflinePopup: boolean;
   offlineProgress: any;
   automationUpgradesPurchased: number;
   visualEffects: Array<{
     id: number;
-    type: 'money' | 'users' | 'purchase' | 'achievement';
+    type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis';
     x: number;
     y: number;
     duration: number;
     intensity: 'low' | 'medium' | 'high' | 'extreme';
+    color?: string;
     value?: string | number;
   }>;
   
@@ -278,6 +283,10 @@ interface MetamanGameStore {
   resumeGame: () => void;
   incrementIncome: (amount: number) => void;
   incrementUsers: (amount: number) => void;
+  checkGameOver: () => void;
+  resetGame: () => void;
+  triggerCrisisSpeech: (message: string) => void;
+  hideSpeechBubble: () => void;
   getTotalUserMultiplier: () => number;
   setIncome: (amount: number) => void;
   decrementIncome: (amount: number) => void;
@@ -345,11 +354,10 @@ interface MetamanGameStore {
   dismissLawsuit: () => void;
   checkLawsuitMilestones: () => void;
 
-  claimAchievement: (achievementId: string) => void;
-  closeAchievementPopup: () => void;
+  // Removed: claimAchievement and closeAchievementPopup are gone
   showAchievementShowcase: (achievement: SimpleAchievement) => void;
   closeAchievementShowcase: () => void;
-  addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement', x?: number, y?: number, intensity?: 'low' | 'medium' | 'high' | 'extreme', value?: string | number) => void;
+  addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis', x?: number, y?: number, intensity?: 'low' | 'medium' | 'high' | 'extreme', value?: string | number, color?: string) => void;
   removeVisualEffect: (id: number) => void;
   clearAllVisualEffects: () => void;
   toggleTrophyPanel: () => void;
@@ -523,6 +531,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       lastRandomLawsuit: 0,
       lastRewardTimestamp: 0,
       currentView: 'city',
+      isGameOver: false,
+      peakUsers: 0,
+      lastUserLossTime: 0,
       dataInventory: 0,
       orbsInventory: 0,
       permanentOrbs: 0,
@@ -646,7 +657,28 @@ export const useMetamanGame = create<MetamanGameStore>()(
         if (newHeat >= 75) level = 'emergency';
         else if (newHeat >= 50) level = 'critical';
         else if (newHeat >= 25) level = 'elevated';
-        return { heat: newHeat, heatLevel: level };
+        
+        const isCrisisActive = newHeat >= 90;
+        const isCrisisWarning = newHeat >= 75 && newHeat < 90;
+
+        if (newHeat === state.heat && level === state.heatLevel && isCrisisActive === state.lawsuitState.isCrisisActive && isCrisisWarning === state.lawsuitState.isCrisisWarning) {
+          return state;
+        }
+
+        return { 
+          heat: newHeat, 
+          heatLevel: level,
+          regulatoryRisk: newHeat, 
+          blackMarketState: {
+            ...state.blackMarketState,
+            regulatoryHeat: newHeat
+          },
+          lawsuitState: {
+            ...state.lawsuitState,
+            isCrisisActive,
+            isCrisisWarning
+          }
+        };
       });
     },
 
@@ -687,7 +719,24 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (newHeat >= 75) level = 'emergency';
       else if (newHeat >= 50) level = 'critical';
       else if (newHeat >= 25) level = 'elevated';
-      set({ heat: newHeat, heatLevel: level });
+      
+      const isCrisisActive = newHeat >= 90;
+      const isCrisisWarning = newHeat >= 75 && newHeat < 90;
+
+      set((state) => ({ 
+        heat: newHeat, 
+        heatLevel: level,
+        regulatoryRisk: newHeat, // Sync
+        blackMarketState: {
+          ...state.blackMarketState,
+          regulatoryHeat: newHeat // Sync
+        },
+        lawsuitState: {
+          ...state.lawsuitState,
+          isCrisisActive,
+          isCrisisWarning
+        }
+      }));
     },
 
     // ── DIALOGUE HISTORY ────────────────────────────────────────────────────────
@@ -768,7 +817,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       redNpcCount: 1,
       redNpcAngles: [45],
       firstLawsuitTriggered: false,
-      initialDelayPassed: false
+      initialDelayPassed: false,
+      isCrisisActive: false,
+      isCrisisWarning: false
     },
     rewardState: {
       rewards: [],
@@ -1093,12 +1144,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // If we are closing the panel, deduct the amount (settle the lawsuit)
       if (state.lawsuitState.showLawsuitPanel) {
         const amount = state.lawsuitState.amount || 0;
+        const moneyLoss = amount;
         set((s) => ({
           income: Math.max(0, s.income - amount),
           lawsuitState: { ...s.lawsuitState, showLawsuitPanel: false, isActive: false }
         }));
         // Show visual feedback for money loss
-        get().addVisualEffect('money', 512, 384, 'high', `-$${get().formatNumber(amount)}`);
+        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `-$${get().formatNumber(moneyLoss)}`, 'red');
       } else {
         set((state) => ({ lawsuitState: { ...state.lawsuitState, showLawsuitPanel: true } }));
       }
@@ -1266,6 +1318,70 @@ export const useMetamanGame = create<MetamanGameStore>()(
         // approx +1 heat per 100 users gained
         get().modifyHeat(boostedAmount / 100);
       }
+
+      // Track Peak Users
+      const state = get();
+      if (state.users > state.peakUsers) {
+        set({ peakUsers: state.users });
+      }
+
+      get().checkMegaMilestones();
+      get().checkGrandUserMilestones();
+      get().checkLawsuitMilestones();
+      get().checkAchievements();
+      get().checkGameOver();
+    },
+
+    checkGameOver: () => {
+      const state = get();
+      const stage = getStage(state.users);
+      let gameOver = false;
+
+      // Stage 1-3: Users hit 0
+      if (stage <= 3 && state.users <= 0 && state.gameStartTime > 0 && Date.now() - state.gameStartTime > 10000) {
+        gameOver = true;
+      } 
+      // Stage 4-6: Users < 10% peak AND Income = 0
+      else if (stage >= 4 && stage <= 6 && state.peakUsers > 1000) {
+        if (state.users < state.peakUsers * 0.1 && state.income <= 0) {
+          gameOver = true;
+        }
+      }
+      // Stage 10+: Platform Collapse (Users < 100K)
+      else if (stage >= 10 && state.users < 100000 && state.peakUsers > 1000000) {
+        gameOver = true;
+      }
+
+      if (gameOver && !state.isGameOver) {
+        set({ isGameOver: true, gameState: 'paused' });
+      }
+    },
+
+    resetGame: () => {
+      // Full reset for "Try Again"
+      set((state) => ({
+        income: 1000,
+        users: 100,
+        heat: 0,
+        isGameOver: false,
+        gameState: 'playing',
+        peakUsers: 100,
+        gameStartTime: Date.now(),
+        departments: DEFAULT_DEPARTMENTS.map(d => ({ ...d, level: 0, count: 0 })),
+        hiredLawyers: [],
+        activeLawyerSlots: [null, null, null],
+        characters: {
+          walsh: { suspicion: 0, flags: [] },
+          whistleblower: { active: false, ignoredCount: 0 },
+          rival: { users: 0, growthRate: 0 }
+        },
+        lawsuitState: {
+          ...state.lawsuitState,
+          isActive: false,
+          isDelivered: false,
+          showLawsuitPanel: false
+        }
+      }));
     },
 
     applyPassiveIncome: () => {
@@ -1374,7 +1490,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
         },
         showTrophyPanel: saveData.gameState.showTrophyPanel || false,
         shopPurchases: saveData.gameState.shopPurchases || [],
-        mansionPurchases: saveData.gameState.mansionPurchases || [],
         regulatoryRisk: saveData.gameState.regulatoryRisk || 0,
         characters: saveData.gameState.characters || state.characters,
         dismissedTips: saveData.gameState.dismissedTips || [],
@@ -1482,14 +1597,17 @@ export const useMetamanGame = create<MetamanGameStore>()(
       });
 
       // Campaign charges: +1 per 10 orbs, max +5
+      // Penalties: Lose 5% of users or 5% of income! Impact matters!
+    const userLoss = Math.max(10, Math.floor(state.users * 0.05));
+    const moneyLoss = Math.max(500, Math.floor(state.income * 0.05));
       const chargeBonus = Math.min(5, Math.floor(orbs / 10));
       const newCharges = Math.min(10, state.campaignCharges + chargeBonus);
 
       // Permanent orbs: 5% of sold orbs → orbsInventory
       const permOrbGain = Math.floor(orbs * 0.05);
 
-      // Heat spike: +1 per 10 orbs if more than 20 orbs sold (Void gem reduces this)
-      let heatSpike = orbs > 20 ? Math.floor(orbs / 10) : 0;
+      // Heat spike: +1 per 5 orbs (Buffed for manual crisis testing)
+      let heatSpike = Math.floor(orbs / 5);
       if (gemBonuses.heatDamping > 0) {
         heatSpike = Math.max(0, heatSpike - Math.floor(heatSpike * (gemBonuses.heatDamping / 100)));
       }
@@ -1576,7 +1694,37 @@ export const useMetamanGame = create<MetamanGameStore>()(
     resolveRandomLawsuit: (resolution) => set({ showRandomLawsuit: false, currentRandomLawsuit: null }),
     closeRandomLawsuit: () => set({ showRandomLawsuit: false, currentRandomLawsuit: null }),
 
-    setCharacterDialogue: (charId) => set({ activeCharacter: charId, showCharacterDialogue: !!charId }),
+    setCharacterDialogue: (charId) => {
+      // COMBINE: Single set() to prevent many re-renders
+      set((state) => {
+        let characterUpdates = {};
+        if (charId === 'walsh_intro_1') {
+          characterUpdates = { 
+            characters: { 
+              ...state.characters, 
+              walsh: { ...state.characters.walsh, flags: [...state.characters.walsh.flags, 'met_walsh'] } 
+            } 
+          };
+        } else if (charId === 'whistleblower_1') {
+          characterUpdates = { 
+            characters: { 
+              ...state.characters, 
+              whistleblower: { ...state.characters.whistleblower, active: true } 
+            } 
+          };
+        }
+
+        if (state.activeCharacter === charId && state.showCharacterDialogue === !!charId) {
+          return state;
+        }
+
+        return { 
+          activeCharacter: charId, 
+          showCharacterDialogue: !!charId,
+          ...characterUpdates
+        };
+      });
+    },
     
     updateCharacterState: (charName, updates) => set((state) => ({
       characters: { ...state.characters, [charName]: { ...state.characters[charName], ...updates } }
@@ -1684,7 +1832,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
         set({ showTutorial: true });
       }
       
-      set({ gameState: "menu" });
+      // Ensure gameState is only set to menu if it's currently undefined or initial
+      set((state) => ({ 
+        gameState: state.gameState === 'playing' ? 'playing' : 'menu' 
+      }));
     },
     
     handleManualClick: (x = 512, y = 300) => {
@@ -1758,38 +1909,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       set({ totalIncomePerSecond: totalIncome });
     },
 
-    claimAchievement: (achievementId: string) => {
-      const state = get();
-      if (state.achievementManager) {
-        // 1. Mark as unlocked in the internal achievement manager
-        // We DON'T call claimAchievement here anymore because that marks it as "claimed" (money granted).
-        // Instead we just verify it exists and is unlocked.
-        const achievement = state.achievementManager.getAchievement?.(achievementId);
-        
-        if (achievement && achievement.unlocked) {
-          const rewardId = `achievement_${achievementId}`;
-          const alreadyInRewards = state.rewardState.rewards.some(r => String(r.id) === rewardId);
-          
-          if (!alreadyInRewards) {
-            get().addReward({
-              id: rewardId,
-              type: 'achievement' as const,
-              title: achievement.name,
-              description: achievement.description,
-              value: achievement.reward,
-              claimed: false, // Force manual claim in suitcase
-              dateAdded: Date.now()
-            });
-            
-            // Notification effect
-            get().addVisualEffect('achievement', 512, 200, 'medium', achievement.name);
-          }
-          
-          // Close popups
-          set({ currentAchievementPopup: null, currentAchievementShowcase: null });
-        }
-      }
-    },
+    // claimAchievement removed (replaced by suitcase system)
 
     updateTowerHeight: () => {
       // Tower height is now locked to 1 per user request to avoid abrupt scaling glitches
@@ -1888,7 +2008,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
 
-    closeAchievementPopup: () => set({ currentAchievementPopup: null }),
+    // Removed: closeAchievementPopup: () => set({ currentAchievementPopup: null }),
     
     showAchievementShowcase: (achievement: SimpleAchievement) => {
       const state = get();
@@ -1935,13 +2055,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }
     },
 
-    addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement', x = 512, y = 384, intensity: 'low' | 'medium' | 'high' | 'extreme' = 'medium', value?: string | number) => {
+    addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis', x = 512, y = 384, intensity: 'low' | 'medium' | 'high' | 'extreme' = 'medium', value?: string | number, color?: string) => {
       const newEffect = {
         id: Date.now() + Math.random(),
         type, x, y,
         duration: (intensity === 'extreme' ? 1500 : (intensity === 'high' ? 700 : 600)),
         intensity,
-        value
+        value,
+        color
       };
       set((state) => ({ visualEffects: [...state.visualEffects, newEffect] }));
     },
@@ -1971,7 +2092,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     forceRestoreAllButtons: () => {
       set((prevState) => ({ 
-        currentAchievementPopup: null,
+        currentAchievementShowcase: null,
         showCampaignPanel: false,
         showDepartments: false,
         showProgression: false,
@@ -2193,7 +2314,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           lastTriggerTime: Date.now() 
         } 
       }));
-      setTimeout(() => set((state) => ({ speechBubbleState: { ...state.speechBubbleState, isVisible: false } })), 3000);
+      setTimeout(() => get().hideSpeechBubble(), 5000);
     },
 
     checkSpeechBubbleTrigger: () => {
@@ -2238,7 +2359,25 @@ export const useMetamanGame = create<MetamanGameStore>()(
           }
         };
       });
-    }
+    },
+    triggerCrisisSpeech: (message: string) => {
+      set((state) => ({
+        speechBubbleState: {
+          ...state.speechBubbleState,
+          isVisible: true,
+          message,
+          lastTriggerTime: Date.now()
+        }
+      }));
+      // Auto-hide after 5 seconds as requested
+      setTimeout(() => get().hideSpeechBubble(), 5000);
+    },
+    hideSpeechBubble: () => set((state) => ({
+      speechBubbleState: {
+        ...state.speechBubbleState,
+        isVisible: false
+      }
+    })),
   };
 })
 );

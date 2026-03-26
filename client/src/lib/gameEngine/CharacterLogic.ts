@@ -109,6 +109,9 @@ export class CharacterLogic {
    * Checks if any character event should trigger.
    */
   public static checkTriggers(state: any): string | null {
+    // CRITICAL: Block character events during active crisis or if dialogue is already open
+    if (state.lawsuitState.isCrisisActive || state.showCharacterDialogue) return null;
+
     // Trigger Walsh if Heat is high and we haven't met him
     if (state.blackMarketState.regulatoryHeat > 70 && !state.characters.walsh.flags.includes('met_walsh')) {
       return 'walsh_intro_1';

@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 
 export default function SpeechBubble() {
-  const { speechBubbleState } = useMetamanGame();
+  const { speechBubbleState, hideSpeechBubble } = useMetamanGame();
+
+  useEffect(() => {
+    if (speechBubbleState.isVisible) {
+      const timer = setTimeout(() => {
+        hideSpeechBubble();
+      }, 5000); // 5 second duration as requested
+      return () => clearTimeout(timer);
+    }
+  }, [speechBubbleState.isVisible, speechBubbleState.message]);
 
   if (!speechBubbleState.isVisible) {
     return null;

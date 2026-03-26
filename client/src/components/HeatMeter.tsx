@@ -7,6 +7,7 @@ export default function HeatMeter({ onClick }: { onClick?: () => void }) {
   const heat = useMetamanGame(state => state.heat);
   const heatLevel = useMetamanGame(state => state.heatLevel);
   const users = useMetamanGame(state => state.users);
+  const lawsuitState = useMetamanGame(state => state.lawsuitState);
 
   const stageInfo = getStageInfo(users);
   const stageProgress = getStageProgress(users);
@@ -48,20 +49,23 @@ export default function HeatMeter({ onClick }: { onClick?: () => void }) {
       </div>
 
       {/* Heat indicator */}
-      <div className="flex items-center gap-1 mt-0.5">
-        <Flame className="w-3 h-3 text-orange-400 shrink-0" />
+      <div className={`flex items-center gap-1 mt-0.5 ${(lawsuitState.isCrisisWarning || lawsuitState.isCrisisActive) ? 'animate-pulse' : ''}`}>
+        <Flame className={`w-3 h-3 shrink-0 ${lawsuitState.isCrisisActive ? 'text-red-500' : 'text-orange-400'}`} />
         <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
           <div
-            className={`h-full ${heatBg} rounded-full transition-all duration-300`}
+            className={`h-full ${heatBg} rounded-full transition-all duration-300 ${lawsuitState.isCrisisActive ? 'animate-pulse shadow-[0_0_8px_rgba(255,0,0,0.5)]' : ''}`}
             style={{ width: `${heat}%` }}
           />
         </div>
         <span className={`text-[7px] font-black uppercase tracking-wide ${
+          lawsuitState.isCrisisActive ? 'text-red-500 font-bold' :
           heatLevel === 'emergency' ? 'text-red-400 animate-pulse' :
           heatLevel === 'critical'  ? 'text-orange-400' :
           heatLevel === 'elevated'  ? 'text-yellow-400' : 'text-green-400'
         }`}>
-          {heatLabels[heatLevel]}
+          {lawsuitState.isCrisisActive ? '🚨 SHITSTORM' : 
+           lawsuitState.isCrisisWarning ? '⚠️ CRITICAL' : 
+           heatLabels[heatLevel]}
         </span>
       </div>
     </div>
