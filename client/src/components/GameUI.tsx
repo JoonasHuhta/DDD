@@ -70,6 +70,7 @@ export default function GameUI() {
     campaignCharges,
     lawsuitState,
     toggleLawsuitPanel,
+    acknowledgeLawsuit,
     triggerLawsuit,
     rewardState,
     visualEffects,
@@ -125,8 +126,14 @@ export default function GameUI() {
         case 'options': panels.openPanel('options'); break;
         case 'synergies': panels.openPanel('synergies'); break;
         case 'shop': panels.openPanel('shop'); break;
-        case 'legal': panels.openPanel('legal'); break;
-        case 'suitcase': panels.openPanel('suitcase'); break;
+        case 'legal': 
+          panels.openPanel('legal'); 
+          acknowledgeLawsuit();
+          break;
+        case 'suitcase': 
+          panels.openPanel('suitcase'); 
+          acknowledgeLawsuit();
+          break;
         case 'mansion': panels.openPanel('mansion'); break;
         case 'sinisterLab': panels.openPanel('sinisterLab'); break;
         case 'campaigns': toggleCampaignPanel(); break;

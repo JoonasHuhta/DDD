@@ -351,6 +351,7 @@ interface MetamanGameStore {
   triggerLawsuit: (milestoneId?: string) => void;
   deliverLawsuit: () => void;
   toggleLawsuitPanel: () => void;
+  acknowledgeLawsuit: () => void;
   dismissLawsuit: () => void;
   checkLawsuitMilestones: () => void;
 
@@ -1137,6 +1138,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
           ...state.lawsuitState,
           isActive: true,
           showLawsuitPanel: true,
+          isDelivered: false,
+          isAcknowledged: false,
           milestone: milestoneId || 'random',
           plaintiff: "Regulatory Body",
           claim: "Unfair data practices",
@@ -1154,15 +1157,42 @@ export const useMetamanGame = create<MetamanGameStore>()(
         const moneyLoss = amount;
         set((s) => ({
           income: Math.max(0, s.income - amount),
-          lawsuitState: { ...s.lawsuitState, showLawsuitPanel: false, isActive: false }
+          lawsuitState: { 
+            ...s.lawsuitState, 
+            showLawsuitPanel: false, 
+            isActive: false,
+            isDelivered: false,
+            isAcknowledged: true
+          }
         }));
         // Show visual feedback for money loss
         get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `-$${get().formatNumber(moneyLoss)}`, 'red');
       } else {
-        set((state) => ({ lawsuitState: { ...state.lawsuitState, showLawsuitPanel: true } }));
+        set((state) => ({ 
+          lawsuitState: { 
+            ...state.lawsuitState, 
+            showLawsuitPanel: true,
+            isAcknowledged: true // Acknowledged once they see it too
+          } 
+        }));
       }
     },
-    dismissLawsuit: () => set((state) => ({ lawsuitState: { ...state.lawsuitState, isActive: false, showLawsuitPanel: false } })),
+    dismissLawsuit: () => set((state) => ({ 
+      lawsuitState: { 
+        ...state.lawsuitState, 
+        isActive: false, 
+        showLawsuitPanel: false,
+        isDelivered: false,
+        isAcknowledged: true
+      } 
+    })),
+    acknowledgeLawsuit: () => set((state) => ({
+      lawsuitState: {
+        ...state.lawsuitState,
+        isAcknowledged: true,
+        isDelivered: false // Considered seen once acknowledged
+      }
+    })),
     
     checkLawsuitMilestones: () => {
       const state = get();
