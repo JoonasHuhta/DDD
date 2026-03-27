@@ -89,7 +89,12 @@ export default function AdaptiveButton({
       )}
       
       {badge !== undefined && badge > 0 && (
-        <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-black font-black">
+        <div className={`
+          absolute -top-1 -right-1 
+          ${variant === 'success' ? 'bg-green-500' : 'bg-red-600'} 
+          text-white text-[10px] min-w-[18px] h-[18px] rounded-full 
+          flex items-center justify-center border-2 border-black font-black
+        `}>
           {badge > 99 ? '99+' : badge}
         </div>
       )}

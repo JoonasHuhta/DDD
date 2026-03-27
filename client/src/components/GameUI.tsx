@@ -217,7 +217,7 @@ export default function GameUI() {
           </div>
           
           {/* Game Title */}
-          <h1 className={`${responsive.isMobile ? 'text-4xl' : 'text-7xl'} font-black text-[#FF6B35] ${responsive.isMobile ? 'mb-2' : 'mb-4'} comic-text-stroke transform -rotate-2`} data-game-title>
+          <h1 className={`${responsive.isMobile ? 'text-5xl' : 'text-8xl'} font-black text-[#FF6B35] ${responsive.isMobile ? 'mb-2' : 'mb-4'} comic-text-stroke animate-comic-pop`} data-game-title>
             DOPAMINE<br/>DEALER DAN
           </h1>
           

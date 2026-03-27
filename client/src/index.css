@@ -283,3 +283,19 @@ canvas {
 .animate-float-up-fade {
   animation: float-up-fade 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Comic Pop Animation for Title */
+@keyframes comic-pop {
+  0%, 100% {
+    transform: rotate(-2deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: rotate(-1deg) scale(1.05);
+    filter: brightness(1.2);
+  }
+}
+
+.animate-comic-pop {
+  animation: comic-pop 2s ease-in-out infinite;
+}
