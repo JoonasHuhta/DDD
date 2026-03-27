@@ -225,44 +225,75 @@ export class Metaman {
       this.renderClickEffect(ctx);
     }
 
-    // --- RED CONTROLLER (Drawn last to be on top) ---
-    const remoteX = this.x + size * 0.6;
-    const remoteY = footY - size * 1.15;
-    const remoteW = size * 0.45;
-    const remoteH = size * 0.35;
+    // --- MJOLNIR HAMMER (Drawn last to be on top) ---
+    const hammerX = this.x + size * 0.8;
+    const hammerY = footY - size * 1.1;
     
-    // Antenna
+    // Handle
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#4e342e'; // Dark brown wood
+    ctx.beginPath();
+    ctx.roundRect(hammerX - size * 0.05, hammerY - size * 0.6, size * 0.1, size * 0.8, size * 0.05);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Handle Wraps (Visual texture)
+    ctx.strokeStyle = '#212121';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(hammerX - size * 0.05, hammerY - size * 0.5 + i * size * 0.12);
+        ctx.lineTo(hammerX + size * 0.05, hammerY - size * 0.55 + i * size * 0.12);
+        ctx.stroke();
+    }
+    
+    // Leather Strap Loop
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(remoteX + remoteW * 0.5, remoteY);
-    ctx.lineTo(remoteX + remoteW * 0.5, remoteY - size * 0.2);
+    ctx.arc(hammerX, hammerY + size * 0.2, size * 0.1, 0, Math.PI * 2);
     ctx.stroke();
-    
-    // Antenna Tip
-    ctx.fillStyle = '#ff0000';
+
+    // Hammer Head
+    const headW = size * 0.8;
+    const headH = size * 0.5;
+    ctx.save();
+    ctx.translate(hammerX, hammerY - size * 0.7);
+    ctx.rotate(-Math.PI * 0.1); // Slight tilt for action feel
+
+    // Head Outline/Body
+    ctx.fillStyle = '#757575'; // Gray metal
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'black';
     ctx.beginPath();
-    ctx.arc(remoteX + remoteW * 0.5, remoteY - size * 0.2, size * 0.08, 0, Math.PI * 2);
+    ctx.roundRect(-headW/2, -headH/2, headW, headH, size * 0.08);
     ctx.fill();
     ctx.stroke();
 
-    // Remote Body
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(remoteX, remoteY, remoteW, remoteH);
-    ctx.strokeRect(remoteX, remoteY, remoteW, remoteH);
+    // Metallic Highlights
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(-headW/2, -headH/2, headW, headH * 0.3);
     
-    // Yellow Circle Detail
-    ctx.fillStyle = '#ffd600';
+    // Golden Pattern (As seen in reference)
+    ctx.strokeStyle = '#ffd600'; // Gold
+    ctx.lineWidth = 1.5;
+    // Outer Rectangle
+    ctx.strokeRect(-headW * 0.35, -headH * 0.3, headW * 0.7, headH * 0.6);
+    // Inner Cross/Rune details
     ctx.beginPath();
-    ctx.arc(remoteX + remoteW * 0.5, remoteY + remoteH * 0.5, size * 0.12, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(-headW * 0.15, -headH * 0.2);
+    ctx.lineTo(headW * 0.15, headH * 0.2);
+    ctx.moveTo(headW * 0.15, -headH * 0.2);
+    ctx.lineTo(-headW * 0.15, headH * 0.2);
     ctx.stroke();
     
-    // Small details inside the yellow circle (re-adding wings/dots if needed, but keeping it clean for now)
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.arc(remoteX + remoteW * 0.5, remoteY + remoteH * 0.5, size * 0.04, 0, Math.PI * 2);
-    ctx.fill();
+    // Side texture (rugged look)
+    ctx.fillStyle = '#616161';
+    ctx.fillRect(-headW/2, -headH/2, size * 0.1, headH);
+    ctx.fillRect(headW/2 - size * 0.1, -headH/2, size * 0.1, headH);
+    
+    ctx.restore();
 
     ctx.restore();
   }
