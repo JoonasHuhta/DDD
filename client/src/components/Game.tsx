@@ -54,18 +54,26 @@ export default function Game() {
   useEffect(() => {
     if (gameState !== 'playing') return;
     
+    // Check if we have the Lure Charger for faster recharge
+    const state = useMetamanGame.getState();
+    const hasLureCharger = state.mansionPurchases.includes('lure_charger');
+    const rechargeInterval = hasLureCharger ? 2000 : 3000;
+    
     const interval = setInterval(() => {
       updateCampaignCooldowns();
       
-      // Auto-recharge campaign charges every 3 seconds (was 10s)
-      const { campaignCharges, setCampaignCharges } = useMetamanGame.getState();
-      if (campaignCharges < 5) {
-        setCampaignCharges(Math.min(5, campaignCharges + 1));
+      // Auto-recharge campaign charges 
+      const currentState = useMetamanGame.getState();
+      const { campaignCharges, setCampaignCharges, getMaxCampaignCharges } = currentState;
+      const maxCharges = getMaxCampaignCharges();
+      
+      if (campaignCharges < maxCharges) {
+        setCampaignCharges(Math.min(maxCharges, campaignCharges + 1));
       }
-    }, 3000); // Faster recharge
+    }, rechargeInterval); 
     
     return () => clearInterval(interval);
-  }, [gameState, updateCampaignCooldowns]);
+  }, [gameState, updateCampaignCooldowns, useMetamanGame.getState().mansionPurchases.length]);
 
   // CRITICAL FIX: Apply passive income every second
   useEffect(() => {

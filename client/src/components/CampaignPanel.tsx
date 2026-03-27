@@ -34,17 +34,20 @@ export default function CampaignPanel({ onCampaignSelect, regulatoryRisk, campai
     return remaining > 0;
   };
 
+  const { getMaxCampaignCharges } = useMetamanGame();
+  const maxCharges = getMaxCampaignCharges();
+
   return (
     <AdaptivePanel title="CAMPAIGNS" onClose={onClose}>
       <div className="px-2">
         <div className="space-y-4">
         {/* Campaign Charges Display */}
         <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <div className="text-sm font-black text-black uppercase mb-2">Charges: {campaignCharges}/5</div>
+          <div className="text-sm font-black text-black uppercase mb-2">Charges: {campaignCharges}/{maxCharges}</div>
           <div className="w-full bg-gray-200 border-2 border-black rounded-full h-4 overflow-hidden">
             <div 
               className="bg-[#4ECDC4] h-full transition-all duration-300"
-              style={{ width: `${(campaignCharges / 5) * 100}%` }}
+              style={{ width: `${Math.min(100, (campaignCharges / maxCharges) * 100)}%` }}
             />
           </div>
         </div>

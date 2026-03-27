@@ -15,8 +15,9 @@ interface CampaignEffect {
 
 export default function CampaignVisualEffects() {
   const [effects, setEffects] = useState<CampaignEffect[]>([]);
-  const { selectedCampaign, campaignCharges } = useMetamanGame();
+  const { selectedCampaign, campaignCharges, getMaxCampaignCharges } = useMetamanGame();
   const responsive = useResponsiveUI();
+  const maxCharges = getMaxCampaignCharges();
 
   // Campaign icons and colors - match actual campaign IDs
   const campaignVisuals = {
@@ -192,7 +193,7 @@ export default function CampaignVisualEffects() {
                 const Icon = visual?.icon || Zap;
                 return <Icon className={`w-4 h-4 ${campaignCharges > 0 ? (visual?.color || 'text-purple-500') : 'text-white'}`} />;
               })()}
-              <span>{campaignCharges}/5</span>
+              <span>{campaignCharges}/{maxCharges}</span>
             </div>
             {campaignCharges === 0 && (
               <div className="text-[9px] uppercase font-black text-[#FF1744] bg-white px-1 border-2 border-black rounded mt-1 animate-pulse">

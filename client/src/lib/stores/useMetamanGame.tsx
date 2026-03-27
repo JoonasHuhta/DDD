@@ -477,6 +477,7 @@ interface MetamanGameStore {
   // Mansion upgrades tracked in store (not local localStorage)
   mansionPurchases: string[];
   addMansionPurchase: (itemId: string) => void;
+  getMaxCampaignCharges: () => number;
   achievementQueue: SimpleAchievement[];
   processAchievementQueue: () => void;
 
@@ -643,6 +644,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
           ? state.mansionPurchases
           : [...state.mansionPurchases, itemId]
       })),
+      getMaxCampaignCharges: () => {
+        const state = get();
+        let max = 5;
+        if (state.mansionPurchases.includes('lure_charger')) max += 2;
+        return max;
+      },
     showCharacterDialogue: false,
     activeCharacter: null,
 
@@ -1600,8 +1607,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // Penalties: Lose 5% of users or 5% of income! Impact matters!
     const userLoss = Math.max(10, Math.floor(state.users * 0.05));
     const moneyLoss = Math.max(500, Math.floor(state.income * 0.05));
+      const maxCharges = get().getMaxCampaignCharges();
       const chargeBonus = Math.min(5, Math.floor(orbs / 10));
-      const newCharges = Math.min(10, state.campaignCharges + chargeBonus);
+      const newCharges = Math.min(maxCharges + 5, state.campaignCharges + chargeBonus);
 
       // Permanent orbs: 5% of sold orbs → orbsInventory
       const permOrbGain = Math.floor(orbs * 0.05);
@@ -2325,11 +2333,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     incrementOrbsInventory: (amount: number) => {
       const state = get();
-      const reg = Math.floor(amount / 2);
+      // Only gain charges when harvesting (amount > 0)
+      const reg = amount > 0 ? Math.floor(amount / 2) : 0;
+      const maxCharges = get().getMaxCampaignCharges();
+      
       set({ 
         orbsInventory: (state.orbsInventory || 0) + amount,
-        totalOrbsCollected: (state.totalOrbsCollected || 0) + amount,
-        campaignCharges: Math.min(5, (state.campaignCharges || 0) + reg)
+        totalOrbsCollected: (state.totalOrbsCollected || 0) + (amount > 0 ? amount : 0),
+        campaignCharges: Math.min(maxCharges, (state.campaignCharges || 0) + reg)
       });
     },
     
