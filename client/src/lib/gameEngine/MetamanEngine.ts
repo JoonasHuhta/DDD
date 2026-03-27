@@ -418,11 +418,11 @@ export class MetamanEngine {
       
       // Campaigns are now free - no cost deduction
       
-      // Get Metaman position for lure start point
-      const metamanPos = this.metaman.getPosition();
+      // Get Metaman's hammer position for lure start point
+      const lureOrigin = this.metaman.getHammerPosition(this.isMobile);
       
       // Create electric lure effect with campaign color and radius
-      this.electricLure.addLure(metamanPos.x, metamanPos.y, x, y, campaign.color, campaign.radius);
+      this.electricLure.addLure(lureOrigin.x, lureOrigin.y, x, y, campaign.color, campaign.radius);
       
       // Hook nearby citizens based on campaign effectiveness
       const hookedCount = this.hookNearbyCitizens(x, y, campaign);

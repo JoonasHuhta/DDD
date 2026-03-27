@@ -19,6 +19,18 @@ export class Metaman {
     return { x: this.x, y: this.y };
   }
 
+  public getHammerPosition(isMobile: boolean = false): { x: number, y: number } {
+    const size = isMobile ? 45 : 40;
+    const footY = this.y;
+    const hammerX = this.x + size * 0.8;
+    const hammerY = footY - size * 1.1;
+    // The head's center is translated by -size * 0.7 during render
+    return { 
+      x: hammerX, 
+      y: hammerY - size * 0.7 
+    };
+  }
+
   public update(deltaTime: number): void {
     this.animationFrame += deltaTime * 0.005;
     if (this.smileTimer > 0) {
