@@ -479,9 +479,6 @@ export default function GameUI() {
                 badge={(rewardState.rewards.filter(r => !r.claimed).length + ((lawsuitState.isActive || (lawsuitState.isDelivered && !lawsuitState.isAcknowledged)) ? 1 : 0)) || undefined}
                 animate={activeTipTarget === 'lawsuits' ? 'comic-pulse' : 'none'}
               />
-              {rewardState.rewards.some(r => !r.claimed) && !panels.isPanelOpen('suitcase') && (
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-black z-20" />
-              )}
             </div>
 
             {/* 5. Mansion (Stats + Shop) */}
