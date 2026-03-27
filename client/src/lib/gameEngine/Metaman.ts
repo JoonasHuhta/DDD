@@ -260,7 +260,7 @@ export class Metaman {
     const headH = size * 0.5;
     ctx.save();
     ctx.translate(hammerX, hammerY - size * 0.7);
-    ctx.rotate(-Math.PI * 0.1); // Slight tilt for action feel
+    ctx.rotate(0); // Flattened per user request to match reference exactly
 
     // Head Outline/Body
     ctx.fillStyle = '#757575'; // Gray metal
