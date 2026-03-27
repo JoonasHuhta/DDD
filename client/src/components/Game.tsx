@@ -93,8 +93,11 @@ export default function Game() {
         state.setCharacterDialogue(triggerNode);
       }
       
-      // Check for random lawsuits every 5 seconds (reduce frequency)
-      if (Date.now() % 5000 < 1000) { // Rough 5-second intervals
+      // Check for random lawsuits every 5 seconds (fair lottery)
+      const now = Date.now();
+      const lastLawsuitCheckTime = (window as any)._lastLawsuitCheck || 0;
+      if (now - lastLawsuitCheckTime >= 5000) {
+        (window as any)._lastLawsuitCheck = now;
         if (state.checkRandomLawsuits) {
           state.checkRandomLawsuits();
         }
