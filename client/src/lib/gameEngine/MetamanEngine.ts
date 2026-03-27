@@ -355,9 +355,6 @@ export class MetamanEngine {
       // Render city with mobile flag
       this.city.render(this.ctx, this.dayNightCycle.isNight(), this.towerHeight, this.isMobile);
 
-      // Render electric lure effects
-      this.electricLure.render(this.ctx);
-
       // Render citizens
       this.citizens.forEach(citizen => {
         citizen.render(this.ctx);
@@ -375,6 +372,9 @@ export class MetamanEngine {
 
       // Render Metaman LAST so it appears on top of the tower
       this.metaman.render(this.ctx, this.isMobile);
+
+      // Render electric lure effects (moved to foreground per user request)
+      this.electricLure.render(this.ctx);
 
       // Render cooldown indicator
       this.renderCooldownIndicator();
