@@ -33,12 +33,9 @@ export default function HeatMeter({ onClick }: { onClick?: () => void }) {
       onClick={onClick}
     >
       {/* Stage indicator */}
-      <div className="flex items-center justify-between">
-        <span className="text-[8px] font-black uppercase text-white/60 tracking-widest">
+      <div className="flex items-center justify-start">
+        <span className="text-[10px] font-black uppercase text-white tracking-widest">
           Stage {stageInfo.stage}
-        </span>
-        <span className="text-[8px] font-black uppercase text-white/80 italic truncate max-w-[80px]">
-          {stageInfo.name}
         </span>
       </div>
       <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">

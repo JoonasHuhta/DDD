@@ -1,11 +1,14 @@
 import React from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { getStageInfo, getStageProgress, getNextStage } from '../lib/utils/stageSystem';
-import { Trophy, ArrowRight, Info, Database, Zap, Building2 } from 'lucide-react';
+import { Trophy, ArrowRight, Info, Database, Zap, Building2, Flame } from 'lucide-react';
+import { motion } from 'framer-motion';
 import AdaptivePanel from './AdaptivePanel';
 
 export default function ProgressionOverview({ onClose }: { onClose: () => void }) {
   const users = useMetamanGame(state => state.users);
+  const heat = useMetamanGame(state => state.heat);
+  const heatLevel = useMetamanGame(state => state.heatLevel);
   const formatNumber = useMetamanGame(state => state.formatNumber);
   
   const stageInfo = getStageInfo(users);
@@ -31,6 +34,48 @@ export default function ProgressionOverview({ onClose }: { onClose: () => void }
             </div>
           </div>
           <Trophy className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12" />
+        </div>
+
+        {/* Unified Heat & Risk Status (Combined as requested) */}
+        <div className="p-5 bg-black text-white border-4 border-black rounded-3xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <div className={`p-2 rounded-xl ${heatLevel === 'normal' ? 'bg-green-500' : heatLevel === 'elevated' ? 'bg-yellow-500' : 'bg-red-500'} bg-opacity-20`}>
+                <Flame className={`w-5 h-5 ${heatLevel === 'normal' ? 'text-green-400' : heatLevel === 'elevated' ? 'text-yellow-400' : 'text-red-500'}`} />
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase text-white/50">Regulatory Risk</div>
+                <div className={`text-lg font-black italic uppercase ${
+                  heatLevel === 'normal' ? 'text-green-400' : 
+                  heatLevel === 'elevated' ? 'text-yellow-400' : 
+                  'text-red-500 font-black'
+                }`}>
+                  {heat >= 90 ? '🚨 SHITSTORM IMMINENT' : heatLevel.toUpperCase()}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-black">{Math.floor(heat)}%</div>
+              <div className="text-[8px] font-bold text-white/40 uppercase">Exposure Index</div>
+            </div>
+          </div>
+          
+          <div className="h-3 bg-white/10 rounded-full border-2 border-white/20 overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${heat}%` }}
+              className={`h-full ${
+                heatLevel === 'normal' ? 'bg-green-400' : 
+                heatLevel === 'elevated' ? 'bg-yellow-400' : 
+                'bg-red-500 shadow-[0_0_10px_rgba(255,0,0,0.5)]'
+              }`}
+            />
+          </div>
+          <p className="mt-3 text-[10px] font-bold text-white/60 leading-tight">
+            {heatLevel === 'normal' ? 'OPERATING UNDER THE RADAR. MINIMAL REGULATORY OVERSIGHT.' :
+             heatLevel === 'elevated' ? 'ELEVATED SUSPICION. AUTHORITIES ARE MONITORING DATA TRAFFIC.' :
+             'CRITICAL RISK: REGULATORY ACTIONS AND SANCTIONS ARE LIKELY.'}
+          </p>
         </div>
 
         {/* Progress Tracker */}
