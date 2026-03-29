@@ -11,7 +11,6 @@ export default function SuitcasePanel() {
     rewardState, 
     lawsuitState, 
     formatNumber,
-    claimAchievement
   } = useMetamanGame();
 
   const panels = usePanelState();
@@ -21,11 +20,13 @@ export default function SuitcasePanel() {
 
   React.useEffect(() => {
     const store = useMetamanGame.getState();
-    if (store.lawsuitState.isDelivered && !store.lawsuitState.isAcknowledged) {
-      store.toggleLawsuitPanel(); 
+    // Simply switch to legal tab if a suit is pending
+    if (store.lawsuitState.isDelivered || store.lawsuitState.isActive) {
       setActiveTab('legal');
-    } else if (store.lawsuitState.isActive) {
-      setActiveTab('legal');
+      // Acknowledge that the player has seen the delivery to clear the bubble/tip
+      if (!store.lawsuitState.isAcknowledged) {
+        store.acknowledgeLawsuit();
+      }
     }
   }, []);
 
@@ -72,7 +73,14 @@ export default function SuitcasePanel() {
               {activeTab === 'rewards' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#00FFD1]" />}
             </button>
             <button
-              onClick={() => setActiveTab('legal')}
+              onClick={() => {
+                setActiveTab('legal');
+                // Clear the alert badge when visiting the tab
+                const store = useMetamanGame.getState();
+                if (!store.lawsuitState.isAcknowledged) {
+                   store.acknowledgeLawsuit(); 
+                }
+              }}
               className={`flex-1 py-4 font-black uppercase italic text-xs transition-all relative ${
                 activeTab === 'legal'
                   ? 'bg-zinc-800 text-[#FF0055]'

@@ -2,7 +2,7 @@ import React from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { LAWYERS, Lawyer } from '../data/lawyers';
 import { formatCurrency } from '../lib/utils/numberFormatter';
-import { Briefcase, Shield, Zap, TrendingDown, Users } from 'lucide-react';
+import { Briefcase, Shield, Zap, TrendingDown, Users, Star, FileText, Scale } from 'lucide-react';
 
 export const LegalRoster: React.FC = () => {
   const { 
@@ -57,11 +57,9 @@ export const LegalRoster: React.FC = () => {
               >
                 {lawyer ? (
                   <div className="relative group w-full h-full flex flex-col items-center p-2">
-                    <img 
-                      src={lawyer.image} 
-                      alt={lawyer.name}
-                      className="w-10 h-10 rounded-full border border-yellow-500/30 object-cover mb-1"
-                    />
+                    <div className="w-10 h-10 rounded-full border border-yellow-500/30 flex items-center justify-center bg-slate-900 mb-1">
+                      <Scale className="w-6 h-6 text-yellow-500/80" />
+                    </div>
                     <span className="text-[10px] font-bold text-yellow-500 text-center leading-tight truncate w-full px-1">
                       {lawyer.name}
                     </span>
@@ -107,11 +105,16 @@ export const LegalRoster: React.FC = () => {
                 {/* ID Portrait */}
                 <div className="relative shrink-0">
                   <div className="w-16 h-16 rounded overflow-hidden border-2 border-slate-700 bg-black">
-                    <img 
-                      src={lawyer.image} 
-                      alt={lawyer.name}
-                      className={`w-full h-full object-cover ${!isHired ? 'grayscale contrast-125 opacity-50' : ''}`}
-                    />
+                    <div className={`w-full h-full flex items-center justify-center bg-slate-900 border border-slate-700 rounded overflow-hidden ${!isHired ? 'grayscale opacity-60' : ''}`}>
+                      <div className="relative">
+                        <FileText className="w-8 h-8 text-yellow-500/80" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 flex flex-col items-center">
+                          <div className="w-4 h-0.5 bg-slate-800 mb-0.5" />
+                          <div className="w-3 h-0.5 bg-slate-800 mb-0.5" />
+                          <div className="w-4 h-0.5 bg-slate-800" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   {isHired && (
                     <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-5 h-5 flex items-center justify-center shadow-lg border-2 border-slate-800">
@@ -124,17 +127,26 @@ export const LegalRoster: React.FC = () => {
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-start gap-2">
-                      <h4 className="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-tight truncate">
+                      <h4 className="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-tight leading-tight">
                         {lawyer.name}
                       </h4>
-                      <span className="text-[8px] font-mono text-slate-500 shrink-0">
-                        {lawyer.tier.toUpperCase()}
-                      </span>
+                      <div className="flex gap-0.5 shrink-0">
+                        {Array.from({ length: 
+                          lawyer.tier === 'junior' ? 1 : 
+                          lawyer.tier === 'pro' ? 2 : 
+                          lawyer.tier === 'partner' ? 3 : 4 
+                        }).map((_, i) => (
+                          <Star key={i} className="w-2 h-2 text-yellow-500 fill-yellow-500" />
+                        ))}
+                      </div>
                     </div>
+                    <span className="text-[7px] font-mono text-slate-500 tracking-widest uppercase mb-1 block">
+                      {lawyer.tier}
+                    </span>
                     <p className="text-[10px] text-yellow-500/80 font-bold uppercase italic leading-tight mb-1">
                       {lawyer.role}
                     </p>
-                    <p className="text-[10px] text-slate-400 leading-tight line-clamp-2 mb-2">
+                    <p className="text-[10px] text-slate-400 leading-tight mb-2">
                       {lawyer.description}
                     </p>
                   </div>

@@ -5,6 +5,7 @@ import { LegalRoster } from './LegalRoster';
 import PurchaseFeedback from './PurchaseFeedback';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
+import { useAudio } from '../lib/stores/useAudio';
 import { getStage, DEPARTMENT_STAGE_UNLOCKS } from '../lib/utils/stageSystem';
 
 interface FeedbackPopup {
@@ -31,6 +32,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
 
   const [activeTab, setActiveTab] = useState<'departments' | 'demographics' | 'legal'>('departments');
   const [feedbackPopups, setFeedbackPopups] = useState<FeedbackPopup[]>([]);
+  const { playSuccess } = useAudio();
 
   const canAfford = (departmentId: string) => {
     const department = departments.find(d => d.id === departmentId);
@@ -59,6 +61,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         position: { x: rect.left + rect.width / 2, y: rect.top }
       };
       setFeedbackPopups(prev => [...prev, popup]);
+      playSuccess();
     }
   };
 
@@ -92,6 +95,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         position: { x: rect.left + rect.width / 2, y: rect.top }
       };
       setFeedbackPopups(prev => [...prev, popup]);
+      playSuccess();
     }
   };
 
@@ -244,10 +248,10 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
   return (
     <AdaptivePanel title="EMPIRE" onClose={onClose} position="right" icon={<Building2 className="w-5 h-5" />}>
       {/* Tab Switcher */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-1 mb-6">
         <button
           onClick={() => setActiveTab('departments')}
-          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-xs transition-all ${
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9.5px] tracking-tighter transition-all ${
             activeTab === 'departments' 
               ? 'bg-blue-500 text-white shadow-[2px_2px_0_0_rgba(0,0,0,1)]' 
               : 'bg-white hover:bg-gray-100'
@@ -257,17 +261,17 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         </button>
         <button
           onClick={() => setActiveTab('demographics')}
-          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-xs transition-all ${
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9.5px] tracking-tighter transition-all ${
             activeTab === 'demographics' 
               ? 'bg-purple-500 text-white shadow-[2px_2px_0_0_rgba(0,0,0,1)]' 
               : 'bg-white hover:bg-gray-100'
           }`}
         >
-          Demographics
+          Cohorts
         </button>
         <button
           onClick={() => setActiveTab('legal')}
-          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-xs transition-all ${
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9.5px] tracking-tighter transition-all ${
             activeTab === 'legal' 
               ? 'bg-yellow-500 text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]' 
               : 'bg-white hover:bg-gray-100'

@@ -24,7 +24,8 @@ export type PanelId =
   | 'sinisterLab'
   | 'dataMarket'
   | 'espionage'
-  | 'serverDefense';
+  | 'serverDefense'
+  | 'researchLab';
 
 type PanelStateStore = {
   openPanelId: PanelId | null;

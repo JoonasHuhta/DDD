@@ -7,6 +7,8 @@ import SpeechBubble from "./SpeechBubble";
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<MetamanEngine | null>(null);
+  const clickCounterRef = useRef<number>(0);
+  const lastInteractionTimeRef = useRef<number>(0);
   const { 
     gameState, 
     income, 
@@ -20,6 +22,7 @@ export default function GameCanvas() {
     incrementDataInventory,
     incrementOrbsInventory,
     setRegulatoryRisk,
+    regulatoryRisk,
     setCampaignCooldown,
     handleManualClick,
     towerHeight,
@@ -33,17 +36,23 @@ export default function GameCanvas() {
     updateStats,
     blackMarketState,
     addVisualEffect,
-    lastRewardTimestamp
+    lastRewardTimestamp,
+    lastUserLossTime,
+    lastStageCompleteTimestamp
   } = useMetamanGame();
   
   const panels = usePanelState();
 
-  const handleCanvasInteraction = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+  const handleCanvasInteraction = useCallback((event: React.PointerEvent) => {
     if (!engineRef.current) return;
+
+    // Debounce to prevent double-triggering (e.g., fast tap + ghost click)
+    const now = Date.now();
+    if (now - lastInteractionTimeRef.current < 50) return;
+    lastInteractionTimeRef.current = now;
     
     // Check if any panels are open - if so, don't allow game interaction
     if (panels.isAnyPanelOpen() || showCampaignPanel || lawsuitState.showLawsuitPanel || rewardState.showSuitcasePanel) {
-      console.log('🚫 Game click blocked - panels are open');
       return; // Block all game clicks when panels are open
     }
     
@@ -51,16 +60,8 @@ export default function GameCanvas() {
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    let clientX: number, clientY: number;
-
-    if ('touches' in event.nativeEvent) {
-      event.preventDefault();
-      clientX = event.nativeEvent.touches[0].clientX;
-      clientY = event.nativeEvent.touches[0].clientY;
-    } else {
-      clientX = event.nativeEvent.clientX;
-      clientY = event.nativeEvent.clientY;
-    }
+    const clientX = event.clientX;
+    const clientY = event.clientY;
 
     const x = clientX - rect.left;
     const y = clientY - rect.top;
@@ -166,7 +167,27 @@ export default function GameCanvas() {
               decrementIncome(Math.abs(amount));
             }
           },
-          incrementUsers,
+          (amount: number) => {
+            let finalAmount = amount;
+            const rs = useMetamanGame.getState().researchState;
+            
+            // Tier 1: Engagement Metrics Study
+            if (rs.completed.includes('engagement_metrics')) {
+               finalAmount *= 2;
+            }
+            
+            // Tier 3: Variable Reward Scheduling
+            if (rs.completed.includes('variable_reward')) {
+               clickCounterRef.current += 1;
+               if (clickCounterRef.current >= 10) {
+                  clickCounterRef.current = 0;
+                  finalAmount *= 10;
+                  addVisualEffect('achievement', undefined, undefined, 'extreme', '🎰 JACKPOT!');
+               }
+            }
+            
+            incrementUsers(finalAmount);
+          },
           setRegulatoryRisk,
           setCampaignCooldown,
           incrementDataInventory,
@@ -231,14 +252,41 @@ export default function GameCanvas() {
     }
   }, [lastRewardTimestamp]);
 
+  // Trigger celebration on stage complete
+  useEffect(() => {
+    if (engineRef.current && lastStageCompleteTimestamp > 0) {
+      engineRef.current.triggerCelebration(8000); // 8 second celebration
+    }
+  }, [lastStageCompleteTimestamp]);
+
+  // Trigger melting face on user loss (e.g. poop hits)
+  useEffect(() => {
+    if (engineRef.current && lastUserLossTime > 0) {
+      engineRef.current.triggerMeltingFace(2500); // 2.5s melting face
+    }
+  }, [lastUserLossTime]);
+
+  // Trigger alert on significant regulatory risk increase
+  const prevRiskRef = useRef(0);
+  const lastAlertTimeRef = useRef(0);
+  useEffect(() => {
+    const significantIncrease = (regulatoryRisk - prevRiskRef.current) >= 0.5;
+    const now = Date.now();
+    
+    if (engineRef.current && significantIncrease && regulatoryRisk > 10 && (now - lastAlertTimeRef.current > 3000)) {
+       engineRef.current.triggerRegulatoryAlert(1500); // 1.5s alert
+       lastAlertTimeRef.current = now;
+    }
+    prevRiskRef.current = regulatoryRisk;
+  }, [regulatoryRisk]);
+
   return (
     <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-pointer touch-none"
         style={{ imageRendering: 'pixelated' }}
-        onClick={handleCanvasInteraction}
-        onTouchStart={handleCanvasInteraction}
+        onPointerDown={handleCanvasInteraction}
         data-basement-mode={currentView === 'basement' ? 'true' : 'false'}
       />
       <SpeechBubble />

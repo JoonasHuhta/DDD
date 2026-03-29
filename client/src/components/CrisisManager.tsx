@@ -55,7 +55,7 @@ export default function CrisisManager() {
       rotation: 0,
       hp: 5,
       maxHp: 5,
-      speed: 0.38 + Math.random() * 1.2, // ~5% slower top speed
+      speed: 0.35 + Math.random() * 0.9, // ~10% slower max speed to make them catchable
       scale: 0.8 + Math.random() * 0.4
     };
 
@@ -82,8 +82,12 @@ export default function CrisisManager() {
     else if (stage <= 6) userLossPercent = 0.01 + Math.random() * 0.02;
     else userLossPercent = 0.005 + Math.random() * 0.005;
 
-    const userLoss = Math.max(10, Math.floor(users * userLossPercent));
+    const baseUserLoss = Math.max(10, Math.floor(users * userLossPercent));
     const moneyLoss = Math.max(1000, Math.floor(income * 0.05)); // Constant impact for money
+    
+    // Check for Addiction Science Tier 4: Zero Churn
+    const hasCapture = useMetamanGame.getState().researchState.completed.includes('psychological_capture');
+    const userLoss = hasCapture ? 0 : baseUserLoss;
 
     useMetamanGame.setState(state => ({
       users: Math.max(0, state.users - userLoss),
@@ -217,7 +221,8 @@ export default function CrisisManager() {
             initial={{ y: -100 }}
             animate={{ y: 0 }}
             exit={{ y: -100 }}
-            className="absolute top-0 left-0 w-full bg-red-600 border-b-4 border-black py-2 z-[10000] pointer-events-auto shadow-2xl flex items-center"
+            // Moved banner down from top-0 to top-[100px] so it doesn't block the stat bar
+            className="absolute top-[100px] left-0 w-full bg-red-600 border-b-4 border-t-4 border-black py-2 z-[10000] pointer-events-auto shadow-2xl flex items-center"
           >
             {/* Fixed Label with higher z-index and clip-path for sharp comic look */}
             <div className="relative z-20 bg-black text-white px-6 py-2 font-black text-2xl italic uppercase skew-x-[-12deg] border-r-4 border-white shadow-[4px_0_0_0_rgba(0,0,0,1)] ml-[-10px]">

@@ -195,8 +195,8 @@ export const RANDOM_LAWSUITS: RandomLawsuit[] = [
 // Lawsuit timing and frequency management
 export class RandomLawsuitManager {
   private lastLawsuitTime: number = 0;
-  private readonly MIN_INTERVAL = 15 * 60 * 1000; // REDUCED FREQUENCY: 15 minutes minimum (was 3)
-  private readonly MAX_INTERVAL = 30 * 60 * 1000; // REDUCED FREQUENCY: 30 minutes maximum (was 10)
+  private readonly MIN_INTERVAL = 3 * 60 * 1000; // Increased frequency: 3 minutes minimum (was 15)
+  private readonly MAX_INTERVAL = 10 * 60 * 1000; // Increased frequency: 10 minutes maximum (was 30)
   private usedLawsuits: Set<string> = new Set();
 
   shouldTriggerLawsuit(currentTime: number, userCount: number): boolean {

@@ -105,6 +105,20 @@
   text-shadow: 2px 2px 0 #000000;
 }
 
+.comic-title {
+  color: #FFA500; /* Richer, brighter orange */
+  text-shadow: 
+    -2px -2px 0 #000,  
+     2px -2px 0 #000,
+    -2px  2px 0 #000,
+     2px  2px 0 #000,
+     6px  6px 0 rgba(0,0,0,1), /* Thick 3D depth shadow */
+    12px 12px 0 rgba(0,0,0,0.1); 
+  letter-spacing: -0.06em;
+  line-height: 0.8;
+  filter: drop-shadow(0 0 10px rgba(255, 165, 0, 0.3)); /* Subtle neon glow */
+}
+
 /* Updated Cartoon Theme matched to new GDD and reference art */
 .cartoon-theme {
   border-radius: 0.5rem !important;
@@ -298,4 +312,51 @@ canvas {
 
 .animate-comic-pop {
   animation: comic-pop 2s ease-in-out infinite;
+}
+
+/* Portrait-Only Visual Lock Overlay */
+#orientation-lock-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #1a1a2e; /* Match game theme */
+  z-index: 9999999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  padding: 2rem;
+  font-family: 'Outfit', sans-serif;
+  pointer-events: auto;
+}
+
+#orientation-lock-overlay .icon {
+  font-size: 5rem;
+  margin-bottom: 2rem;
+  animation: rotate-device 2s ease-in-out infinite;
+}
+
+#orientation-lock-overlay h2 {
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+#orientation-lock-overlay p {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+@keyframes rotate-device {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+/* Only show on mobile/tablet landscape */
+@media screen and (orientation: landscape) and (max-width: 1024px) {
+  #orientation-lock-overlay {
+    display: flex;
+  }
 }

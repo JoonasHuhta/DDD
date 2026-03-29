@@ -13,6 +13,7 @@ import { MarketLogic } from "../gameEngine/MarketLogic";
 import { DEFAULT_DEPARTMENTS, Department } from "../content/departments";
 import { getStage } from "../utils/stageSystem";
 import { LAWYERS, Lawyer } from "../../data/lawyers";
+import { ALL_RESEARCH_NODES } from "../progression/researchData";
 
 export type MetamanGameState = "menu" | "playing" | "paused";
 
@@ -250,6 +251,8 @@ interface MetamanGameStore {
   isGameOver: boolean;
   peakUsers: number;
   lastUserLossTime: number;
+  lastStageReached: number;
+  lastStageCompleteTimestamp: number;
   showOfflinePopup: boolean;
   offlineProgress: any;
   automationUpgradesPurchased: number;
@@ -482,10 +485,32 @@ interface MetamanGameStore {
   achievementQueue: SimpleAchievement[];
   processAchievementQueue: () => void;
 
+  // ── RESEARCH LAB SYSTEM ────────────────────────────────────────────────────
+  researchState: {
+    activeResearch: string | null;
+    progressPercent: number; // 0 to 1
+    timeRemainingMs: number;
+    queue: string[]; // max 2
+    completed: string[];
+    unlocked: string[];
+    boostEffect: { type: string; description: string; timestamp: number } | null;
+    isLeakActive: boolean;
+    leakTarget: string | null;
+    leakTimerMs: number;
+  };
+  startResearch: (id: string) => boolean;
+  queueResearch: (id: string) => boolean;
+  cancelResearch: () => void;
+  boostResearch: () => void;
+  tickResearch: (deltaMs: number) => void;
+  triggerResearchLeak: () => void;
+  resolveResearchLeak: (success: boolean) => void;
+  completeResearch: (id: string) => void;
+
   // ── HEAT SYSTEM ────────────────────────────────────────────────────────────
   heat: number; // 0–100
   heatLevel: 'normal' | 'elevated' | 'critical' | 'emergency'; // derived
-  modifyHeat: (delta: number) => void;   // +/- heat, clamped 0–100
+  modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive') => void;   // +/- heat, clamped 0–100
   updateHeat: () => void;               // called every tick, applies passive decay (-2/s)
 
   // ── DIALOGUE HISTORY ───────────────────────────────────────────────────────
@@ -524,7 +549,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       automationSystem,
       synergySystem,
       gameState: "menu",
-      income: 1000, 
+      income: 0, 
       users: 0,
       selectedCampaign: "social_feed",
       regulatoryRisk: 0,
@@ -536,10 +561,26 @@ export const useMetamanGame = create<MetamanGameStore>()(
       isGameOver: false,
       peakUsers: 0,
       lastUserLossTime: 0,
+      lastStageReached: 1,
+      lastStageCompleteTimestamp: 0,
       dataInventory: 0,
       orbsInventory: 0,
       permanentOrbs: 0,
       
+      // RESEARCH LAB SYSTEM
+      researchState: {
+        activeResearch: null,
+        progressPercent: 0,
+        timeRemainingMs: 0,
+        queue: [],
+        completed: [],
+        unlocked: ['engagement_metrics'], // First one unlocked by default
+        boostEffect: null,
+        isLeakActive: false,
+        leakTarget: null,
+        leakTimerMs: 0,
+      },
+
       // DATA MARKET SYSTEM
       dataMarket: {
         inventory: {
@@ -658,9 +699,29 @@ export const useMetamanGame = create<MetamanGameStore>()(
     heat: 0,
     heatLevel: 'normal' as const,
 
-    modifyHeat: (delta: number) => {
+    modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive') => {
       set((state) => {
-        const newHeat = Math.max(0, Math.min(100, state.heat + delta));
+        const legalBonuses = get().getLegalBonuses();
+        let finalDelta = delta;
+
+        // Lobbying Network: -10% heat generating from any source
+        if (finalDelta > 0 && state.researchState.completed.includes('lobbying_network')) {
+          finalDelta *= 0.9;
+        }
+
+        // Apply Global Ghost bonus (-30% all heat if equipped)
+        if (legalBonuses.globalGeneration > 0) {
+           finalDelta *= (1 - legalBonuses.globalGeneration);
+        }
+
+        // Apply specific source bonuses
+        if (source === 'click' && legalBonuses.clickHeat > 0) {
+           finalDelta *= (1 - legalBonuses.clickHeat);
+        } else if (source === 'data' && legalBonuses.dataHeat > 0) {
+           finalDelta *= (1 - legalBonuses.dataHeat);
+        }
+
+        const newHeat = Math.max(0, Math.min(100, state.heat + finalDelta));
         let level: MetamanGameStore['heatLevel'] = 'normal';
         if (newHeat >= 75) level = 'emergency';
         else if (newHeat >= 50) level = 'critical';
@@ -1133,6 +1194,16 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
     triggerLawsuit: (milestoneId) => {
+      const state = get();
+      const legalBonuses = state.getLegalBonuses();
+      
+      // LAWYER IMMUNITY CHECK (Ironclad Irene)
+      if (legalBonuses.lawsuitDefense > 0 && Math.random() < legalBonuses.lawsuitDefense) {
+        console.log("🛡️ LEGAL DEFENSE: Lawsuit blocked by legal wall!");
+        get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'high', 'DEFENSE SUCCESS!');
+        return;
+      }
+
       set((state) => ({
         lawsuitState: {
           ...state.lawsuitState,
@@ -1148,7 +1219,17 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }));
     },
 
-    deliverLawsuit: () => set((state) => ({ lawsuitState: { ...state.lawsuitState, isDelivered: true } })),
+    deliverLawsuit: () => set((state) => ({ 
+      lawsuitState: { 
+        ...state.lawsuitState, 
+        isActive: true, // MUST be active to show in compliance
+        isDelivered: true,
+        isAcknowledged: false, // Ensure badge pops back up
+        plaintiff: state.lawsuitState.plaintiff || 'Grandma and Grandpa Thompson',
+        claim: state.lawsuitState.claim || "Your platform addicted our grandchildren to endless swiping, robbing us of our family dreams...",
+        amount: state.lawsuitState.amount || 1000000
+      } 
+    })),
     toggleLawsuitPanel: () => {
       const state = get();
       // If we are closing the panel, deduct the amount (settle the lawsuit)
@@ -1166,7 +1247,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           }
         }));
         // Show visual feedback for money loss
-        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `-$${get().formatNumber(moneyLoss)}`, 'red');
+        get().addVisualEffect('money', window.innerWidth / 2, window.innerWidth / 2, 'extreme', `-$${get().formatNumber(moneyLoss)}`, 'red');
       } else {
         set((state) => ({ 
           lawsuitState: { 
@@ -1190,15 +1271,16 @@ export const useMetamanGame = create<MetamanGameStore>()(
       lawsuitState: {
         ...state.lawsuitState,
         isAcknowledged: true,
-        isDelivered: false // Considered seen once acknowledged
+        // Don't clear isDelivered/isActive here - it should stay visible 
+        // in Suitcase until settled or explicitly dismissed.
       }
     })),
     
     checkLawsuitMilestones: () => {
       const state = get();
       
-      // CRITICAL: Do not trigger lawsuits while tutorial tips are active
-      if (state.activeTipTarget) return;
+      // Removed: Broad tip blocker that was halting the whole legal system
+      // if (state.activeTipTarget) return;
 
       Object.entries(state.lawsuitMilestones).forEach(([id, milestone]) => {
         if (!milestone.triggered) {
@@ -1217,7 +1299,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
           }
         }
       });
+      
+      get().checkRandomLawsuits();
     },
+
 
     getTotalIncomeMultiplier: () => {
       const state = get();
@@ -1257,6 +1342,11 @@ export const useMetamanGame = create<MetamanGameStore>()(
       
       // Prestige multiplier also affects user lures/generation
       multiplier *= (state.prestigeState.prestigeMultiplier || 1.0);
+      
+      // Micro-targeting: +20% user gain
+      if (state.researchState.completed.includes('micro_targeting')) {
+        multiplier *= 1.2;
+      }
       
       return multiplier;
     },
@@ -1325,21 +1415,32 @@ export const useMetamanGame = create<MetamanGameStore>()(
     incrementUsers: (amount: number) => {
       if (amount <= 0) return;
       const mult = get().getTotalUserMultiplier();
-      const boostedAmount = Math.floor(amount * mult);
+      const boostedAmount = amount * mult;
       
       set((state) => {
-        const teensGain = Math.floor(boostedAmount * 0.4);
-        const prosGain = Math.floor(boostedAmount * 0.3);
-        const seniorsGain = Math.floor(boostedAmount * 0.2);
+        const teensGain = boostedAmount * 0.4;
+        const prosGain = boostedAmount * 0.3;
+        const seniorsGain = boostedAmount * 0.2;
         const addictsGain = boostedAmount - (teensGain + prosGain + seniorsGain);
-        const newUsers = state.users + boostedAmount;
-        get().checkMegaMilestones();
-        get().checkGrandUserMilestones();
-        get().checkLawsuitMilestones();
-        get().checkAchievements();
+        const oldUsers = state.users;
+        const newUsers = oldUsers + boostedAmount;
+        
+        // Detect Stage Change for Celebration
+        const oldStage = getStage(oldUsers);
+        const newStage = getStage(newUsers);
+        let stageUpdate = {};
+        
+        if (newStage > oldStage && newStage > state.lastStageReached) {
+          stageUpdate = {
+            lastStageReached: newStage,
+            lastStageCompleteTimestamp: Date.now()
+          };
+          console.log(`🎊 STAGE COMPLETE: Reached Stage ${newStage}! Triggering celebration...`);
+        }
         
         return { 
           users: newUsers,
+          ...stageUpdate,
           cohorts: {
             teens: (state.cohorts?.teens || 0) + teensGain,
             pros: (state.cohorts?.pros || 0) + prosGain,
@@ -1350,23 +1451,26 @@ export const useMetamanGame = create<MetamanGameStore>()(
         };
       });
 
+      // Side Effects (Moved outside set for safety and to ensure state is updated)
+      const stateAfterUpdate = get();
+      stateAfterUpdate.checkMegaMilestones();
+      stateAfterUpdate.checkGrandUserMilestones();
+      stateAfterUpdate.checkLawsuitMilestones();
+      if (stateAfterUpdate.users > 500) {
+        stateAfterUpdate.checkRandomLawsuits();
+      }
+      stateAfterUpdate.checkAchievements();
+      stateAfterUpdate.checkGameOver();
+
       // Growth = Heat: More users = more surveillance
       if (boostedAmount > 0) {
-        // approx +1 heat per 100 users gained
-        get().modifyHeat(boostedAmount / 100);
+        get().modifyHeat(boostedAmount / 100, 'click');
       }
 
       // Track Peak Users
-      const state = get();
-      if (state.users > state.peakUsers) {
-        set({ peakUsers: state.users });
+      if (stateAfterUpdate.users > stateAfterUpdate.peakUsers) {
+        set({ peakUsers: stateAfterUpdate.users });
       }
-
-      get().checkMegaMilestones();
-      get().checkGrandUserMilestones();
-      get().checkLawsuitMilestones();
-      get().checkAchievements();
-      get().checkGameOver();
     },
 
     checkGameOver: () => {
@@ -1374,8 +1478,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const stage = getStage(state.users);
       let gameOver = false;
 
-      // Stage 1-3: Users hit 0
-      if (stage <= 3 && state.users <= 0 && state.gameStartTime > 0 && Date.now() - state.gameStartTime > 10000) {
+      // Stage 1-3: Risk of bankruptcy if user count hits Zero
+      // RELAXED: Must be at least Stage 2 and give 60s grace period
+      if (stage > 1 && stage <= 3 && state.users <= 0 && state.gameStartTime > 0 && Date.now() - state.gameStartTime > 60000) {
         gameOver = true;
       } 
       // Stage 4-6: Users < 10% peak AND Income = 0
@@ -1397,12 +1502,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
     resetGame: () => {
       // Full reset for "Try Again"
       set((state) => ({
-        income: 1000,
-        users: 100,
+        income: 0,
+        users: 0,
         heat: 0,
         isGameOver: false,
         gameState: 'playing',
-        peakUsers: 100,
+        peakUsers: 0,
         gameStartTime: Date.now(),
         departments: DEFAULT_DEPARTMENTS.map(d => ({ ...d, level: 0, count: 0 })),
         hiredLawyers: [],
@@ -1427,6 +1532,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const diff = (now - state.lastPassiveUpdate) / 1000;
       if (diff <= 0) return;
       
+      get().tickResearch(now - state.lastPassiveUpdate);
+      
       // Apply gem efficiency bonus to passive income
       const gemBonuses = get().getGemBonuses();
       const efficiencyMultiplier = 1 + (gemBonuses.departmentEfficiency / 100);
@@ -1439,8 +1546,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
       });
 
       // Passive growth also generates a bit of heat (less than spikes)
-      if (earnings > 0) {
-        get().modifyHeat(earnings / 100000); // 10x slower than clicks/lures
+      // Paused during an active Shitstorm to prevent endless inescapable crises at high income levels
+      if (earnings > 0 && !state.lawsuitState.isCrisisActive) {
+        const rawHeat = earnings / 100000;
+        // Soft cap large passive heat chunks so it doesn't instantly jump to 100
+        const scaledHeat = Math.min(5.0, rawHeat > 1.0 ? 1.0 + Math.log10(rawHeat) : rawHeat);
+        get().modifyHeat(scaledHeat, 'passive'); // 10x slower than clicks/lures
       }
 
       get().checkPermanentBonuses();
@@ -1588,17 +1699,25 @@ export const useMetamanGame = create<MetamanGameStore>()(
     sellData: (type, amount, multiplier, heatIncrease) => {
       const state = get();
       if (state.dataMarket.inventory[type] < amount) return;
-      const price = state.dataMarket.prices[type] * multiplier;
+      
+      let basePrice = state.dataMarket.prices[type];
+      if (state.researchState.completed.includes('psychographic_profiling')) {
+        basePrice = basePrice * 1.25;
+      }
+      const price = basePrice * multiplier;
       const totalGain = price * amount;
+      
       set((state) => ({
         income: state.income + totalGain,
         totalLifetimeIncome: state.totalLifetimeIncome + totalGain,
         dataMarket: {
           ...state.dataMarket,
           inventory: { ...state.dataMarket.inventory, [type]: state.dataMarket.inventory[type] - amount }
-        },
-        regulatoryRisk: Math.min(100, state.regulatoryRisk + heatIncrease)
+        }
       }));
+      
+      // Apply heat increase via modifyHeat to account for lawyers
+      get().modifyHeat(heatIncrease, 'data');
     },
 
     sellAllData: () => {
@@ -1619,6 +1738,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
         { threshold: 9000,  bonus: 0.21 },
         { threshold: 13000, bonus: 0.23 },
       ];
+      
+      // Predictive Algorithms: Advertiser Milestones require 20% less volume
+      const hasPredictive = state.researchState.completed.includes('predictive_algorithms');
+      const activeMilestones = MILESTONES.map(m => ({
+        ...m,
+        threshold: hasPredictive ? Math.floor(m.threshold * 0.8) : m.threshold
+      }));
 
       const gemBonuses = get().getGemBonuses();
       const currentMultiplier = state.advertiserData.incomeMultiplier * (1 + (gemBonuses.dataPriceBoost || 0));
@@ -1635,8 +1761,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
       // Campaign charges: +1 per 10 orbs, max +5
       // Penalties: Lose 5% of users or 5% of income! Impact matters!
-    const userLoss = Math.max(10, Math.floor(state.users * 0.05));
-    const moneyLoss = Math.max(500, Math.floor(state.income * 0.05));
+      const userLoss = Math.max(10, Math.floor(state.users * 0.05));
+      const moneyLoss = Math.max(500, Math.floor(state.income * 0.05));
       const maxCharges = get().getMaxCampaignCharges();
       const chargeBonus = Math.min(5, Math.floor(orbs / 10));
       const newCharges = Math.min(maxCharges + 5, state.campaignCharges + chargeBonus);
@@ -1653,7 +1779,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // Check milestones
       let newMultiplier = state.advertiserData.incomeMultiplier;
       let newMilestonesReached = state.advertiserData.milestonesReached;
-      for (const m of MILESTONES) {
+      for (const m of activeMilestones) {
         if (state.advertiserData.totalDataSold < m.threshold && newTotalSold >= m.threshold) {
           newMultiplier += m.bonus;
           newMilestonesReached += 1;
@@ -1661,7 +1787,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       }
 
-      const nextMilestone = MILESTONES.find(m => newTotalSold < m.threshold)?.threshold ?? 99999;
+      const nextMilestone = activeMilestones.find(m => newTotalSold < m.threshold)?.threshold ?? 99999;
 
       set((s) => ({
         income: s.income + payout,
@@ -1689,8 +1815,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
         get().addVisualEffect('users', 200, 160, 'medium', `+${permOrbGain} ◈ permanent`);
       }
     },
-
-
     updateMarketPrices: () => {
       set((state) => {
         const newPrices = {
@@ -1712,24 +1836,75 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     checkRandomLawsuits: () => {
       const state = get();
+      
+      // Don't trigger if one is already active or if heat is too low
+      if (state.lawsuitState.isActive || state.heat < 10) return;
+
       // Heat connects to Lawsuit frequency:
-      // Heat % | Chance per tick (1s)
-      // 0-25%   | 0%
-      // 25-50%  | 0.5% (Elevated)
-      // 50-75%  | 2.0% (Critical)
-      // 75-100% | 5.0% (Emergency)
+      const now = Date.now();
       
       let chance = 0;
-      if (state.heat >= 75) chance = 0.05;
-      else if (state.heat >= 50) chance = 0.02;
-      else if (state.heat >= 25) chance = 0.005;
+      if (state.heat >= 75) chance = 0.08; // 8% chance per gain
+      else if (state.heat >= 50) chance = 0.03; // 3%
+      else if (state.heat >= 25) chance = 0.01; // 1%
+      else if (state.heat >= 10) chance = 0.002; // 0.2%
 
       if (chance > 0 && Math.random() < chance) {
-        set({ showRandomLawsuit: true, currentRandomLawsuit: state.randomLawsuitManager.getRandomLawsuit() });
+        const lawsuit = state.randomLawsuitManager.getRandomLawsuit();
+        if (lawsuit) {
+          console.log(`⚖️ RANDOM LAWSUITS TRIGGERED: ${lawsuit.title}`);
+          set((s) => ({
+            lawsuitState: {
+              ...s.lawsuitState,
+              isActive: true,
+              isDelivered: true, // Immediately "served" to the suitcase
+              isAcknowledged: false,
+              showLawsuitPanel: false, // Don't show the big modal, put it in suitcase
+              plaintiff: lawsuit.plaintiff,
+              claim: lawsuit.claim,
+              amount: Math.floor((s.income * 0.15) + lawsuit.demandAmount * 0.01), // Scale with income
+              milestone: lawsuit.title
+            }
+          }));
+        }
       }
     },
 
-    resolveRandomLawsuit: (resolution) => set({ showRandomLawsuit: false, currentRandomLawsuit: null }),
+    resolveRandomLawsuit: (resolution) => {
+      const state = get();
+      if (!state.currentRandomLawsuit) {
+        set({ showRandomLawsuit: false });
+        return;
+      }
+
+      const { cost, outcome, reputationChange } = state.randomLawsuitManager.handleLawsuitResolution(
+        state.currentRandomLawsuit.id, 
+        resolution
+      );
+
+      // Offshore Data Havens: Protects 50% of funds from Lawsuit damages
+      let finalCost = cost;
+      if (finalCost > 0 && state.researchState.completed.includes('offshore_havens')) {
+        finalCost = Math.floor(finalCost * 0.5);
+      }
+
+      set((s) => ({
+        showRandomLawsuit: false,
+        currentRandomLawsuit: null,
+        income: Math.max(0, s.income - finalCost)
+      }));
+
+      // Visual feedback
+      if (finalCost > 0) {
+        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'high', `-$${get().formatNumber(finalCost)}`, 'red');
+      }
+      get().addReward({
+        type: 'special',
+        title: 'Lawsuit Resolved',
+        description: outcome,
+        value: finalCost > 0 ? -finalCost : 0
+      });
+    },
     closeRandomLawsuit: () => set({ showRandomLawsuit: false, currentRandomLawsuit: null }),
 
     setCharacterDialogue: (charId) => {
@@ -2173,15 +2348,31 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const diff = now - (state.lastPassiveUserUpdate || now); 
       if (diff <= 0) return;
 
-      const totalBaseUserGen = state.departments.reduce((sum, dept) => {
+      let totalBaseUserGen = state.departments.reduce((sum, dept) => {
         return sum + (dept.owned * (dept.baseUserGeneration || 0));
       }, 0);
       
+      // APPLY RESEARCH BUFFS
+      if (state.researchState.completed.includes('infinite_scroll')) {
+        totalBaseUserGen = totalBaseUserGen * 1.3; // +30% passive user growth
+      }
+      
+      if (state.researchState.completed.includes('sleep_disruption')) {
+        // Sleep disruption applies 3x multiplier to passive growth at night (real time 22:00-06:00)
+        const currentHour = new Date().getHours();
+        if (currentHour >= 22 || currentHour < 6) {
+          totalBaseUserGen = totalBaseUserGen * 3;
+        }
+      }
+
       const gemBonuses = get().getGemBonuses();
       const boostedUsersGenerated = totalBaseUserGen * (diff / 1000) * (1 + (gemBonuses.userGeneration / 100));
       
       if (boostedUsersGenerated > 0) {
         get().incrementUsers(boostedUsersGenerated);
+      } else {
+        // Even if no users generated, check for Game Over (for decay situations)
+        get().checkGameOver();
       }
       
       set((state) => ({ 
@@ -2363,13 +2554,27 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     incrementOrbsInventory: (amount: number) => {
       const state = get();
+      
+      let orbGain = amount;
+      if (amount > 0 && state.researchState.completed.includes('micro_targeting')) {
+        orbGain = Math.floor(amount * 1.2);
+      }
+      
       // Only gain charges when harvesting (amount > 0)
-      const reg = amount > 0 ? Math.floor(amount / 2) : 0;
+      let reg = orbGain > 0 ? Math.floor(orbGain / 2) : 0;
+      
+      if (state.researchState.completed.includes('dopamine_loop')) {
+         // 50% faster charges
+         reg = Math.floor(reg * 1.5);
+         // Ensure it gives at least 1 extra if we got any
+         if (reg > 0 && reg === Math.floor(orbGain / 2)) reg += 1;
+      }
+      
       const maxCharges = get().getMaxCampaignCharges();
       
       set({ 
-        orbsInventory: (state.orbsInventory || 0) + amount,
-        totalOrbsCollected: (state.totalOrbsCollected || 0) + (amount > 0 ? amount : 0),
+        orbsInventory: (state.orbsInventory || 0) + orbGain,
+        totalOrbsCollected: (state.totalOrbsCollected || 0) + (orbGain > 0 ? orbGain : 0),
         campaignCharges: Math.min(maxCharges, (state.campaignCharges || 0) + reg)
       });
     },
@@ -2419,6 +2624,206 @@ export const useMetamanGame = create<MetamanGameStore>()(
         isVisible: false
       }
     })),
+
+    // ── RESEARCH LAB METHODS ───────────────────────────────────────────────
+    startResearch: (id: string) => {
+      const state = get();
+      if (state.researchState.activeResearch) return false;
+      const node = ALL_RESEARCH_NODES[id];
+      if (!node || state.income < node.cost) return false;
+
+      set((s) => ({
+        income: s.income - node.cost,
+        researchState: {
+          ...s.researchState,
+          activeResearch: id,
+          progressPercent: 0,
+          timeRemainingMs: node.duration,
+          boostEffect: null,
+        }
+      }));
+      return true;
+    },
+
+    queueResearch: (id: string) => {
+      const state = get();
+      if (state.researchState.queue.length >= 2) return false;
+      if (state.researchState.queue.includes(id) || state.researchState.completed.includes(id)) return false;
+      if (state.researchState.activeResearch === id) return false;
+      
+      const node = ALL_RESEARCH_NODES[id];
+      if (!node) return false; // Costs deducted on start
+
+      set((s) => ({
+        researchState: {
+          ...s.researchState,
+          queue: [...s.researchState.queue, id]
+        }
+      }));
+      return true;
+    },
+
+    cancelResearch: () => {
+      set((s) => ({
+        researchState: {
+          ...s.researchState,
+          activeResearch: null,
+          progressPercent: 0,
+          timeRemainingMs: 0,
+          boostEffect: null,
+        }
+      }));
+    },
+
+    boostResearch: () => {
+      const state = get();
+      if (!state.researchState.activeResearch || state.researchState.isLeakActive) return;
+      
+      const node = ALL_RESEARCH_NODES[state.researchState.activeResearch];
+      if (!node) return;
+      
+      const boostCost = Math.max(50000, node.cost * 0.2); 
+      if (state.income < boostCost) return;
+
+      const effects = [
+        { type: 'Lab Accident', desc: 'Explosion speeds up research, but costs 10% of total cash.', moneyDamage: 0.1, timeSkip: 0.5 },
+        { type: 'Breakthrough!', desc: 'Research time cut in half!', moneyDamage: 0, timeSkip: 0.5 },
+        { type: 'Coffee Break', desc: 'Nothing happened. Money wasted.', moneyDamage: 0, timeSkip: 0 },
+        { type: 'Whistleblower Leak', desc: 'Media got wind of it. +20 Senator Suspicion, but research done.', moneyDamage: 0, timeSkip: 1.0, heatAlert: true },
+        { type: 'Wrong Formula', desc: 'Progress reset! (Just kidding, but it takes 20% longer now).', moneyDamage: 0, timeSkip: -0.2 }
+      ];
+      
+      const effect = effects[Math.floor(Math.random() * effects.length)];
+      
+      let newIncome = state.income - boostCost;
+      if (effect.moneyDamage > 0) newIncome -= (newIncome * effect.moneyDamage);
+      
+      let newTime = state.researchState.timeRemainingMs * (1 - effect.timeSkip);
+      if (newTime <= 0) {
+        newTime = 1;
+      }
+
+      set((s) => ({
+        income: Math.max(0, newIncome),
+        researchState: {
+          ...s.researchState,
+          timeRemainingMs: newTime,
+          boostEffect: { type: effect.type, description: effect.desc, timestamp: Date.now() }
+        }
+      }));
+
+      if (effect.heatAlert) {
+         get().modifyHeat(20, 'passive');
+         get().updateCharacterState('walsh', { suspicion: state.characters.walsh.suspicion + 20 });
+      }
+    },
+
+    tickResearch: (deltaMs: number) => {
+      const state = get();
+      const rState = state.researchState;
+      if (!rState.activeResearch && rState.queue.length > 0) {
+        const next = rState.queue[0];
+        const success = get().startResearch(next);
+        if (success) {
+           set((s) => ({
+             researchState: { ...s.researchState, queue: s.researchState.queue.slice(1) }
+           }));
+        } else {
+           set((s) => ({
+             researchState: { ...s.researchState, queue: s.researchState.queue.slice(1) }
+           }));
+        }
+        return;
+      }
+
+      if (rState.activeResearch && !rState.isLeakActive) {
+         const node = ALL_RESEARCH_NODES[rState.activeResearch];
+         if (!node) return;
+         
+         const newTime = rState.timeRemainingMs - deltaMs;
+         if (newTime <= 0) {
+            get().completeResearch(rState.activeResearch);
+         } else {
+            set((s) => ({
+               researchState: {
+                 ...s.researchState,
+                 timeRemainingMs: newTime,
+                 progressPercent: 1 - (newTime / node.duration)
+               }
+            }));
+            
+            if (Math.random() < 0.0003 && state.users > 10000) {
+               get().triggerResearchLeak();
+            }
+         }
+      } else if (rState.isLeakActive) {
+         const newLeakTimer = rState.leakTimerMs - deltaMs;
+         if (newLeakTimer <= 0) {
+             get().resolveResearchLeak(false);
+         } else {
+             set((s) => ({
+               researchState: { ...s.researchState, leakTimerMs: newLeakTimer }
+             }));
+         }
+      }
+    },
+
+    triggerResearchLeak: () => {
+       const state = get();
+       set((s) => ({
+         researchState: {
+           ...s.researchState,
+           isLeakActive: true,
+           leakTarget: s.researchState.activeResearch,
+           leakTimerMs: 30000 // 30 seconds
+         }
+       }));
+       get().triggerCrisisSpeech("🚨 RivalCorp is hacking R&D! Open Espionage to defend!");
+    },
+
+    resolveResearchLeak: (success: boolean) => {
+       const state = get();
+       if (success) {
+          get().incrementDataInventory(500);
+          set((s) => ({
+            researchState: { ...s.researchState, isLeakActive: false, leakTarget: null }
+          }));
+          get().triggerCrisisSpeech("🛡️ Research secured! Harvested data from intruders.");
+       } else {
+          const node = ALL_RESEARCH_NODES[state.researchState.activeResearch || ''];
+          set((s) => ({
+            researchState: { 
+              ...s.researchState, 
+              isLeakActive: false, 
+              leakTarget: null,
+              progressPercent: 0,
+              timeRemainingMs: node ? node.duration : 0
+            }
+          }));
+       }
+    },
+
+    completeResearch: (id: string) => {
+       const state = get();
+       if (!state.researchState.completed.includes(id)) {
+           const allNodes = Object.values(ALL_RESEARCH_NODES);
+           const newlyUnlocked = allNodes
+              .filter(n => !state.researchState.unlocked.includes(n.id) && n.requirements.every(req => state.researchState.completed.includes(req) || req === id))
+              .map(n => n.id);
+
+           set((s) => ({
+              researchState: {
+                 ...s.researchState,
+                 activeResearch: null,
+                 progressPercent: 0,
+                 completed: [...s.researchState.completed, id],
+                 unlocked: Array.from(new Set([...s.researchState.unlocked, ...newlyUnlocked]))
+              }
+           }));
+           
+           get().triggerCrisisSpeech(`🔬 R&D Complete: ${ALL_RESEARCH_NODES[id]?.name}`);
+       }
+    },
   };
 })
 );

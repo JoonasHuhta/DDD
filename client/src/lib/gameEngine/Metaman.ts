@@ -4,6 +4,8 @@ export class Metaman {
   private animationFrame: number = 0;
   private lastClick: number = 0;
   private smileTimer: number = 0;
+  private phoneEmoji: string | null = null;
+  private phoneEmojiTimer: number = 0;
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -19,22 +21,52 @@ export class Metaman {
     return { x: this.x, y: this.y };
   }
 
-  public getHammerPosition(isMobile: boolean = false): { x: number, y: number } {
+  /** Returns the position of the held Nokia 3310 for lure effects. */
+  public getItemPosition(isMobile: boolean = false): { x: number, y: number } {
     const size = isMobile ? 45 : 40;
     const footY = this.y;
-    const hammerX = this.x + size * 0.8;
-    const hammerY = footY - size * 1.1;
-    // The head's center is translated by -size * 0.7 during render
+    const phoneX = this.x + size * 0.9;
+    const phoneY = footY - size * 0.95; 
+    
     return { 
-      x: hammerX, 
-      y: hammerY - size * 0.7 
+      x: phoneX, 
+      y: phoneY - size * 0.15 // Center of the smartphone screen
     };
+  }
+
+  /** Legacy alias for getItemPosition */
+  public getHammerPosition(isMobile: boolean = false): { x: number, y: number } {
+    return this.getItemPosition(isMobile);
   }
 
   public update(deltaTime: number): void {
     this.animationFrame += deltaTime * 0.005;
     if (this.smileTimer > 0) {
       this.smileTimer -= deltaTime;
+    }
+    if (this.phoneEmojiTimer > 0) {
+      this.phoneEmojiTimer -= deltaTime;
+    }
+  }
+
+  private readonly EMOJI_PRIORITY: Record<string, number> = {
+    '🥳': 5, // Stage Completion - Top Priority
+    '🫠': 4, // Being Hit (Poop/Shitstorm) - High Priority Reaction
+    '⚡': 3, // Lure/Action - High Priority
+    '🚨': 2, // Regulatory Alert - Moderate
+    '💰': 1  // General Reward - Low
+  };
+
+  public setPhoneEmoji(emoji: string, duration: number): void {
+    const currentPriority = (this.phoneEmoji && this.phoneEmojiTimer > 0) 
+      ? (this.EMOJI_PRIORITY[this.phoneEmoji] || 0) 
+      : 0;
+    const newPriority = this.EMOJI_PRIORITY[emoji] || 0;
+    
+    // Only overwrite if NEW priority is >= current active priority
+    if (newPriority >= currentPriority) {
+      this.phoneEmoji = emoji;
+      this.phoneEmojiTimer = duration;
     }
   }
 
@@ -237,78 +269,65 @@ export class Metaman {
       this.renderClickEffect(ctx);
     }
 
-    // --- MJOLNIR HAMMER (Drawn last to be on top) ---
-    const hammerX = this.x + size * 0.8;
-    const hammerY = footY - size * 1.1;
+    // --- MODERN SMARTPHONE ---
+    const phoneX = this.x + size * 0.9;
+    const phoneY = footY - size * 0.95;
     
-    // Handle
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = '#4e342e'; // Dark brown wood
-    ctx.beginPath();
-    ctx.roundRect(hammerX - size * 0.05, hammerY - size * 0.6, size * 0.1, size * 0.8, size * 0.05);
-    ctx.fill();
-    ctx.stroke();
+    const pW = size * 0.38;
+    const pH = size * 0.75;
     
-    // Handle Wraps (Visual texture)
-    ctx.strokeStyle = '#212121';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.moveTo(hammerX - size * 0.05, hammerY - size * 0.5 + i * size * 0.12);
-        ctx.lineTo(hammerX + size * 0.05, hammerY - size * 0.55 + i * size * 0.12);
-        ctx.stroke();
-    }
-    
-    // Leather Strap Loop
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(hammerX, hammerY + size * 0.2, size * 0.1, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Hammer Head
-    const headW = size * 0.8;
-    const headH = size * 0.5;
     ctx.save();
-    ctx.translate(hammerX, hammerY - size * 0.7);
-    ctx.rotate(0); // Flattened per user request to match reference exactly
+    ctx.translate(phoneX, phoneY);
+    ctx.rotate(0.05); // Slight tilt
 
-    // Head Outline/Body
-    ctx.fillStyle = '#757575'; // Gray metal
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = 'black';
+    // 1. Chassis (Matte Black)
+    ctx.fillStyle = '#212121';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(-headW/2, -headH/2, headW, headH, size * 0.08);
+    ctx.roundRect(-pW/2, -pH/2, pW, pH, size * 0.08);
     ctx.fill();
     ctx.stroke();
 
-    // Metallic Highlights
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.fillRect(-headW/2, -headH/2, headW, headH * 0.3);
+    // 2. Screen (Glassy Dark Teal)
+    const screenPadding = size * 0.04;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(-pW/2 + screenPadding, -pH/2 + screenPadding, pW - screenPadding*2, pH - screenPadding*2);
     
-    // Golden Pattern (As seen in reference)
-    ctx.strokeStyle = '#ffd600'; // Gold
-    ctx.lineWidth = 1.5;
-    // Outer Rectangle
-    ctx.strokeRect(-headW * 0.35, -headH * 0.3, headW * 0.7, headH * 0.6);
-    // Inner Cross/Rune details
+    // Screen Glow/Content
+    const sW = pW - screenPadding * 3;
+    const sH = pH - screenPadding * 3;
+    const screenGrad = ctx.createLinearGradient(0, -sH/2, 0, sH/2);
+    screenGrad.addColorStop(0, '#00bfa5');
+    screenGrad.addColorStop(1, '#00796b');
+    ctx.fillStyle = screenGrad;
+    ctx.fillRect(-sW/2, -sH/2, sW, sH);
+
+    // --- DYNAMIC SCREEN CONTENT (Emojis) ---
+    // Priority: Dynamic emojis (Alerts/Celebrations) > Passive smile > Default Blank
+    const activeEmoji = this.phoneEmojiTimer > 0 ? this.phoneEmoji : (this.smileTimer > 0 ? '😊' : null);
+
+    if (activeEmoji) {
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Balanced size for impact without over-crowding
+      ctx.font = `${Math.floor(size * 0.37)}px Arial`;
+      ctx.fillText(activeEmoji, 0, size * 0.05);
+      ctx.restore();
+    }
+
+    // 3. Top Elements (Camera/Speaker)
+    ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.moveTo(-headW * 0.15, -headH * 0.2);
-    ctx.lineTo(headW * 0.15, headH * 0.2);
-    ctx.moveTo(headW * 0.15, -headH * 0.2);
-    ctx.lineTo(-headW * 0.15, headH * 0.2);
-    ctx.stroke();
-    
-    // Side texture (rugged look)
-    ctx.fillStyle = '#616161';
-    ctx.fillRect(-headW/2, -headH/2, size * 0.1, headH);
-    ctx.fillRect(headW/2 - size * 0.1, -headH/2, size * 0.1, headH);
-    
-    ctx.restore();
+    ctx.arc(0, -pH/2 + screenPadding/2, size * 0.02, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
+
+    ctx.restore(); // Match line 48 save()
   }
+
 
   private renderClickEffect(ctx: CanvasRenderingContext2D): void {
     const elapsed = Date.now() - this.lastClick;

@@ -51,7 +51,7 @@ const HELP_TIPS: HelpTip[] = [
   },
   {
     id: 'lawsuit_delivered',
-    condition: (state) => state.lawsuitState?.isDelivered,
+    condition: (state) => state.lawsuitState?.isDelivered && !state.lawsuitState?.isAcknowledged,
     message: "Check the red suitcase icon - you have legal trouble!",
     priority: 5,
     category: 'suggestion',

@@ -332,8 +332,8 @@ export class MetamanEngine {
       this.citizens = this.citizens.slice(0, citizenLimit);
     }
     
-    // TEST: Spawn Red NPC for lawsuit demonstration (trigger after 10 users reached)
-    if (!this.redNpc && !this.hasSpawnedRedNpc && this.getUsers() >= 10) {
+    // TUTORIAL: Spawn Red NPC for lawsuit demonstration (trigger after 300 users reached)
+    if (!this.redNpc && !this.hasSpawnedRedNpc && this.getUsers() >= 300) {
       this.spawnRedNpc();
       this.hasSpawnedRedNpc = true;
     }
@@ -418,8 +418,8 @@ export class MetamanEngine {
       
       // Campaigns are now free - no cost deduction
       
-      // Get Metaman's hammer position for lure start point
-      const lureOrigin = this.metaman.getHammerPosition(this.isMobile);
+      // Get Metaman's phone position for lure start point
+      const lureOrigin = this.metaman.getItemPosition(this.isMobile);
       
       // Create electric lure effect with campaign color and radius
       this.electricLure.addLure(lureOrigin.x, lureOrigin.y, x, y, campaign.color, campaign.radius);
@@ -450,8 +450,36 @@ export class MetamanEngine {
       
       // Make Metaman react to clicks
       this.metaman.onClick();
+      this.metaman.setPhoneEmoji('⚡', 600); // ⚡ on screen during luring
       
       return true;
+    }
+  }
+
+  public triggerMetamanSmile(duration: number = 8000): void {
+    if (this.metaman) {
+      this.metaman.triggerSmile(duration);
+      this.metaman.setPhoneEmoji('💰', duration);
+    }
+  }
+
+  public triggerCelebration(duration: number = 8000): void {
+    if (this.metaman) {
+      this.metaman.setPhoneEmoji('🥳', duration);
+      this.metaman.triggerSmile(duration);
+      this.playCelebrationSound();
+    }
+  }
+
+  public triggerRegulatoryAlert(duration: number = 2000): void {
+    if (this.metaman) {
+      this.metaman.setPhoneEmoji('🚨', duration);
+    }
+  }
+
+  public triggerMeltingFace(duration: number = 3000): void {
+    if (this.metaman) {
+      this.metaman.setPhoneEmoji('🫠', duration);
     }
   }
 
@@ -581,6 +609,34 @@ export class MetamanEngine {
     
     oscillator.start(this.audioContext.currentTime);
     oscillator.stop(this.audioContext.currentTime + 0.4);
+  }
+
+  private playCelebrationSound(): void {
+    if (!this.audioContext) return;
+    const now = this.audioContext.currentTime;
+    
+    const playNote = (freq: number, start: number, duration: number, type: OscillatorType = 'square') => {
+      const osc = this.audioContext!.createOscillator();
+      const gain = this.audioContext!.createGain();
+      osc.connect(gain);
+      gain.connect(this.audioContext!.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, start);
+      
+      // brash brassy attack
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
+      
+      osc.start(start);
+      osc.stop(start + duration);
+    };
+
+    // Fanfare: C5 -> E5 -> G5 -> C6 (Maj triad arpeggio)
+    playNote(523.25, now, 0.15);         // C5
+    playNote(659.25, now + 0.15, 0.15);  // E5
+    playNote(783.99, now + 0.3, 0.15);   // G5
+    playNote(1046.50, now + 0.45, 0.8, 'sawtooth'); // C6 - Sustained finish
   }
 
   private renderCooldownIndicator(): void {
@@ -804,12 +860,6 @@ export class MetamanEngine {
 
   public getTowerHeight(): number {
     return this.towerHeight;
-  }
-
-  public triggerMetamanSmile(duration: number = 8000): void {
-    if (this.metaman) {
-      this.metaman.triggerSmile(duration);
-    }
   }
 
   public getWidth(): number {

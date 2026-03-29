@@ -2,7 +2,7 @@ import { useMetamanGame } from "../lib/stores/useMetamanGame";
 import { useAudio } from "../lib/stores/useAudio";
 import { usePanelState } from "../hooks/usePanelState";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX, DollarSign, Users, Settings, Building, Database, ShoppingCart, Building2, TrendingUp, Clock, Trophy, Bot, BarChart3, Zap, Briefcase, Gift, Scale, Home, LineChart, Lock } from "lucide-react";
+import { Volume2, VolumeX, DollarSign, Users, Settings, Building, Database, ShoppingCart, Building2, TrendingUp, Clock, Trophy, Bot, BarChart3, Zap, Briefcase, Gift, Scale, Home, LineChart, Lock, XCircle } from "lucide-react";
 import DepartmentPanel from "./DepartmentPanel";
 import CampaignPanel from "./CampaignPanel";
 import ProgressionPanel from "./ProgressionPanel";
@@ -29,6 +29,7 @@ import TrophyPanel from "./TrophyPanel";
 import ErrorBoundary from "./ErrorBoundary";
 import LegalSystem from "./LegalSystem";
 import SinisterLab from "./SinisterLab";
+import ResearchLabPanel from "./ResearchLabPanel";
 import MansionPanel from "./MansionPanel";
 import TutorialPanel from "./TutorialPanel";
 import DataMarketPanel from "./DataMarketPanel";
@@ -217,7 +218,10 @@ export default function GameUI() {
           </div>
           
           {/* Game Title */}
-          <h1 className={`${responsive.isMobile ? 'text-5xl' : 'text-8xl'} font-black text-[#FF6B35] ${responsive.isMobile ? 'mb-2' : 'mb-4'} comic-text-stroke animate-comic-pop`} data-game-title>
+          <h1 
+            className={`${responsive.isMobile ? 'text-6xl' : 'text-[120px]'} font-black comic-title transform -rotate-[5deg] ${responsive.isMobile ? 'mb-6' : 'mb-8'} select-none drop-shadow-2xl`}
+            data-game-title
+          >
             DOPAMINE<br/>DEALER DAN
           </h1>
           
@@ -227,7 +231,13 @@ export default function GameUI() {
           
           <div className={`flex flex-col ${responsive.isMobile ? 'gap-3' : 'gap-6'} ${responsive.isMobile ? 'mb-4' : 'mb-8'} max-w-sm mx-auto`}>
             <button
-              onClick={startGame}
+              onClick={() => {
+                const screenAny = screen as any;
+                if (screenAny.orientation && screenAny.orientation.lock) {
+                  screenAny.orientation.lock('portrait').catch(() => {});
+                }
+                startGame();
+              }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#FF6B35] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
             >
               NEW GAME!
@@ -235,6 +245,10 @@ export default function GameUI() {
 
             <button
               onClick={() => {
+                const screenAny = screen as any;
+                if (screenAny.orientation && screenAny.orientation.lock) {
+                  screenAny.orientation.lock('portrait').catch(() => {});
+                }
                 const success = useMetamanGame.getState().loadGame();
                 if (!success) alert("No save found!");
               }}
@@ -473,7 +487,7 @@ export default function GameUI() {
             <div className="relative">
               <AdaptiveButton
                 onClick={() => togglePanel('suitcase', panels.isPanelOpen('suitcase'))}
-                variant={(lawsuitState.isDelivered && !lawsuitState.isAcknowledged) ? 'danger' : (rewardState.rewards.some(r => !r.claimed) ? 'success' : (panels.isPanelOpen('suitcase') ? 'primary' : 'ghost'))}
+                variant={lawsuitState.isActive || (lawsuitState.isDelivered && !lawsuitState.isAcknowledged) ? 'danger' : (rewardState.rewards.some(r => !r.claimed) ? 'success' : (panels.isPanelOpen('suitcase') ? 'primary' : 'ghost'))}
                 title="Legal & Rewards"
                 icon={<Briefcase className={responsive.iconSize} />}
                 badge={(rewardState.rewards.filter(r => !r.claimed).length + ((lawsuitState.isActive || (lawsuitState.isDelivered && !lawsuitState.isAcknowledged)) ? 1 : 0)) || undefined}
@@ -499,6 +513,21 @@ export default function GameUI() {
         } pointer-events-auto z-20 flex flex-col gap-2`}>
           <div className={`bg-black bg-opacity-75 rounded-lg border border-gray-600 p-1`}>
             <div className={`flex flex-col gap-1`}>
+            {/* Exit Basement Button */}
+            <button
+              onClick={() => {
+                closeAllPanels();
+                setCurrentView('city');
+              }}
+              className={`bg-[#FF1744] hover:bg-[#e6002f] ${responsive.buttonSize} flex items-center justify-center rounded-lg border-4 border-black transition-colors relative shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none mb-4`}
+              title="Return to City View"
+            >
+              <XCircle className={`${responsive.iconSize} text-white`} />
+              <span className="absolute -top-3 -right-3 bg-white text-black text-[10px] px-1 font-black uppercase italic border-2 border-black rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform rotate-3">
+                EXIT
+              </span>
+            </button>
+
             {/* Data Market Button */}
             <button
               onClick={() => {
@@ -529,6 +558,21 @@ export default function GameUI() {
               </span>
             </button>
 
+            {/* R&D Lab Button */}
+            <button
+              onClick={() => {
+                if (panels.isAnyPanelOpen()) panels.closeAllPanels();
+                panels.openPanel('researchLab');
+              }}
+              className={`bg-[#9D4EDD] hover:bg-[#7b2cbf] flex items-center justify-center ${responsive.buttonSize} rounded-lg border-4 border-black transition-colors relative shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none mt-2`}
+              title="Access the R&D Lab to research technologies"
+            >
+              <span className="text-xl">👩‍🔬</span>
+              <span className="absolute -top-3 -right-3 bg-white text-black text-[10px] px-1 font-black uppercase italic border-2 border-black rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform rotate-2">
+                TECH
+              </span>
+            </button>
+
             {/* Corporate Espionage Button */}
             <button
               onClick={() => {
@@ -544,28 +588,6 @@ export default function GameUI() {
               </span>
             </button>
 
-            {/* Sell All Orbs Button */}
-            <button
-              onClick={sellAllData}
-              disabled={dataInventory === 0}
-              className={`flex items-center justify-center ${responsive.buttonSize} rounded-lg border-4 transition-colors relative mt-2 ${
-                dataInventory > 0
-                  ? 'bg-[#FF1744] hover:bg-[#e6002f] border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none cursor-pointer'
-                  : 'bg-gray-400 border-gray-600 cursor-not-allowed opacity-70'
-              }`}
-              title={
-                dataInventory > 0 
-                  ? `Sell Data to Advertisers ($${formatNumber(calculateDataOrbValue())})`
-                  : 'No orbs to sell'
-              }
-            >
-              <ShoppingCart className={`${responsive.iconSize} ${dataInventory > 0 ? 'text-white' : 'text-gray-300'}`} />
-              <span className={`absolute -top-3 -right-3 ${
-                dataInventory > 0 ? 'bg-white text-black border-2 border-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]' : 'bg-gray-300 text-gray-500 border-2 border-gray-500'
-              } text-[10px] px-1 font-black uppercase italic rounded transform -rotate-2`}>
-                SELL
-              </span>
-            </button>
             </div>
           </div>
         </div>
@@ -611,6 +633,8 @@ export default function GameUI() {
       {currentView !== 'basement' && panels.isPanelOpen('mansion') && <MansionPanel onClose={() => panels.closePanel('mansion')} />}
 
       {panels.isPanelOpen('sinisterLab') && <SinisterLab onClose={() => panels.closePanel('sinisterLab')} />}
+      
+      {panels.isPanelOpen('researchLab') && <ResearchLabPanel onClose={() => panels.closePanel('researchLab')} />}
       
       {panels.isPanelOpen('legal') && <LegalSystem onClose={() => panels.closePanel('legal')} />}
 
