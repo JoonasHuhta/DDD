@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Database, 
   DollarSign, 
@@ -6,7 +6,12 @@ import {
   Zap, 
   Flame, 
   Users,
-  Target
+  Target,
+  Skull,
+  AlertTriangle,
+  Lock,
+  Ghost,
+  Bot
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
@@ -14,11 +19,21 @@ import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
 
 export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'market' | 'darkweb'>('market');
+
   const { 
     dataInventory,
+    income,
+    users,
     advertiserData,
+    shopPurchases,
     sellAllData,
-    formatNumber
+    formatNumber,
+    decrementIncome,
+    incrementUsers,
+    modifyHeat,
+    addBuff,
+    addShopPurchase
   } = useMetamanGame();
 
   // bulk pricing formula: orbs × 50 × (1 + orbs/20) × advertiserMultiplier
@@ -38,6 +53,63 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
     return Math.min(100, Math.max(0, (current / total) * 100));
   }, [advertiserData.totalDataSold, advertiserData.nextMilestone]);
 
+  const darkWebItems = [
+    { id: 'user_injection', name: 'User Injection', desc: '+3,000 users instantly', price: 2000, effect: 'Flat boost', icon: <Users size={16}/> },
+    { id: 'notification_overdose', name: 'Notification Overdose', desc: '5x income for 60 seconds + 5,000 users', price: 4000, effect: 'Temporary Buff', icon: <Zap size={16}/> },
+    { id: 'scroll_addiction_serum', name: 'Scroll Serum', desc: '+8,000 users & permanent +10% passive income', price: 6000, effect: 'Permanent', icon: <TrendingUp size={16}/> },
+    { id: 'fomo_amplification', name: 'FOMO Amplification', desc: '10x manual click power for 30s + 12,000 users', price: 10000, effect: 'Temporary Buff', icon: <Target size={16}/> },
+    { id: 'competitor_spy', name: 'Competitor Spy Toolkit', desc: '+15,000 users', price: 20000, effect: 'Flat boost', icon: <Ghost size={16}/> },
+    { id: 'cat_videos_2', name: 'Cat Videos 2.0', desc: '+20,000 users. WARNING: +50 Heat!', price: 18000, effect: 'High Risk', icon: <AlertTriangle size={16} className="text-red-500"/> },
+    { id: 'data_mining_malware', name: 'Data Malware', desc: '+22,000 users', price: 28000, effect: 'Flat boost', icon: <Database size={16}/> },
+    { id: 'deepfake_gen', name: 'Deepfake Generator', desc: '+30,000 users', price: 35000, effect: 'Flat boost', icon: <Ghost size={16}/> },
+    { id: 'algo_hack', name: 'Algorithm Hack Suite', desc: '+40,000 users', price: 50000, effect: 'Flat boost', icon: <Lock size={16}/> },
+    { id: 'dopamine_enhancer', name: 'Dopamine Enhancer', desc: '+50,000 users', price: 50000, effect: 'Flat boost', icon: <Zap size={16}/> },
+    { id: 'algo_bot', name: 'Algorithm Manipulator Bot', desc: '+75,000 users', price: 75000, effect: 'Flat boost', icon: <Bot size={16}/> },
+    { id: 'pirated_ai_trainer', name: 'Pirated Data AI', desc: '+75,000 users. WARNING: Max Legal Risk (+100 Heat)', price: 1500000, effect: 'Extreme Risk', icon: <AlertTriangle size={16} className="text-red-600 animate-pulse"/> },
+    { id: 'hypnosis_device', name: 'Hypnosis Broadcast', desc: '+100,000 users', price: 2500000, effect: 'Flat boost', icon: <Target size={16}/> },
+    { id: 'count_clickula_pact', name: 'Count Clickula Blood Pact', desc: '+150,000 users. Requires 2M Users.', price: 5000000, effect: 'Unlockable', icon: <Skull size={16} className="text-red-600"/> }
+  ];
+
+  const handleDarkWebPurchase = (item: any) => {
+    if (income < item.price || shopPurchases.includes(item.id)) return;
+    if (item.id === 'count_clickula_pact' && users < 2000000) return;
+
+    decrementIncome(item.price);
+    addShopPurchase(item.id);
+
+    // Baseline user boosts
+    const boosts: Record<string, number> = {
+      user_injection: 3000,
+      notification_overdose: 5000,
+      scroll_addiction_serum: 8000,
+      fomo_amplification: 12000,
+      competitor_spy: 15000,
+      cat_videos_2: 20000,
+      data_mining_malware: 22000,
+      deepfake_gen: 30000,
+      algo_hack: 40000,
+      dopamine_enhancer: 50000,
+      algo_bot: 75000,
+      pirated_ai_trainer: 75000,
+      hypnosis_device: 100000,
+      count_clickula_pact: 150000
+    };
+    if (boosts[item.id]) incrementUsers(boosts[item.id]);
+
+    // Special Mechanics Hookup
+    if (item.id === 'notification_overdose') {
+      addBuff({ id: item.id, type: 'income', multiplier: 5, expiresAt: Date.now() + 60000 });
+    } else if (item.id === 'scroll_addiction_serum') {
+      addBuff({ id: item.id, type: 'income', multiplier: 1.1, expiresAt: null });
+    } else if (item.id === 'fomo_amplification') {
+      addBuff({ id: item.id, type: 'click', multiplier: 10, expiresAt: Date.now() + 30000 });
+    } else if (item.id === 'cat_videos_2') {
+      modifyHeat(50, 'data');
+    } else if (item.id === 'pirated_ai_trainer') {
+      modifyHeat(100, 'data');
+    }
+  };
+
   return (
     <AdaptivePanel 
       title="DATA BROKER" 
@@ -45,8 +117,76 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
       position="center" 
       icon={<Database className="w-5 h-5 text-cyan-400" />}
     >
-      <div className="space-y-6 pb-20 px-2 lg:px-4">
-        {/* Main Sell Section */}
+      {/* Header Tabs */}
+      <div className="flex px-4 pt-2 -mb-2 z-10 relative gap-2">
+        <button 
+          onClick={() => setActiveTab('market')}
+          className={`flex-1 py-3 border-4 border-black rounded-t-2xl font-black uppercase italic transition-all ${
+            activeTab === 'market' ? 'bg-[#FFD700] text-black shadow-none border-b-0 translate-y-1' : 'bg-gray-200 text-gray-500 shadow-[2px_-2px_0_0_rgba(0,0,0,1)]'
+          }`}
+        >
+          WHITELIST
+        </button>
+        <button 
+          onClick={() => setActiveTab('darkweb')}
+          className={`flex-1 py-3 border-4 border-black rounded-t-2xl font-black uppercase italic flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'darkweb' ? 'bg-red-600 text-white shadow-none border-b-0 translate-y-1' : 'bg-gray-900 text-gray-600 shadow-[2px_-2px_0_0_rgba(0,0,0,1)]'
+          }`}
+        >
+          <Skull size={18} />
+          DARK WEB
+        </button>
+      </div>
+
+      <div className="space-y-6 pb-20 px-2 lg:px-4 relative z-0">
+        {activeTab === 'darkweb' ? (
+          <div className="bg-gray-900 border-4 border-black rounded-b-2xl rounded-tr-2xl p-4 shadow-[8px_8px_0_0_rgba(0,0,0,1)] min-h-[400px]">
+            <div className="flex justify-between items-center bg-black border-2 border-red-500 rounded-xl p-3 mb-4">
+              <span className="text-red-500 font-black uppercase animate-pulse flex items-center gap-2">
+                <AlertTriangle size={16} /> UNREGISTERED CONNECTION
+              </span>
+              <span className="text-green-400 font-black italic">$ {formatNumber(income)}</span>
+            </div>
+            
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {darkWebItems.map(item => {
+                const isOwned = shopPurchases.includes(item.id);
+                const isLocked = item.id === 'count_clickula_pact' && users < 2000000;
+                const canAfford = income >= item.price;
+                return (
+                  <div key={item.id} className={`p-3 bg-black border-2 border-gray-700 rounded-xl transition-all ${isOwned ? 'opacity-50 grayscale' : 'hover:border-red-500 hover:shadow-[4px_4px_0_0_rgba(255,0,0,0.5)]'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-gray-800 p-2 rounded-lg text-red-500 border border-red-900">
+                          {item.icon}
+                        </div>
+                        <div>
+                          <h4 className="text-white font-black uppercase text-xs tracking-wider">{item.name}</h4>
+                          <span className="text-[9px] text-red-400 font-bold uppercase">{item.effect}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-green-400 font-black italic text-sm mb-1">${formatNumber(item.price)}</div>
+                        <button
+                          onClick={() => handleDarkWebPurchase(item)}
+                          disabled={isOwned || !canAfford || isLocked}
+                          className={`px-3 py-1 font-black uppercase italic text-[10px] rounded-lg border-2 border-black transition-all ${
+                            isOwned ? 'bg-gray-600 text-gray-400' : isLocked ? 'bg-red-900 text-gray-500' : canAfford ? 'bg-red-600 text-white hover:bg-red-500 active:scale-95 shadow-[2px_2px_0_0_black]' : 'bg-gray-800 text-gray-500'
+                          }`}
+                        >
+                          {isOwned ? 'OWNED' : isLocked ? 'LOCKED (2M USERS)' : canAfford ? 'EXECUTE' : 'FUNDS LOW'}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-gray-400 text-[10px] uppercase font-bold leading-tight">{item.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-black/40 border-4 border-black rounded-b-2xl rounded-tr-2xl p-4 shadow-[8px_8px_0_0_rgba(0,0,0,1)] mt-0 space-y-6">
+            {/* Main Sell Section */}
         <div className="p-6 bg-black/40 border-4 border-black rounded-3xl shadow-[8px_8px_0_0_rgba(0,0,0,1)] text-center space-y-4">
           <div className="flex flex-col items-center gap-1">
             <AdaptiveText className="text-[10px] font-black text-cyan-400 uppercase italic tracking-widest">Available Inventory</AdaptiveText>
@@ -180,6 +320,8 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
             </p>
           </div>
         </div>
+      </div>
+      )}
       </div>
     </AdaptivePanel>
   );

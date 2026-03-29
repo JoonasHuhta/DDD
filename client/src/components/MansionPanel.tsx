@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Home, Star, Zap, Users, Shirt, Sparkles, DollarSign, Crown, Eye, Bot, BarChart3, TrendingUp, Clock, Download, Upload } from 'lucide-react';
+import { X, Home, Star, Zap, Users, Shirt, Sparkles, DollarSign, Crown, Eye, Bot, BarChart3, TrendingUp, Clock, Download, Upload, Target } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
@@ -9,8 +9,8 @@ interface MansionUpgrade {
   name: string;
   description: string;
   price: number;
-  currency: 'orbs' | 'diamonds';
-  category: 'luring' | 'decoration' | 'clothing';
+  currency: 'orbs' | 'diamonds' | 'money';
+  category: 'luring' | 'decoration' | 'clothing' | 'lifestyle';
   effect: string;
   bonus: number;
   icon: React.ReactNode;
@@ -46,11 +46,12 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     incrementOrbsInventory,
     addMansionPurchase,
     exportSave,
-    importSave
+    importSave,
+    decrementIncome
   } = useMetamanGame();
 
   const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'automation' | 'stats' | 'bonuses'>('mansion');
-  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing'>('luring');
+  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle'>('luring');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isUpgradePurchased = (id: string) => mansionPurchases.includes(id);
@@ -239,17 +240,116 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
       icon: <Crown className="w-5 h-5" />,
       purchased: isUpgradePurchased('golden_chains')
     },
+    // ── LIFESTYLE (8) ─────────────────────────────────────────────────────────
+    {
+      id: 'coffee_subscription',
+      name: 'Premium Coffee',
+      description: '+500 users. Productivity boost.',
+      price: 50,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+500 users now',
+      bonus: 500,
+      icon: <Zap className="w-5 h-5" />,
+      purchased: isUpgradePurchased('coffee_subscription')
+    },
+    {
+      id: 'pizza_delivery',
+      name: 'Pizza Delivery',
+      description: '+750 users. Late-night fuel.',
+      price: 75,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+750 users now',
+      bonus: 750,
+      icon: <Target className="w-5 h-5" />,
+      purchased: isUpgradePurchased('pizza_delivery')
+    },
+    {
+      id: 'energy_drinks',
+      name: 'Energy Crate',
+      description: '+1000 users. Massive caffeine hit.',
+      price: 150,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+1000 users now',
+      bonus: 1000,
+      icon: <Zap className="w-5 h-5" />,
+      purchased: isUpgradePurchased('energy_drinks')
+    },
+    {
+      id: 'office_chair',
+      name: 'Ergo Chair',
+      description: '+1500 users. Maximum comfort.',
+      price: 300,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+1500 users now',
+      bonus: 1500,
+      icon: <Star className="w-5 h-5" />,
+      purchased: isUpgradePurchased('office_chair')
+    },
+    {
+      id: 'gaming_setup',
+      name: 'Gaming Setup',
+      description: '+2000 users. RGB increases clicks.',
+      price: 500,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+2000 users now',
+      bonus: 2000,
+      icon: <Target className="w-5 h-5" />,
+      purchased: isUpgradePurchased('gaming_setup')
+    },
+    {
+      id: 'business_suit',
+      name: 'Business Suit',
+      description: '+2500 users. Dress to deceive.',
+      price: 750,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+2500 users now',
+      bonus: 2500,
+      icon: <Shirt className="w-5 h-5" />,
+      purchased: isUpgradePurchased('business_suit')
+    },
+    {
+      id: 'apartment_upgrade',
+      name: 'Apartment Upgrade',
+      description: '+3500 users. View from the top.',
+      price: 1200,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+3500 users now',
+      bonus: 3500,
+      icon: <Home className="w-5 h-5" />,
+      purchased: isUpgradePurchased('apartment_upgrade')
+    },
+    {
+      id: 'vacation_package',
+      name: 'Vacation',
+      description: '+5000 users. Island scheming.',
+      price: 2000,
+      currency: 'money',
+      category: 'lifestyle',
+      effect: '+5000 users now',
+      bonus: 5000,
+      icon: <Sparkles className="w-5 h-5" />,
+      purchased: isUpgradePurchased('vacation_package')
+    }
   ];
 
   const availableDiamonds = Math.floor(dataInventory / 100);
 
   const purchaseUpgrade = (upgrade: MansionUpgrade) => {
     const cost = upgrade.price;
-    const available = upgrade.currency === 'diamonds' ? availableDiamonds : orbsInventory;
+    const available = upgrade.currency === 'money' ? income : (upgrade.currency === 'diamonds' ? availableDiamonds : orbsInventory);
     
     if (available >= cost && !upgrade.purchased) {
       if (upgrade.currency === 'orbs') {
         incrementOrbsInventory(-upgrade.price);
+      } else if (upgrade.currency === 'money') {
+        decrementIncome(upgrade.price);
       }
       addMansionPurchase(upgrade.id);
       
@@ -259,6 +359,14 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
         starter_desk: 100,
         casual_tee: 200,
         user_generator: 500,
+        coffee_subscription: 500,
+        pizza_delivery: 750,
+        energy_drinks: 1000,
+        office_chair: 1500,
+        gaming_setup: 2000,
+        business_suit: 2500,
+        apartment_upgrade: 3500,
+        vacation_package: 5000
       };
       if (instantBoosts[upgrade.id]) {
         incrementUsers(instantBoosts[upgrade.id]);
@@ -307,7 +415,7 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
         </div>
 
         <div className="flex gap-2">
-          {(['luring', 'decoration', 'clothing'] as const).map(tab => (
+          {(['luring', 'decoration', 'clothing', 'lifestyle'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveMansionTab(tab)}
@@ -334,14 +442,16 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-black italic mb-1">
-                    {upgrade.price} {upgrade.currency === 'diamonds' ? '💎' : 'orb'}
+                  <div className="text-sm font-black italic mb-1 flex items-center justify-end gap-1">
+                    {upgrade.currency === 'money' ? <DollarSign className="w-3 h-3"/> : ''}
+                    {formatNumber(upgrade.price)}
+                    {upgrade.currency !== 'money' && (upgrade.currency === 'diamonds' ? ' 💎' : ' orb')}
                   </div>
                   <button
                     onClick={() => purchaseUpgrade(upgrade)}
-                    disabled={upgrade.purchased || (upgrade.currency === 'diamonds' ? availableDiamonds < upgrade.price : orbsInventory < upgrade.price)}
+                    disabled={upgrade.purchased || (upgrade.currency === 'money' ? income < upgrade.price : (upgrade.currency === 'diamonds' ? availableDiamonds < upgrade.price : orbsInventory < upgrade.price))}
                     className={`px-3 py-1 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
-                      upgrade.purchased ? 'bg-[#4ECDC4] opacity-50' : 'bg-[#FFD700]'
+                      upgrade.purchased ? 'bg-[#4ECDC4] opacity-50' : (upgrade.currency === 'money' && income < upgrade.price) || (upgrade.currency === 'orbs' && orbsInventory < upgrade.price) ? 'bg-gray-200 text-gray-400' : 'bg-[#FFD700] active:scale-95 shadow-[2px_2px_0_0_black]'
                     }`}
                   >
                     {upgrade.purchased ? 'OWNED' : 'BUY'}

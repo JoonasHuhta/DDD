@@ -126,7 +126,6 @@ export default function GameUI() {
         case 'statistics': panels.openPanel('statistics'); break;
         case 'options': panels.openPanel('options'); break;
         case 'synergies': panels.openPanel('synergies'); break;
-        case 'shop': panels.openPanel('shop'); break;
         case 'legal': 
           panels.openPanel('legal'); 
           acknowledgeLawsuit();
@@ -626,7 +625,6 @@ export default function GameUI() {
       />}
       {currentView !== 'basement' && panels.isPanelOpen('synergies') && <SynergyUpgradesPanel onClose={() => panels.closePanel('synergies')} />}
       {currentView !== 'basement' && panels.isPanelOpen('options') && <OptionsPanel onClose={() => panels.closePanel('options')} />}
-      {currentView !== 'basement' && panels.isPanelOpen('shop') && <ShopPanel onClose={() => panels.closePanel('shop')} />}
 
       {showDataMarket && <DataMarketPanel onClose={() => setShowDataMarket(false)} />}
 

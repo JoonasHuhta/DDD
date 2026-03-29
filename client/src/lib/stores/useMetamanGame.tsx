@@ -17,6 +17,13 @@ import { ALL_RESEARCH_NODES } from "../progression/researchData";
 
 export type MetamanGameState = "menu" | "playing" | "paused";
 
+export interface ActiveBuff {
+  id: string; // e.g. "notification_overdose" or "fomo_amplification"
+  type: 'income' | 'click' | 'passive_users';
+  multiplier: number;
+  expiresAt: number | null; // ms timestamp or null for permanent
+}
+
 interface ClickParticle {
   id: string;
   x: number;
@@ -39,6 +46,7 @@ interface MetamanGameStore {
   dataInventory: number;
   orbsInventory: number;
   permanentOrbs: number;
+  activeBuffs: ActiveBuff[];
   
   // DATA MARKET SYSTEM
   dataMarket: {
@@ -340,6 +348,9 @@ interface MetamanGameStore {
   addReward: (reward: { id?: string | number; type: 'achievement' | 'milestone' | 'daily' | 'special'; title: string; description: string; value: number; claimed?: boolean; dateAdded?: number; }) => void;
   addInfluencePoints: (amount: number) => void;
   getMarginalIncome: (departmentId: string, amount?: number) => number;
+
+  addBuff: (buff: ActiveBuff) => void;
+  removeBuff: (buffId: string) => void;
 
   checkDanVisitTrigger: () => void;
   triggerDanVisit: () => void;
@@ -685,6 +696,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
         mansionPurchases: state.mansionPurchases.includes(itemId)
           ? state.mansionPurchases
           : [...state.mansionPurchases, itemId]
+      })),
+      activeBuffs: [],
+      addBuff: (buff: ActiveBuff) => set((state) => ({
+        activeBuffs: [...state.activeBuffs.filter(b => b.id !== buff.id), buff]
+      })),
+      removeBuff: (buffId: string) => set((state) => ({
+        activeBuffs: state.activeBuffs.filter(b => b.id !== buffId)
       })),
       getMaxCampaignCharges: () => {
         const state = get();
@@ -1147,7 +1165,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         lastPassiveUpdate: Date.now(),
         lastUserGenerationUpdate: Date.now(),
         sessionMoneyEarned: 0,
-        sessionUsersGained: 0
+        sessionUsersGained: 0,
+        activeBuffs: []
       });
     },
 
@@ -1329,6 +1348,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (megaMilestones.realityDistorter) multiplier *= 5;
       if (megaMilestones.consciousnessHarvester) multiplier *= 10;
       
+      // Active Buffs
+      state.activeBuffs.forEach(buff => {
+        if (buff.type === 'income') {
+          multiplier *= buff.multiplier;
+        }
+      });
+
       return multiplier;
     },
 
@@ -1365,6 +1391,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (permanentBonuses.clicktastic) multiplier *= 1.10;
       if (permanentBonuses.clickMaster) multiplier *= 1.25;
       if (megaMilestones.dopamineKingpin) multiplier *= 2.0;
+
+      // Active Buffs
+      state.activeBuffs.forEach(buff => {
+        if (buff.type === 'click') {
+          multiplier *= buff.multiplier;
+        }
+      });
       
       return multiplier;
     },
@@ -1533,6 +1566,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (diff <= 0) return;
       
       get().tickResearch(now - state.lastPassiveUpdate);
+
+      // Clean up expired buffs
+      const expiredBuffs = state.activeBuffs.filter(b => b.expiresAt !== null && b.expiresAt <= now);
+      if (expiredBuffs.length > 0) {
+        set({ activeBuffs: state.activeBuffs.filter(b => b.expiresAt === null || b.expiresAt > now) });
+      }
       
       // Apply gem efficiency bonus to passive income
       const gemBonuses = get().getGemBonuses();
@@ -1643,6 +1682,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
         dismissedTips: saveData.gameState.dismissedTips || [],
         lastPassiveUpdate: saveData.gameState.lastPassiveUpdate || Date.now(),
         lastPassiveUserUpdate: saveData.gameState.lastPassiveUserUpdate || Date.now(),
+        activeBuffs: saveData.gameState.activeBuffs || [],
         gameState: "playing" // Switch to playing when loaded
       });
 
