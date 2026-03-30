@@ -32,6 +32,7 @@ export class MetamanEngine {
   private onOrbsInventoryUpdate?: (amount: number) => void;
   private onCampaignChargesUpdate?: (charges: number) => void;
   private onLawsuitDelivered?: () => void;
+  private onLawsuitProgress?: (progress: number) => void;
   private onAddEffect?: (type: 'money' | 'users' | 'purchase' | 'achievement', x: number, y: number, intensity: 'low' | 'medium' | 'high' | 'extreme', value: string) => void;
   private redNpc: RedNpc | null = null;
   private lastBasementOrbSpawn = 0;
@@ -255,9 +256,19 @@ export class MetamanEngine {
     // Update Red NPC if active
     if (this.redNpc) {
       const delivered = this.redNpc.update(deltaTime);
+      
+      // Calculate and report progress (distance to target)
+      const dx = this.redNpc.targetX - this.redNpc.x;
+      const dy = this.redNpc.targetY - this.redNpc.y;
+      const currentDist = Math.sqrt(dx * dx + dy * dy);
+      // Larry spawns at edge (~600px away), normalize progress 0-100
+      const progress = Math.max(0, Math.min(100, 100 - (currentDist / 6))); 
+      if (this.onLawsuitProgress) this.onLawsuitProgress(progress);
+
       if (delivered && this.onLawsuitDelivered) {
         this.onLawsuitDelivered();
         this.redNpc = null; // Remove Red NPC after delivery
+        console.log("⚖️ Larry successfully served the papers!");
       }
     }
 
@@ -799,6 +810,7 @@ export class MetamanEngine {
     onDataInventoryUpdate?: (amount: number) => void,
     onCampaignChargesUpdate?: (charges: number) => void,
     onLawsuitDelivered?: () => void,
+    onLawsuitProgress?: (progress: number) => void,
     onOrbsInventoryUpdate?: (amount: number) => void,
     onAddEffect?: (type: 'money' | 'users' | 'purchase' | 'achievement', x: number, y: number, intensity: 'low' | 'medium' | 'high' | 'extreme', value: string) => void
   ): void {
@@ -809,6 +821,7 @@ export class MetamanEngine {
     this.onDataInventoryUpdate = onDataInventoryUpdate;
     this.onCampaignChargesUpdate = onCampaignChargesUpdate;
     this.onLawsuitDelivered = onLawsuitDelivered;
+    this.onLawsuitProgress = onLawsuitProgress;
     this.onOrbsInventoryUpdate = onOrbsInventoryUpdate;
     this.onAddEffect = onAddEffect;
   }
@@ -828,12 +841,18 @@ export class MetamanEngine {
   public spawnRedNpc(): void {
     // Fixed: Spawn Red NPC from edge of screen towards tower base (ground level)
     const towerX = this.width / 2;
-    const towerY = this.height - 50; // Ground level at tower base, not floating above
-    const startX = Math.random() < 0.5 ? 0 : this.width; // Left or right edge
+    const towerY = this.height - 50; // Ground level at tower base
+    const startX = Math.random() < 0.5 ? 0 : this.width;
     const startY = Math.random() * this.height;
     
     this.redNpc = new RedNpc(startX, startY, towerX, towerY);
     console.log("Red NPC spawned - lawsuit delivery imminent!");
+  }
+
+  public bribeLarry(): void {
+    if (this.redNpc) {
+      this.redNpc.bribe();
+    }
   }
   
   public getUsers(): number {

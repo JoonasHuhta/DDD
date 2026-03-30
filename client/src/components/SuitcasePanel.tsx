@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, DollarSign, Gift, Briefcase, Scale, Shield, CheckCircle, Info, Zap } from 'lucide-react';
+import { AlertTriangle, DollarSign, Gift, Briefcase, Scale, Shield, CheckCircle, Info, Zap, Gavel } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import LegalSystem from './LegalSystem';
 import SinisterLab from './SinisterLab';
@@ -101,65 +101,139 @@ export default function SuitcasePanel() {
           <div className="min-h-[400px]">
             {activeTab === 'legal' ? (
               <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                {(lawsuitState?.isActive || lawsuitState?.isDelivered) ? (
-                  <div className="bg-zinc-900 border-4 border-black p-6 rounded-[2rem] shadow-[8px_8px_0_0_rgba(0,0,0,1)] relative overflow-hidden">
-                    {/* Warning background stripe */}
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rotate-45 pointer-events-none" />
-                    
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="bg-[#FF0055] p-2 rounded-xl border-2 border-black rotate-2 shadow-[2px_2px_0_0_black]">
-                        <AlertTriangle className="w-6 h-6 text-black" />
+                <div className="space-y-6">
+                  {(lawsuitState?.isActive || lawsuitState?.isDelivered) ? (
+                    <div className="bg-zinc-900 border-4 border-black p-6 rounded-[2rem] shadow-[8px_8px_0_0_rgba(0,0,0,1)] relative overflow-hidden">
+                      {/* Warning background stripe */}
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rotate-45 pointer-events-none" />
+                      
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="bg-[#FF0055] p-2 rounded-xl border-2 border-black rotate-2 shadow-[2px_2px_0_0_black]">
+                          <AlertTriangle className="w-6 h-6 text-black" />
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Liability Exposure</div>
+                          <div className="font-mono font-black text-2xl sm:text-3xl text-[#FF0055] tracking-tighter">-${formatNumber(lawsuitState.amount || 1000000)}</div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Liability Exposure</div>
-                        <div className="font-mono font-black text-2xl sm:text-3xl text-[#FF0055] tracking-tighter">-${formatNumber(lawsuitState.amount || 1000000)}</div>
+
+                      <div className="mb-6">
+                        <h3 className="font-black text-white uppercase italic text-lg mb-1 truncate">
+                          {lawsuitState.plaintiff || 'Grandma and Grandpa Thompson'}
+                        </h3>
+                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Plaintiff ID: #BRC-{Math.floor(Math.random() * 9000 + 1000)}</div>
+                      </div>
+                      
+                      <div className="bg-black/50 p-4 rounded-2xl border-2 border-zinc-800 mb-6 italic">
+                        <p className="text-zinc-400 text-xs leading-relaxed border-l-4 border-[#FF0055] pl-3">
+                          "{lawsuitState.claim || "Metaman's platform addicted our grandchildren to endless swiping, robbing us of our family dreams..."}"
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        <button
+                          onClick={() => {
+                            const store = useMetamanGame.getState();
+                            store.toggleLawsuitPanel();
+                            panels.closePanel('suitcase');
+                          }}
+                          className="w-full py-5 bg-[#FF0055] hover:bg-[#ff1a66] text-white border-4 border-black rounded-3xl font-black uppercase italic shadow-[6px_6px_0_0_black] active:translate-y-1 active:shadow-none transition-all text-base group overflow-hidden relative"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none" />
+                          <span className="flex items-center justify-center gap-3 relative z-10">
+                            <Gavel className="w-5 h-5 transition-transform group-hover:rotate-12 group-hover:scale-110" />
+                            Open Legal War Room
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-zinc-900/50 border-4 border-black border-dashed rounded-[3rem] p-10 text-center opacity-50 mb-6">
+                       <Shield className="w-12 h-12 text-[#00FFD1] mx-auto mb-4 opacity-20" />
+                       <p className="font-black text-zinc-500 uppercase italic text-sm">No Active Threats</p>
+                    </div>
+                  )}
+
+                  {/* PERSISTENT MONITORING (Radar & History) */}
+                  <div className="space-y-6">
+                    {/* CHARACTER RADAR: LARRY & TIMELINE */}
+                    <div className="bg-black p-4 rounded-3xl border-4 border-white shadow-[8px_8px_0_0_rgba(0,0,0,1)] relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-2 opacity-5">
+                        <Scale className="w-16 h-16 text-white" />
+                      </div>
+                      <div className="flex flex-col gap-4 relative z-10">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-2xl border-2 border-white flex items-center justify-center shrink-0 transform rotate-3 ${lawsuitState.isActive ? 'bg-[#FFCC00]' : 'bg-zinc-800'}`}>
+                            <Zap className={`w-6 h-6 ${lawsuitState.isActive ? 'text-black' : 'text-zinc-600'}`} />
+                          </div>
+                          <div>
+                            <h4 className={`${lawsuitState.isActive ? 'text-[#FFCC00]' : 'text-zinc-500'} font-black uppercase italic text-sm leading-tight`}>Larry's Radar</h4>
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase italic">Status: {lawsuitState.isActive ? 'Active Delivery' : 'Monitoring Outer Rim'}</p>
+                          </div>
+                        </div>
+
+                        {/* TIMELINE BAR */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                             <span>Safe Zone</span>
+                             <span>Delivery Point</span>
+                          </div>
+                          <div className="h-6 bg-zinc-900 rounded-xl p-1 border-2 border-zinc-800 relative overflow-hidden">
+                             <div 
+                               className={`h-full rounded-lg transition-all duration-300 ${lawsuitState.isActive ? 'bg-gradient-to-r from-yellow-500 to-[#FF0055] shadow-[0_0_10px_rgba(255,0,85,0.4)]' : 'bg-zinc-800'}`} 
+                               style={{ width: `${lawsuitState.isActive ? lawsuitState.larryDistance : 0}%` }}
+                             />
+                             {lawsuitState.isActive && (
+                               <div 
+                                 className="absolute top-1/2 -translate-y-1/2 transition-all duration-300"
+                                 style={{ left: `calc(${lawsuitState.larryDistance}% - 12px)` }}
+                               >
+                                 <div className="w-6 h-6 bg-red-600 border-2 border-white rounded-lg flex items-center justify-center rotate-12 shadow-lg">
+                                    <AlertTriangle className="w-3 h-3 text-white" />
+                                 </div>
+                               </div>
+                             )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mb-6">
-                      <h3 className="font-black text-white uppercase italic text-lg mb-1 truncate">
-                        {lawsuitState.plaintiff || 'Grandma and Grandpa Thompson'}
-                      </h3>
-                      <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Plaintiff ID: #BRC-{Math.floor(Math.random() * 9000 + 1000)}</div>
-                    </div>
-                    
-                    <div className="bg-black/50 p-4 rounded-2xl border-2 border-zinc-800 mb-6 italic">
-                      <p className="text-zinc-400 text-xs leading-relaxed border-l-4 border-[#FF0055] pl-3">
-                        "{lawsuitState.claim || "Metaman's platform addicted our grandchildren to endless swiping, robbing us of our family dreams..."}"
-                      </p>
-                    </div>
+                    {/* CASE HISTORY LOG (Always Visible) */}
+                    {lawsuitState.lawsuitHistory && lawsuitState.lawsuitHistory.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                          <Briefcase className="w-3 h-3 text-zinc-500" />
+                          <h4 className="font-black text-zinc-500 uppercase italic text-[10px] tracking-widest">Case Files History</h4>
+                          <div className="h-px flex-1 bg-zinc-800" />
+                        </div>
+                        
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                          {lawsuitState.lawsuitHistory.map((caseFile, idx) => (
+                            <div key={`${caseFile.id}-${idx}`} className="p-3 bg-black/40 border-2 border-zinc-800 rounded-2xl flex items-center justify-between gap-3 opacity-80 hover:opacity-100 transition-opacity">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-black text-white uppercase truncate">{caseFile.plaintiff}</p>
+                                <p className="text-[8px] font-bold text-zinc-500 uppercase">{new Date(caseFile.timestamp).toLocaleDateString()}</p>
+                              </div>
+                              <div className="text-right flex flex-col items-end">
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border-2 border-black shadow-[2px_2px_0_0_black] ${
+                                  caseFile.outcome === 'won' ? 'bg-[#00FFD1] text-black' :
+                                  caseFile.outcome === 'settled' ? 'bg-[#FFCC00] text-black' :
+                                  caseFile.outcome === 'evaded' ? 'bg-[#9D4EDD] text-white' : 'bg-red-500 text-white'
+                                }`}>
+                                  {caseFile.outcome}
+                                </span>
+                                <span className="text-[9px] font-mono font-black text-zinc-400 mt-1">
+                                  -${formatNumber(caseFile.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                    <div className="flex flex-col gap-3">
-                      <button
-                        onClick={() => setShowLegalSystem(true)}
-                        className="w-full py-4 bg-[#00FFD1] hover:bg-[#00e6bc] text-black border-4 border-black rounded-2xl font-black uppercase italic shadow-[4px_4px_0_0_black] active:translate-y-1 active:shadow-none transition-all text-sm group"
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <Shield className="w-4 h-4 transition-transform group-hover:scale-125" />
-                          Enter Compliance Interface
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const store = useMetamanGame.getState();
-                          store.toggleLawsuitPanel();
-                          panels.closePanel('suitcase');
-                        }}
-                        className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white border-4 border-black rounded-2xl font-black uppercase italic shadow-[4px_4px_0_0_black] active:translate-y-1 active:shadow-none transition-all text-sm"
-                      >
-                        Acknowledge Violation
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-20 bg-zinc-900/50 border-4 border-black border-dashed rounded-[3rem] animate-pulse">
-                    <div className="bg-zinc-800 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-black shadow-[4px_4px_0_0_black]">
-                      <Shield className="w-12 h-12 text-[#00FFD1]" />
-                    </div>
-                    <p className="font-black text-white text-xl uppercase italic tracking-tight">Zero Active Breaches</p>
-                    <p className="text-[10px] font-mono text-zinc-500 mt-2 uppercase tracking-[0.3em]">Compliance System: Optimal</p>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="space-y-6 animate-in slide-in-from-left-4 duration-300">

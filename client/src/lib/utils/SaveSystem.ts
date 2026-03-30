@@ -66,6 +66,7 @@ export interface GameSaveData {
     lastPassiveUserUpdate?: number;
     achievementManagerData?: any;
     achievementQueue?: any[];
+    totalPlayTime?: number;
   };
   progression: {
     prestigeState: any;
@@ -190,6 +191,7 @@ export class SaveSystem {
         lastPassiveUserUpdate: gameData.lastPassiveUserUpdate || Date.now(),
         achievementManagerData: gameData.achievementManager?.serialize() || null,
         achievementQueue: gameData.achievementQueue || [],
+        totalPlayTime: gameData.totalPlayTime || 0,
       },
       progression: {
         prestigeState: gameData.prestigeState || {},

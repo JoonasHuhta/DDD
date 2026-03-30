@@ -3,6 +3,7 @@ import { X, Home, Star, Zap, Users, Shirt, Sparkles, DollarSign, Crown, Eye, Bot
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
+import { StatisticsContent } from './StatisticsPanel';
 
 interface MansionUpgrade {
   id: string;
@@ -52,7 +53,6 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
 
   const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'automation' | 'stats' | 'bonuses'>('mansion');
   const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle'>('luring');
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const isUpgradePurchased = (id: string) => mansionPurchases.includes(id);
 
@@ -374,29 +374,6 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     }
   };
 
-  const handleExport = () => {
-    exportSave();
-  };
-
-  const handleImport = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = ev.target?.result as string;
-      if (content) {
-        importSave(content);
-        onClose();
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
   const renderMansion = () => {
     const currentUpgrades = mansionUpgrades.filter(u => u.category === activeMansionTab);
     return (
@@ -518,67 +495,9 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
   };
 
   const renderStats = () => {
-    const totalBuildings = departments?.reduce((sum, dept) => sum + dept.owned, 0) || 0;
-    const totalPlayTime = Date.now() - gameStartTime;
-    const formatTime = (ms: number) => {
-      const sec = Math.floor(ms / 1000);
-      const min = Math.floor(sec / 60);
-      const hrs = Math.floor(min / 60);
-      if (hrs > 0) return `${hrs}h ${min % 60}m`;
-      return `${min}m ${sec % 60}s`;
-    };
-
-    return (
-      <div className="space-y-4 pb-10">
-        <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <h3 className="text-xs font-black uppercase italic mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" /> Lifetime Performance
-          </h3>
-          <div className="space-y-1 text-[10px] font-black uppercase italic border-t-2 border-black pt-2">
-            <div className="flex justify-between"><span>Revenue:</span><span>${formatNumber(totalLifetimeIncome)}</span></div>
-            <div className="flex justify-between"><span>Passive:</span><span>${formatNumber(totalIncomePerSecond)}/s</span></div>
-            <div className="flex justify-between"><span>Buildings:</span><span>{totalBuildings}</span></div>
-            <div className="flex justify-between"><span>Time:</span><span>{formatTime(totalPlayTime)}</span></div>
-          </div>
-        </div>
-
-        <div className="p-4 bg-[#4ECDC4] border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <h3 className="text-xs font-black uppercase italic mb-2">Advertiser Data</h3>
-          <div className="flex justify-between text-[10px] font-black uppercase mb-2">
-            <span>Sold:</span><span>{formatNumber(advertiserData?.totalDataSold || 0)} units</span>
-          </div>
-          <div className="w-full bg-white border-2 border-black rounded-full h-3 overflow-hidden">
-            <div 
-              className="bg-[#FF6B35] h-full"
-              style={{ width: `${Math.min(100, ((advertiserData?.totalDataSold || 0) / (advertiserData?.nextMilestone || 1)) * 100)}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={handleExport}
-            className="bg-white border-4 border-black rounded-xl py-2 font-black uppercase italic text-[10px] shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
-          >
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button
-            onClick={handleImport}
-            className="bg-white border-4 border-black rounded-xl py-2 font-black uppercase italic text-[10px] shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Import
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-        </div>
-      </div>
-    );
+    return <StatisticsContent onClose={onClose} />;
   };
+
 
   const renderBonuses = () => {
     const activeMansion = mansionPurchases;

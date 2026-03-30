@@ -14,6 +14,14 @@ export class RedNpc {
     this.speed = 0.08; // Faster than regular citizens
     this.delivered = false;
   }
+
+  public bribe(): void {
+    // Reset Larry to screen edge when bribed
+    const fromLeft = this.x < 100; // Guessing origin if near edge
+    this.x = fromLeft ? -50 : 1200; // Off-screen reset
+    this.speed = Math.max(0.02, this.speed * 0.7); // Slow down significantly
+    console.log("💼 LARRY: 'Fine... I'll take a coffee break.' (Slower speed: " + this.speed + ")");
+  }
   
   update(deltaTime: number): boolean {
     if (this.delivered) return true;
@@ -35,51 +43,88 @@ export class RedNpc {
   }
   
   render(ctx: CanvasRenderingContext2D) {
-    // Draw cartoony red agent with briefcase
+    // Draw cartoony red agent (The Lawyer) with briefcase
     ctx.save();
     
+    // Drop Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y + 12, 10, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     // THICK OUTLINE
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
 
-    // Body (Red Suit)
-    ctx.fillStyle = '#dc2626';
-    ctx.fillRect(this.x - 8, this.y - 10, 16, 20);
-    ctx.strokeRect(this.x - 8, this.y - 10, 16, 20);
-    
-    // Head (Big Head Style)
-    ctx.fillStyle = '#fbbf24';
+    // 1. Body (Sharp Red Suit)
+    ctx.fillStyle = '#dc2626'; // Vibrant Red
+    // Suit Jacket
     ctx.beginPath();
-    ctx.arc(this.x, this.y - 16, 8, 0, Math.PI * 2);
+    ctx.roundRect(this.x - 10, this.y - 12, 20, 24, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // White Shirt & Black Tie (Detail)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(this.x - 4, this.y - 12);
+    ctx.lineTo(this.x, this.y - 6);
+    ctx.lineTo(this.x + 4, this.y - 12);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Tie
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(this.x, this.y - 10);
+    ctx.lineTo(this.x, this.y - 2);
+    ctx.stroke();
+
+    // 2. Head (Stern/Angry Face)
+    ctx.fillStyle = '#fbbf24'; // Golden skin
+    ctx.beginPath();
+    ctx.arc(this.x, this.y - 20, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Stern Brows (The "Angry" part)
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    // Left brow
+    ctx.beginPath();
+    ctx.moveTo(this.x - 6, this.y - 25);
+    ctx.lineTo(this.x - 1, this.y - 22);
+    ctx.stroke();
+    // Right brow
+    ctx.beginPath();
+    ctx.moveTo(this.x + 6, this.y - 25);
+    ctx.lineTo(this.x + 1, this.y - 22);
+    ctx.stroke();
+
+    // Squinting Eyes
+    ctx.fillStyle = 'black';
+    ctx.fillRect(this.x - 5, this.y - 21, 3, 2);
+    ctx.fillRect(this.x + 2, this.y - 21, 3, 2);
+
+    // Grumpy Mouth line
+    ctx.beginPath();
+    ctx.moveTo(this.x - 4, this.y - 15);
+    ctx.quadraticCurveTo(this.x, this.y - 17, this.x + 4, this.y - 15);
+    ctx.stroke();
+
+    // 3. Briefcase (Premium Business Look)
+    ctx.fillStyle = '#262626'; // Deep Black/Gray
+    ctx.beginPath();
+    ctx.roundRect(this.x + 12, this.y - 4, 16, 12, 2);
     ctx.fill();
     ctx.stroke();
     
-    // Eyes
-    ctx.fillStyle = 'black';
+    // Briefcase Handle
     ctx.beginPath();
-    ctx.arc(this.x - 3, this.y - 18, 1.5, 0, Math.PI * 2);
-    ctx.arc(this.x + 3, this.y - 18, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Briefcase (TNT themed)
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(this.x + 10, this.y - 6, 12, 10);
-    ctx.strokeRect(this.x + 10, this.y - 6, 12, 10);
-    
-    // TNT Text on briefcase
-    ctx.fillStyle = '#FF1744';
-    ctx.font = 'bold 6px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('TNT', this.x + 16, this.y + 1);
-    
-    // Movement trail (Comic style lightning/sparks)
-    if (Date.now() % 400 < 200) {
-        ctx.strokeStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.moveTo(this.x - 15, this.y - 5);
-        ctx.lineTo(this.x - 25, this.y - 15);
-        ctx.stroke();
-    }
+    ctx.arc(this.x + 20, this.y - 4, 4, Math.PI, 0);
+    ctx.stroke();
     
     ctx.restore();
   }

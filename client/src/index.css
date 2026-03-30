@@ -314,6 +314,27 @@ canvas {
   animation: comic-pop 2s ease-in-out infinite;
 }
 
+/* Custom scrollbar for game panels */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #000000 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #000000;
+  border-radius: 20px;
+  border: 2px solid #ffffff;
+}
+
 /* Portrait-Only Visual Lock Overlay */
 #orientation-lock-overlay {
   display: none;

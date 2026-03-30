@@ -124,6 +124,8 @@ interface MetamanGameStore {
   totalCampaignsUsed: number;
   lastCampaignUsed: { id: string; cost: number; color: string; timestamp: number } | null;
   totalDataSold: number;
+  totalPlayTime: number; // in milliseconds
+  setPlayTime: (time: number) => void;
   
   advertiserData: {
     totalDataSold: number;
@@ -226,6 +228,27 @@ interface MetamanGameStore {
     redNpcAngles: number[];
     isCrisisActive: boolean;
     isCrisisWarning: boolean;
+    activeLawsuitId?: string;
+    fightSuccessChance?: number;
+    settleCost?: number;
+    fightCost?: number;
+    larryBribeCount: number;
+    ignoredCount: number;
+    isClassAction: boolean;
+    lastTacticUsed?: 'shredder' | 'mixup' | 'bankruptcy' | 'settle' | 'fight' | 'bribe';
+    tacticCooldowns: {
+      shredder: number;
+      mixup: number;
+      bankruptcy: number;
+    };
+    larryDistance: number; // 0 to 100 (100 is delivered)
+    lawsuitHistory: Array<{
+      id: string;
+      plaintiff: string;
+      outcome: 'settled' | 'won' | 'lost' | 'evaded';
+      amount: number;
+      timestamp: number;
+    }>;
   };
   
   lawsuitMilestones: {
@@ -365,8 +388,15 @@ interface MetamanGameStore {
   triggerLawsuit: (milestoneId?: string) => void;
   deliverLawsuit: () => void;
   toggleLawsuitPanel: () => void;
+  settleLawsuit: () => void;
+  fightLawsuit: (cardType?: 'technical' | 'expert' | 'media') => void;
+  bribeLarry: () => boolean;
+  evadeLawsuit: (tactic: 'shredder' | 'mixup' | 'bankruptcy') => void;
+  silenceLawsuit: () => void;
+  ignoreLawsuit: () => void;
   acknowledgeLawsuit: () => void;
   dismissLawsuit: () => void;
+  updateLarryDistance: (distance: number) => void;
   checkLawsuitMilestones: () => void;
 
   // Removed: claimAchievement and closeAchievementPopup are gone
@@ -652,6 +682,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       userFarmMultiplier: 1,
       showDataMarket: false,
       lastPassiveUserUpdate: Date.now(),
+      totalPlayTime: 0,
       
       // Phase 3 Minigame State
       showEspionage: false,
@@ -906,7 +937,17 @@ export const useMetamanGame = create<MetamanGameStore>()(
       firstLawsuitTriggered: false,
       initialDelayPassed: false,
       isCrisisActive: false,
-      isCrisisWarning: false
+      isCrisisWarning: false,
+      larryBribeCount: 0,
+      ignoredCount: 0,
+      isClassAction: false,
+      larryDistance: 0,
+      tacticCooldowns: {
+        shredder: 0,
+        mixup: 0,
+        bankruptcy: 0
+      },
+      lawsuitHistory: []
     },
     rewardState: {
       rewards: [],
@@ -1174,13 +1215,36 @@ export const useMetamanGame = create<MetamanGameStore>()(
     resumeGame: () => set({ gameState: "playing" }),
 
     updateStats: (statType, amount) => {
-      set((state: any) => ({
-        [`session${statType.charAt(0).toUpperCase() + statType.slice(1)}`]: (state[`session${statType.charAt(0).toUpperCase() + statType.slice(1)}`] || 0) + amount
-      }));
+      set((state: any) => {
+        let key = '';
+        switch(statType) {
+          case 'clicks': key = 'sessionClicks'; break;
+          case 'money': key = 'sessionMoney'; break;
+          case 'users': key = 'sessionUsersLured'; break;
+          case 'orbsCollected': key = 'sessionOrbsHarvested'; break;
+          case 'campaignsUsed': key = 'sessionCampaignsUsed'; break;
+          case 'dataSold': key = 'sessionDataSold'; break;
+          default: {
+            const sType = statType as any;
+            key = `session${sType.charAt(0).toUpperCase() + sType.slice(1)}`;
+          }
+        }
+        const updates: any = { [key]: (state[key] || 0) + amount };
+        if (statType === 'clicks') {
+          updates.totalClicks = (state.totalClicks || 0) + amount;
+        }
+        return updates;
+      });
     },
     
     resetSessionStats: () => set({
-      sessionClicks: 0, sessionMoney: 0, sessionUsersLured: 0, sessionOrbsHarvested: 0, sessionDataSold: 0, sessionCampaignsUsed: 0
+      sessionClicks: 0, 
+      sessionMoney: 0, 
+      sessionUsersLured: 0, 
+      sessionOrbsHarvested: 0, 
+      sessionDataSold: 0, 
+      sessionCampaignsUsed: 0,
+      sessionUsersGained: 0 // Added missing
     }),
     
     setSelectedCampaign: (campaignId) => set({ selectedCampaign: campaignId }),
@@ -1223,6 +1287,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
         return;
       }
 
+      // Roll a random lawsuit from the database for better story integration
+      const randomBase = state.randomLawsuitManager.getRandomLawsuit();
+      const amount = Math.floor(state.income * 0.2);
+
       set((state) => ({
         lawsuitState: {
           ...state.lawsuitState,
@@ -1231,24 +1299,39 @@ export const useMetamanGame = create<MetamanGameStore>()(
           isDelivered: false,
           isAcknowledged: false,
           milestone: milestoneId || 'random',
-          plaintiff: "Regulatory Body",
-          claim: "Unfair data practices",
-          amount: Math.floor(state.income * 0.2)
+          activeLawsuitId: randomBase?.id || 'standard',
+          plaintiff: randomBase?.plaintiff || "Regulatory Body",
+          claim: randomBase?.claim || "Unfair data practices",
+          amount: randomBase ? Math.floor(state.income * (randomBase.severity === 'serious' ? 0.35 : 0.2)) : amount,
+          fightSuccessChance: randomBase?.fightSuccessChance || 50,
+          settleCost: randomBase?.settleCost || Math.floor(amount * 0.6),
+          fightCost: randomBase?.fightCost || Math.floor(amount * 0.3)
         }
       }));
     },
 
-    deliverLawsuit: () => set((state) => ({ 
-      lawsuitState: { 
-        ...state.lawsuitState, 
-        isActive: true, // MUST be active to show in compliance
-        isDelivered: true,
-        isAcknowledged: false, // Ensure badge pops back up
-        plaintiff: state.lawsuitState.plaintiff || 'Grandma and Grandpa Thompson',
-        claim: state.lawsuitState.claim || "Your platform addicted our grandchildren to endless swiping, robbing us of our family dreams...",
-        amount: state.lawsuitState.amount || 1000000
-      } 
-    })),
+    deliverLawsuit: () => {
+      set((state) => ({ 
+        lawsuitState: { 
+          ...state.lawsuitState, 
+          isActive: true, // MUST be active to show in compliance
+          isDelivered: true,
+          isAcknowledged: false, // Ensure badge pops back up
+          plaintiff: state.lawsuitState.plaintiff || 'Grandma and Grandpa Thompson',
+          claim: state.lawsuitState.claim || "Your platform addicted our grandchildren to endless swiping, robbing us of our family dreams...",
+          amount: state.lawsuitState.amount || 1000000
+        } 
+      }));
+      // Trigger harsh legal sound
+      // useAudio is already available in the scope of some components, 
+      // but for store-to-store logic we'll use the getState() pattern
+      try {
+        const { useAudio } = require("./useAudio");
+        useAudio.getState().playLegal();
+      } catch (e) {
+        console.warn("Audio trigger failed:", e);
+      }
+    },
     toggleLawsuitPanel: () => {
       const state = get();
       // If we are closing the panel, deduct the amount (settle the lawsuit)
@@ -1277,15 +1360,180 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }));
       }
     },
-    dismissLawsuit: () => set((state) => ({ 
-      lawsuitState: { 
-        ...state.lawsuitState, 
-        isActive: false, 
-        showLawsuitPanel: false,
-        isDelivered: false,
-        isAcknowledged: true
-      } 
-    })),
+    settleLawsuit: () => {
+       const state = get();
+       if (!state.lawsuitState.showLawsuitPanel) return;
+       const cost = state.lawsuitState.amount || 0;
+       
+       set((s) => ({
+         income: Math.max(0, s.income - cost),
+         lawsuitState: { 
+           ...s.lawsuitState, 
+           showLawsuitPanel: false, 
+           isActive: false,
+           isDelivered: false,
+           isAcknowledged: true,
+           ignoredCount: 0,
+           lastTacticUsed: 'settle'
+         }
+       }));
+       get().modifyHeat(-15, 'passive');
+       get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `SETTLED\n-$${get().formatNumber(cost)}`, '#00FFD1');
+    },
+
+    fightLawsuit: (cardType = 'technical') => {
+       const state = get();
+       if (!state.lawsuitState.showLawsuitPanel) return;
+       
+       const fightCost = state.lawsuitState.fightCost || 0;
+       let winChance = state.lawsuitState.fightSuccessChance || 50;
+       let penaltyMult = 1.5;
+       let heatSwing = 20;
+
+       // Poker-style card logic
+       if (cardType === 'expert') { winChance += 15; penaltyMult = 2.0; } // High risk, high reward
+       if (cardType === 'media') { winChance -= 10; heatSwing = 40; } // Reputation gamble
+       
+       const won = Math.random() * 100 < winChance;
+       
+       if (won) {
+         set((s) => ({
+           income: Math.max(0, s.income - fightCost),
+           lawsuitState: { ...s.lawsuitState, showLawsuitPanel: false, isActive: false, isDelivered: false, ignoredCount: 0, lastTacticUsed: 'fight' }
+         }));
+         get().modifyHeat(-heatSwing, 'passive');
+         get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'extreme', "LEGAL VICTORY!", '#00FFD1');
+       } else {
+         const penalty = (state.lawsuitState.amount || 0) * penaltyMult;
+         set((s) => ({
+           income: Math.max(0, s.income - (fightCost + penalty)),
+           lawsuitState: { ...s.lawsuitState, showLawsuitPanel: false, isActive: false, isDelivered: false, ignoredCount: 0, lastTacticUsed: 'fight' }
+         }));
+         get().modifyHeat(15, 'passive');
+         get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `LOST CASE!\n-$${get().formatNumber(penalty)}`, 'red');
+       }
+    },
+
+    bribeLarry: () => {
+       const state = get();
+       // Price increases 1.5x per bribe
+       const bribeCost = 50000 * Math.pow(1.5, state.lawsuitState.larryBribeCount);
+       
+       if (state.income < bribeCost) return false;
+
+       set((s) => ({
+         income: s.income - bribeCost,
+         lawsuitState: { 
+           ...s.lawsuitState, 
+           larryBribeCount: s.lawsuitState.larryBribeCount + 1,
+           lastTacticUsed: 'bribe'
+         }
+       }));
+       
+       get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'high', `BRIBED LARRY\n-$${get().formatNumber(bribeCost)}`, '#FFCC00');
+       return true;
+    },
+
+    evadeLawsuit: (tactic) => {
+       const state = get();
+       const costMult = tactic === 'shredder' ? 0.1 : tactic === 'mixup' ? 0.3 : 0.6;
+       const cost = (state.lawsuitState.amount || 100000) * costMult;
+
+       if (state.income < cost) return;
+
+       const heatGains = { shredder: 10, mixup: 5, bankruptcy: -10 };
+       
+       set((s) => ({
+         income: s.income - cost,
+         lawsuitState: { 
+           ...s.lawsuitState, 
+           showLawsuitPanel: false, 
+           isActive: false, 
+           isDelivered: false,
+           lastTacticUsed: tactic,
+           ignoredCount: s.lawsuitState.ignoredCount + 1 // Still counts as "avoiding"
+         }
+       }));
+
+       get().modifyHeat(heatGains[tactic], 'passive');
+       get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'high', `${tactic.toUpperCase()} SUCCESS!`, '#9D4EDD');
+    },
+
+    silenceLawsuit: () => {
+       const state = get();
+       if (!state.lawsuitState.showLawsuitPanel) return;
+       const cost = (state.lawsuitState.amount || 0) * 2;
+       
+       set((s) => ({
+         income: Math.max(0, s.income - cost),
+         lawsuitState: { ...s.lawsuitState, showLawsuitPanel: false, isActive: false, isDelivered: false, ignoredCount: 0 }
+       }));
+       get().modifyHeat(-30, 'passive');
+       get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'high', `WITNESSES SILENCED`, '#9D4EDD');
+    },
+
+    ignoreLawsuit: () => {
+      const state = get();
+      if (state.lawsuitState.showLawsuitPanel) {
+        const nextIgnoredCount = state.lawsuitState.ignoredCount + 1;
+        const isNowClassAction = nextIgnoredCount >= 3;
+
+        set((s) => ({
+          lawsuitState: { 
+            ...s.lawsuitState, 
+            showLawsuitPanel: false, 
+            isActive: false,
+            isDelivered: false,
+            isAcknowledged: true,
+            ignoredCount: nextIgnoredCount,
+            isClassAction: isNowClassAction
+          }
+        }));
+        
+        get().modifyHeat(isNowClassAction ? 50 : 25, 'passive');
+        get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'extreme', 
+          isNowClassAction ? "CLASS ACTION SNOWBALL!" : `LAWSUIT IGNORED!\n${nextIgnoredCount}/3`
+        );
+      }
+    },
+    dismissLawsuit: () => {
+      set((state) => {
+        const lastTactic = state.lawsuitState.lastTacticUsed;
+        let outcomeV: 'settled' | 'won' | 'lost' | 'evaded' = 'evaded';
+        
+        if (lastTactic === 'settle') outcomeV = 'settled';
+        else if (lastTactic === 'fight') outcomeV = 'won'; // Simple for now
+        else if (lastTactic === 'bribe') outcomeV = 'evaded';
+
+        const historyItem = {
+          id: state.lawsuitState.activeLawsuitId || `case_${Date.now()}`,
+          plaintiff: state.lawsuitState.plaintiff,
+          outcome: outcomeV,
+          amount: state.lawsuitState.amount,
+          timestamp: Date.now()
+        };
+
+        return {
+          lawsuitState: {
+            ...state.lawsuitState,
+            isActive: false,
+            isDelivered: false,
+            showLawsuitPanel: false,
+            isAcknowledged: true,
+            lawsuitHistory: [historyItem, ...state.lawsuitState.lawsuitHistory].slice(0, 10)
+          }
+        };
+      });
+    },
+
+    updateLarryDistance: (distance: number) => {
+      set((state) => ({
+        lawsuitState: {
+          ...state.lawsuitState,
+          larryDistance: Math.min(100, Math.max(0, distance))
+        }
+      }));
+    },
     acknowledgeLawsuit: () => set((state) => ({
       lawsuitState: {
         ...state.lawsuitState,
@@ -1431,7 +1679,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           totalLifetimeIncome: newTotalLifetime,
           friends: updatedFriends,
           sessionMoneyEarned: (state.sessionMoneyEarned || 0) + boostedAmount,
-          sessionUsersLured: (state.sessionUsersLured || 0) + (amount > 0 ? 1 : 0)
+          sessionMoney: (state.sessionMoney || 0) + boostedAmount
         };
       });
 
@@ -1480,7 +1728,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
             seniors: (state.cohorts?.seniors || 0) + seniorsGain,
             addicts: (state.cohorts?.addicts || 0) + addictsGain,
           },
-          sessionUsersGained: (state.sessionUsersGained || 0) + boostedAmount
+          sessionUsersGained: (state.sessionUsersGained || 0) + boostedAmount,
+          sessionUsersLured: (state.sessionUsersLured || 0) + boostedAmount
         };
       });
 
@@ -1578,11 +1827,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const efficiencyMultiplier = 1 + (gemBonuses.departmentEfficiency / 100);
       const incomeMultiplier = get().getTotalIncomeMultiplier();
       const earnings = state.totalIncomePerSecond * diff * efficiencyMultiplier * incomeMultiplier;
-      set({ 
-        income: state.income + earnings,
-        totalLifetimeIncome: state.totalLifetimeIncome + earnings,
+      set((s) => ({ 
+        income: s.income + earnings,
+        totalLifetimeIncome: s.totalLifetimeIncome + earnings,
+        sessionMoney: (s.sessionMoney || 0) + earnings,
+        sessionMoneyEarned: (s.sessionMoneyEarned || 0) + earnings,
         lastPassiveUpdate: now
-      });
+      }));
 
       // Passive growth also generates a bit of heat (less than spikes)
       // Paused during an active Shitstorm to prevent endless inescapable crises at high income levels
@@ -1683,6 +1934,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
         lastPassiveUpdate: saveData.gameState.lastPassiveUpdate || Date.now(),
         lastPassiveUserUpdate: saveData.gameState.lastPassiveUserUpdate || Date.now(),
         activeBuffs: saveData.gameState.activeBuffs || [],
+        totalPlayTime: saveData.gameState.totalPlayTime || (saveData.statistics?.totalPlayTime || 0),
         gameState: "playing" // Switch to playing when loaded
       });
 
@@ -2016,10 +2268,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
     toggleCampaignPanel: () => set((state) => ({ showCampaignPanel: !state.showCampaignPanel })),
     setCurrentView: (view: 'city' | 'basement') => set({ currentView: view }),
     
-    incrementDataInventory: (amount: number) => set((state) => ({ 
-      dataInventory: state.dataInventory + amount,
-      totalDataCollected: (state.totalDataCollected || 0) + amount
-    })),
+    incrementDataInventory: (amount: number) => {
+      set((state) => ({ 
+        dataInventory: state.dataInventory + amount,
+        totalDataCollected: (state.totalDataCollected || 0) + amount
+      }));
+      get().updateStats('orbsCollected', amount);
+    },
 
     setDataInventory: (amount: number) => set({ dataInventory: amount }),
 
@@ -2095,7 +2350,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const gemBonuses = get().getGemBonuses?.() || { clickPower: 0, autoClicker: false };
       const clickIncome = 1 + (gemBonuses.clickPower || 0) / 10;
       get().incrementIncome(clickIncome);
-      set((state) => ({ totalClicks: state.totalClicks + 1 }));
     },
 
     buyDepartment: (departmentId: string) => {
@@ -2864,6 +3118,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
            get().triggerCrisisSpeech(`🔬 R&D Complete: ${ALL_RESEARCH_NODES[id]?.name}`);
        }
     },
+
+    setPlayTime: (time: number) => set({ totalPlayTime: time }),
   };
 })
 );

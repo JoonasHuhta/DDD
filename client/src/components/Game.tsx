@@ -111,6 +111,10 @@ export default function Game() {
       
       checkGameOver();          // Check for loss conditions
       
+      // Update session total play time
+      const currentTime = state.totalPlayTime || 0;
+      state.setPlayTime(currentTime + 1000);
+      
       // VAN SYSTEM DISABLED - no automatic triggers
     }, 1000); // Every second
     

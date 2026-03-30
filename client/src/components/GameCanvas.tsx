@@ -36,6 +36,7 @@ export default function GameCanvas() {
     updateStats,
     blackMarketState,
     addVisualEffect,
+    updateLarryDistance,
     lastRewardTimestamp,
     lastUserLossTime,
     lastStageCompleteTimestamp
@@ -66,6 +67,9 @@ export default function GameCanvas() {
     const x = clientX - rect.left;
     const y = clientY - rect.top;
 
+    // Track every valid interaction as a click for statistics
+    updateStats('clicks', 1);
+
     if (currentView === 'city') {
       // Check if clicking on the central tower (manual click for income)
       const towerCenterX = engineRef.current.getWidth() / 2;
@@ -87,6 +91,9 @@ export default function GameCanvas() {
       
       // CAMPAIGN FLASH EFFECT: Trigger screen flash when campaigns are used
       if (success && selectedCampaign) {
+        // Track campaign usage for statistics
+        updateStats('campaignsUsed', 1);
+        
         import('../lib/gameEngine/CampaignSystem').then(({ CAMPAIGNS }) => {
           const campaign = CAMPAIGNS.find(c => c.id === selectedCampaign);
           if (campaign) {
@@ -128,6 +135,10 @@ export default function GameCanvas() {
     } else if (currentView === 'basement') {
       // In basement, handle data orb clicks
       const success = engineRef.current.handleClick(x, y, selectedCampaign, income, campaignCharges);
+      if (success && selectedCampaign) {
+        // Track campaign usage for statistics in basement too
+        updateStats('campaignsUsed', 1);
+      }
       if (!success) {
         console.log('Data orb click failed');
       }
@@ -193,6 +204,7 @@ export default function GameCanvas() {
           incrementDataInventory,
           setCampaignCharges,
           deliverLawsuit,
+          updateLarryDistance,
           incrementOrbsInventory,
           addVisualEffect
         );
@@ -251,6 +263,13 @@ export default function GameCanvas() {
       engineRef.current.triggerMetamanSmile(10000); // 10 second smile
     }
   }, [lastRewardTimestamp]);
+
+  // Sync Larry Bribes from Store to Engine
+  useEffect(() => {
+    if (engineRef.current && lawsuitState.larryBribeCount > 0) {
+      engineRef.current.bribeLarry();
+    }
+  }, [lawsuitState.larryBribeCount]);
 
   // Trigger celebration on stage complete
   useEffect(() => {

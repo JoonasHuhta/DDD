@@ -23,18 +23,8 @@ export class PerformanceMonitor {
   static forceMemoryCleanup(): void {
     console.log('EMERGENCY MEMORY CLEANUP: Forcing garbage collection');
     
-    // Clear any intervals or timeouts that might be leaking
-    const highestTimeoutId = setTimeout(() => {}) as any;
-    for (let i = 0; i < highestTimeoutId; i++) {
-      clearTimeout(i);
-    }
-    
-    const highestIntervalId = setInterval(() => {}, 9999) as any;
-    for (let i = 0; i < highestIntervalId; i++) {
-      clearInterval(i);
-    }
-    
-    console.log('MEMORY CLEANUP: Cleared all timeouts and intervals');
+    console.log('MEMORY CLEANUP: Manual memory cleanup check');
+    // We NO LONGER clear all timeouts and intervals as it breaks the game logic
     
     // Force garbage collection if available
     if (window.gc) {
