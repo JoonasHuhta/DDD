@@ -248,7 +248,7 @@ export default function CrisisManager() {
 
       {/* Warning Ticker (Phase 1) */}
       <AnimatePresence>
-        {isCrisisWarning && !isCrisisActive && !showCharacterDialogue && (
+        {isCrisisWarning && !isCrisisActive && !showCharacterDialogue && !useMetamanGame.getState().showSenateHearing && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}

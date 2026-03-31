@@ -131,6 +131,17 @@ export const DATA_DIVISION_TREE: ResearchNode[] = [
     tier: 3,
     branch: 'data',
     requirements: ['psychographic_profiling']
+  },
+  {
+    id: 'synthetic_value',
+    name: 'Synthetic Value Theory',
+    realDescription: 'Why mine gold when you can mine the users attention? Create a currency backed by nothing but pure dopamine.',
+    benefit: 'Unlocks DopaCoin Mining in the Lab',
+    cost: COSTS.TIER_3 * 3, // 15m
+    duration: DURATIONS.LONG * 1.5,
+    tier: 3,
+    branch: 'data',
+    requirements: ['predictive_algorithms']
   }
 ];
 
@@ -167,6 +178,17 @@ export const LEGAL_SHIELD_TREE: ResearchNode[] = [
     tier: 3,
     branch: 'legal',
     requirements: ['slapp_suit_auto']
+  },
+  {
+    id: 'ipo_readiness',
+    name: 'IPO Readiness Protocol',
+    realDescription: 'Clean the books, bury the bodies, and prepare to sell Dan’s soul to the public market.',
+    benefit: 'Unlocks the NASDAQ Stock Ticker',
+    cost: COSTS.TIER_4, // 50m
+    duration: DURATIONS.LONG * 4,
+    tier: 4,
+    branch: 'legal',
+    requirements: ['offshore_havens']
   }
 ];
 

@@ -22,34 +22,8 @@ export default function LawsuitPanel() {
     isSuccess: boolean;
   } | null>(null);
   
-  const [isAtBottom, setIsAtBottom] = React.useState(false);
-  const [hasScroll, setHasScroll] = React.useState(false);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-
-  const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-      setHasScroll(scrollHeight > clientHeight + 10);
-      setIsAtBottom(scrollTop + clientHeight >= scrollHeight - 10);
-    }
-  };
-
-  const handleScrollToBottom = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  React.useEffect(() => {
-    checkScroll();
-    window.addEventListener('resize', checkScroll);
-    return () => window.removeEventListener('resize', checkScroll);
-  }, [lawsuitState.showLawsuitPanel, outcome]);
-
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  
   if (!lawsuitState.showLawsuitPanel) return null;
 
   const handleAction = async (action: () => void | Promise<any>, type: 'settle' | 'fight' | 'evade' | 'bribe') => {
@@ -88,12 +62,12 @@ export default function LawsuitPanel() {
 
   return (
     <div 
-      className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-2 sm:p-4 overflow-hidden backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-2 sm:p-4 overflow-hidden backdrop-blur-md animate-in fade-in duration-300 pointer-events-none"
       onClick={(e) => e.stopPropagation()}
     >
       {/* HIGH-STAKES LEGAL BRIEFCASE */}
       <div 
-        className="bg-[#FF0055] border-8 border-black rounded-[40px] p-4 sm:p-6 w-full max-w-[480px] relative transform md:rotate-1 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] mb-12 sm:mb-0"
+        className="bg-[#FF0055] border-8 border-black rounded-[40px] p-4 sm:p-6 w-full max-w-[480px] relative transform md:rotate-1 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] mb-12 sm:mb-0 pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -111,36 +85,34 @@ export default function LawsuitPanel() {
 
         {/* Content Box - Fixed Height with Inner Scroll */}
         <div 
-          className="bg-white border-4 border-black p-4 sm:p-6 rounded-3xl relative z-10 shadow-inner flex flex-col h-[400px] sm:h-[450px] overflow-hidden touch-pan-y"
+          className="bg-white border-4 border-black p-4 sm:p-6 rounded-3xl relative z-10 shadow-inner flex flex-col h-full max-h-[400px] sm:max-h-[500px] overflow-hidden"
           style={{ touchAction: 'pan-y' }}
         >
           <div 
-            ref={scrollRef}
-            onScroll={checkScroll}
             className="overflow-y-auto flex-1 custom-scrollbar pr-2 overscroll-contain"
           >
             {outcome ? (
-              <div className="flex flex-col items-center justify-center py-8 animate-in zoom-in-95 duration-300">
-                 <div className={`w-20 h-20 rounded-full border-4 border-black flex items-center justify-center mb-6 shadow-[4px_4px_0_0_black] ${outcome.isSuccess ? 'bg-[#00FFD1]' : 'bg-[#FF0055]'}`}>
-                    {outcome.isSuccess ? <Shield className="w-10 h-10 text-black" /> : <AlertTriangle className="w-10 h-10 text-white" />}
+              <div className="flex flex-col items-center justify-center py-4 animate-in zoom-in-95 duration-300">
+                 <div className={`w-16 h-16 rounded-full border-4 border-black flex items-center justify-center mb-4 shadow-[4px_4px_0_0_black] ${outcome.isSuccess ? 'bg-[#00FFD1]' : 'bg-[#FF0055]'}`}>
+                    {outcome.isSuccess ? <Shield className="w-8 h-8 text-black" /> : <AlertTriangle className="w-8 h-8 text-white" />}
                  </div>
-                 <h3 className="text-2xl font-black text-black uppercase italic text-center mb-2 tracking-tighter leading-none">
+                 <h3 className="text-xl font-black text-black uppercase italic text-center mb-1 tracking-tighter leading-none">
                    {outcome.title}
                  </h3>
-                 <p className="text-zinc-500 font-bold text-center px-4 mb-8 text-sm italic">
+                 <p className="text-zinc-500 font-bold text-center px-4 mb-4 text-xs italic leading-tight">
                    "{outcome.message}"
                  </p>
                  
-                 <div className="w-full space-y-3 mb-8">
-                    <div className="flex justify-between items-center bg-zinc-100 p-3 rounded-xl border-2 border-black">
-                       <span className="text-[10px] font-black uppercase text-zinc-400">Financial Impact</span>
-                       <span className={`font-mono font-black ${outcome.moneyChange < 0 ? 'text-[#FF0055]' : 'text-green-600'}`}>
+                 <div className="w-full space-y-2 mb-4">
+                    <div className="flex justify-between items-center bg-zinc-100 p-2.5 rounded-xl border-2 border-black">
+                       <span className="text-[9px] font-black uppercase text-zinc-400">Financial Impact</span>
+                       <span className={`font-mono font-black text-sm ${outcome.moneyChange < 0 ? 'text-[#FF0055]' : 'text-green-600'}`}>
                           {outcome.moneyChange === 0 ? '--' : `${outcome.moneyChange > 0 ? '+' : ''}$${formatNumber(Math.abs(outcome.moneyChange))}`}
                        </span>
                     </div>
-                    <div className="flex justify-between items-center bg-zinc-100 p-3 rounded-xl border-2 border-black">
-                       <span className="text-[10px] font-black uppercase text-zinc-400">Heat Level</span>
-                       <span className="font-mono font-black text-black">{outcome.heatChange}</span>
+                    <div className="flex justify-between items-center bg-zinc-100 p-2.5 rounded-xl border-2 border-black">
+                       <span className="text-[9px] font-black uppercase text-zinc-400">Heat Level</span>
+                       <span className="font-mono font-black text-black text-sm">{outcome.heatChange}</span>
                     </div>
                  </div>
 
@@ -149,7 +121,7 @@ export default function LawsuitPanel() {
                     setOutcome(null);
                     useMetamanGame.getState().dismissLawsuit();
                   }}
-                  className="w-full bg-black hover:bg-zinc-800 text-[#00FFD1] font-black py-4 rounded-2xl border-4 border-black shadow-[6px_6px_0_0_black] active:translate-y-1 active:shadow-none transition-all uppercase italic tracking-widest text-lg"
+                  className="w-full bg-black hover:bg-zinc-800 text-[#00FFD1] font-black py-3.5 rounded-2xl border-4 border-black shadow-[6px_6px_0_0_black] active:translate-y-1 active:shadow-none transition-all uppercase italic tracking-widest text-base"
                  >
                    Return to Game
                  </button>
@@ -174,21 +146,79 @@ export default function LawsuitPanel() {
                   </p>
                 </div>
 
-                {/* Stats Summary */}
-                <div className="grid grid-cols-2 gap-2 mb-6">
-                  <div className="bg-zinc-100 p-3 rounded-2xl border-2 border-black flex flex-col justify-center">
-                    <div className="text-[8px] font-black text-zinc-500 uppercase leading-none mb-1">Settlement Demand</div>
-                    <div className="text-lg font-black text-[#FF0055] font-mono">-${formatNumber(lawsuitState.amount || 0)}</div>
+                {/* Larry's Dialogue Bubble */}
+                <div className="mb-6 relative animate-in slide-in-from-left duration-500">
+                  <div className="bg-zinc-900 border-4 border-black rounded-3xl p-4 shadow-[6px_6px_0_0_black] flex items-start gap-4">
+                    <div className="w-12 h-12 bg-[#dc2626] border-2 border-black rounded-full shrink-0 flex items-center justify-center relative overflow-hidden">
+                       {/* Mini Larry Icon Wrapper */}
+                       <div className="w-full h-full bg-[#dc2626] flex items-center justify-center">
+                          <Gavel className="w-6 h-6 text-white" />
+                       </div>
+                       <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent"></div>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-black text-[#FFCC00] uppercase tracking-widest block mb-1">Larry (Process Server)</span>
+                      <p className="text-white text-xs font-bold italic leading-tight">
+                        "{lawsuitState.larryDialogue || "Sign here, Dan. It's official."}"
+                      </p>
+                    </div>
                   </div>
-                  <div className="bg-zinc-100 p-3 rounded-2xl border-2 border-black flex flex-col justify-center">
-                    <div className="text-[8px] font-black text-zinc-500 uppercase leading-none mb-1">Legal Success Odds</div>
-                    <div className={`text-lg font-black font-mono ${winChance > 60 ? 'text-green-600' : 'text-orange-500'}`}>{winChance}%</div>
-                  </div>
+                  {/* Speech bubble tail */}
+                  <div className="absolute -bottom-2 left-10 w-4 h-4 bg-zinc-900 border-r-4 border-b-4 border-black rotate-45"></div>
                 </div>
 
-                {/* Action Grid */}
-                <div className="flex flex-col gap-3 pb-4">
-                  
+                <div className="bg-[#00FFD1] h-1 w-full rounded-full opacity-10 mb-6"></div>
+
+                {!isExpanded ? (
+                  /* TIER 1: SIMPLE BUTTONS */
+                  <div className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
+                    <button
+                      onClick={() => handleAction(settleLawsuit, 'settle')}
+                      className="group flex items-center justify-between bg-black p-5 rounded-3xl border-4 border-black hover:bg-zinc-900 transition-all active:scale-[0.98] shadow-[6px_6px_0_0_black]"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-[#00FFD1] p-2 rounded-xl shrink-0">
+                          <Shield className="w-6 h-6 text-black" />
+                        </div>
+                        <div className="text-left">
+                          <span className="text-[#00FFD1] font-black uppercase italic text-lg block leading-none">PAY FINE</span>
+                          <span className="text-zinc-500 font-bold text-[10px]">Instant settlement</span>
+                        </div>
+                      </div>
+                      <span className="text-[#00FFD1] font-mono font-black text-sm">-${formatNumber(lawsuitState.amount || 0)}</span>
+                    </button>
+
+                    <button
+                      onClick={ignoreLawsuit}
+                      className="group flex items-center justify-between bg-white p-5 rounded-3xl border-4 border-black hover:bg-zinc-100 transition-all active:scale-[0.98] shadow-[6px_6px_0_0_black]"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-[#FF0055] p-2 rounded-xl shrink-0">
+                          <EyeOff className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <span className="text-black font-black uppercase italic text-lg block leading-none">IGNORE</span>
+                          <span className="text-zinc-400 font-bold text-[10px]">Dangerous maneuver</span>
+                        </div>
+                      </div>
+                      <span className="text-[#FF0055] font-black text-xs italic">HEAT+</span>
+                    </button>
+
+                    <button
+                      onClick={() => setIsExpanded(true)}
+                      className="w-full bg-zinc-100 border-2 border-dashed border-zinc-400 hover:border-black hover:bg-zinc-200 text-zinc-500 hover:text-black font-black py-3 rounded-2xl transition-all uppercase italic text-xs tracking-widest flex items-center justify-center gap-2"
+                    >
+                      Deal With It <AlertTriangle className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  /* TIER 2: DEEP STRATEGY (Already existing grid, just wrapped) */
+                  <div className="flex flex-col gap-3 pb-4 animate-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex justify-between items-center mb-1">
+                      <h5 className="text-[10px] font-black uppercase text-zinc-400 italic">Advanced Defense Systems</h5>
+                      <button onClick={() => setIsExpanded(false)} className="text-[9px] font-black uppercase text-[#FF0055] hover:underline">Back to basic</button>
+                    </div>
+                
                   {/* LARRY INTERACTION (Persistent Character) */}
                   <div className="bg-zinc-900 p-4 rounded-2xl border-4 border-black relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -266,22 +296,11 @@ export default function LawsuitPanel() {
                   >
                     {lawsuitState.ignoredCount >= 2 ? "WARNING: CLASS ACTION IMMINENT" : `Throw in trash (IGNORE ${lawsuitState.ignoredCount}/3)`}
                   </button>
-
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-          
-          {/* Scroll Indicator - Now Clickable */}
-          {hasScroll && !isAtBottom && (
-            <button 
-              onClick={handleScrollToBottom}
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce pointer-events-auto z-30 group"
-            >
-              <span className="text-[8px] font-black uppercase text-black bg-[#FFCC00] px-2 py-0.5 rounded border border-black shadow-[2px_2px_0_0_black] group-hover:bg-white transition-colors">Scroll for more</span>
-              <AlertTriangle className="w-4 h-4 text-[#FFCC00] rotate-180 fill-black" />
-            </button>
-          )}
         </div>
 
         {/* Footer info - Pushed up enough to never be behind nabvar */}

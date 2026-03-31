@@ -26,8 +26,23 @@ export function StatisticsContent({ onClose }: { onClose: () => void }) {
     exportSave,
     importSave,
     prestigeState,
-    unlockedAchievements
+    unlockedAchievements,
+    stockPrice,
+    isPubliclyTraded
   } = useMetamanGame();
+
+  const TICKER_NEWS = [
+    "LARRY SPOTTED NEAR HQ",
+    "DOPA-COIN REACHES NEW ALL-TIME HIGH",
+    "DAN'S USER CHURN AT RECORD LOW",
+    "SENAATIN KUULUSTELU LÄHESTYY - OSINGOT VAARASSA",
+    "ALGORITHM UPDATED: MORE DOPAMINE, LESS REGRET",
+    "DAN'S NET WORTH SURPASSES SMALL NATION",
+    "RIVALCORP SHARES PLUMMET AFTER DATA LEAK"
+  ];
+
+  const newsIndex = Math.floor(Date.now() / 5000) % TICKER_NEWS.length;
+
 
   const handleExport = () => {
     try {
@@ -313,6 +328,30 @@ export function StatisticsContent({ onClose }: { onClose: () => void }) {
           <span className="text-sm font-black italic">{unlockedAchievements?.length || 0}</span>
         </div>
       </div>
+
+      {/* Stock Market Ticker (Hidden until IPO) */}
+      {isPubliclyTraded && (
+        <div className="mt-4 p-4 bg-black border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] overflow-hidden relative">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-green-400" />
+              <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Dopamine NASDAQ</span>
+            </div>
+            <div className={`text-sm font-black italic ${stockPrice > 10 ? 'text-green-400' : 'text-red-500'}`}>
+              ${stockPrice.toFixed(2)}
+            </div>
+          </div>
+          
+          <div className="h-6 bg-slate-900 rounded border border-slate-700 flex items-center px-2 overflow-hidden relative">
+            <div className="whitespace-nowrap text-[8px] font-bold text-slate-400 uppercase italic animate-marquee">
+              {TICKER_NEWS[newsIndex]} • {TICKER_NEWS[(newsIndex + 1) % TICKER_NEWS.length]} • {TICKER_NEWS[(newsIndex + 2) % TICKER_NEWS.length]}
+            </div>
+          </div>
+          <div className="mt-1 text-[7px] font-bold text-slate-600 uppercase text-center">
+            LIVE VALUATION FEED - UNAUTHORIZED ACCESS PROHIBITED
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3 pt-2">

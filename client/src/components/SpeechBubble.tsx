@@ -22,7 +22,7 @@ export default function SpeechBubble() {
       className="fixed z-50 pointer-events-none transform -translate-x-1/2"
       style={{
         left: '50%',
-        top: '25%', // Position higher above Metaman
+        top: '25%', // Position higher above Dan
         animation: 'speechBubbleIn 0.3s ease-out forwards'
       }}
     >

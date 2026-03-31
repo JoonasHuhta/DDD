@@ -46,6 +46,10 @@ interface MetamanGameStore {
   dataInventory: number;
   orbsInventory: number;
   permanentOrbs: number;
+  dopaCoin: number;
+  stockPrice: number;
+  isPubliclyTraded: boolean;
+  dopaCoinUnlocked: boolean;
   activeBuffs: ActiveBuff[];
   
   // DATA MARKET SYSTEM
@@ -242,6 +246,13 @@ interface MetamanGameStore {
       bankruptcy: number;
     };
     larryDistance: number; // 0 to 100 (100 is delivered)
+    larryDialogue: string;
+    bribeTotal: number;
+    ignoreTotal: number;
+    activeLawyerFlags: {
+      witnessCoaching: boolean;
+      counterSueActive: boolean;
+    };
     lawsuitHistory: Array<{
       id: string;
       plaintiff: string;
@@ -388,16 +399,18 @@ interface MetamanGameStore {
   triggerLawsuit: (milestoneId?: string) => void;
   deliverLawsuit: () => void;
   toggleLawsuitPanel: () => void;
-  settleLawsuit: () => void;
-  fightLawsuit: (cardType?: 'technical' | 'expert' | 'media') => void;
-  bribeLarry: () => boolean;
-  evadeLawsuit: (tactic: 'shredder' | 'mixup' | 'bankruptcy') => void;
-  silenceLawsuit: () => void;
-  ignoreLawsuit: () => void;
+  settleLawsuit: () => Promise<void>;
+  fightLawsuit: (cardType?: 'technical' | 'expert' | 'media') => Promise<void>;
+  bribeLarry: () => Promise<boolean>;
+  evadeLawsuit: (tactic: 'shredder' | 'mixup' | 'bankruptcy') => Promise<void>;
+  silenceLawsuit: () => Promise<void>;
+  ignoreLawsuit: () => Promise<void>;
   acknowledgeLawsuit: () => void;
   dismissLawsuit: () => void;
   updateLarryDistance: (distance: number) => void;
   checkLawsuitMilestones: () => void;
+  buyDarkWebItem: (item: any) => void;
+  updateStockPrice: () => void;
 
   // Removed: claimAchievement and closeAchievementPopup are gone
   showAchievementShowcase: (achievement: SimpleAchievement) => void;
@@ -607,6 +620,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
       dataInventory: 0,
       orbsInventory: 0,
       permanentOrbs: 0,
+      dopaCoin: 0,
+      stockPrice: 10.0,
+      isPubliclyTraded: false,
+      dopaCoinUnlocked: false,
       
       // RESEARCH LAB SYSTEM
       researchState: {
@@ -942,6 +959,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       ignoredCount: 0,
       isClassAction: false,
       larryDistance: 0,
+      larryDialogue: "I'm on my way, Dan.",
+      bribeTotal: 0,
+      ignoreTotal: 0,
+      activeLawyerFlags: {
+        witnessCoaching: false,
+        counterSueActive: false,
+      },
       tacticCooldowns: {
         shredder: 0,
         mixup: 0,
@@ -1291,6 +1315,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const randomBase = state.randomLawsuitManager.getRandomLawsuit();
       const amount = Math.floor(state.income * 0.2);
 
+      // Calculate starting distance based on ignoreTotal (10% per ignore, max 50%)
+      const startingDistance = Math.min(50, (state.lawsuitState.ignoreTotal || 0) * 10);
+
       set((state) => ({
         lawsuitState: {
           ...state.lawsuitState,
@@ -1298,6 +1325,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           showLawsuitPanel: true,
           isDelivered: false,
           isAcknowledged: false,
+          larryDistance: startingDistance,
           milestone: milestoneId || 'random',
           activeLawsuitId: randomBase?.id || 'standard',
           plaintiff: randomBase?.plaintiff || "Regulatory Body",
@@ -1311,20 +1339,35 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
     deliverLawsuit: () => {
-      set((state) => ({ 
-        lawsuitState: { 
-          ...state.lawsuitState, 
-          isActive: true, // MUST be active to show in compliance
-          isDelivered: true,
-          isAcknowledged: false, // Ensure badge pops back up
-          plaintiff: state.lawsuitState.plaintiff || 'Grandma and Grandpa Thompson',
-          claim: state.lawsuitState.claim || "Your platform addicted our grandchildren to endless swiping, robbing us of our family dreams...",
-          amount: state.lawsuitState.amount || 1000000
-        } 
-      }));
+      set((state) => {
+        const { ignoreTotal, bribeTotal } = state.lawsuitState;
+        let larryDialogue = "I'm on my way, Dan.";
+
+        // CONTEXTUAL DIALOGUE SYSTEM
+        if (ignoreTotal > 0) {
+          larryDialogue = "Thought you could avoid me again?";
+        } else if (bribeTotal >= 5) {
+          larryDialogue = "I've put my kids through college thanks to you.";
+        } else if (bribeTotal >= 3) {
+          larryDialogue = "You know, I'm starting to think you LIKE me.";
+        } else if (bribeTotal > 0) {
+          larryDialogue = "Always a pleasure doing business, Dan.";
+        }
+
+        return { 
+          lawsuitState: { 
+            ...state.lawsuitState, 
+            isActive: true,
+            isDelivered: true,
+            isAcknowledged: false,
+            larryDialogue,
+            plaintiff: state.lawsuitState.plaintiff || 'Grandma and Grandpa Thompson',
+            claim: state.lawsuitState.claim || "Your platform addicted our grandchildren to endless swiping, robbing us of our family dreams...",
+            amount: state.lawsuitState.amount || 1000000
+          } 
+        };
+      });
       // Trigger harsh legal sound
-      // useAudio is already available in the scope of some components, 
-      // but for store-to-store logic we'll use the getState() pattern
       try {
         const { useAudio } = require("./useAudio");
         useAudio.getState().playLegal();
@@ -1360,7 +1403,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }));
       }
     },
-    settleLawsuit: () => {
+    settleLawsuit: async () => {
        const state = get();
        if (!state.lawsuitState.showLawsuitPanel) return;
        const cost = state.lawsuitState.amount || 0;
@@ -1370,7 +1413,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
          lawsuitState: { 
            ...s.lawsuitState, 
            showLawsuitPanel: false, 
-           isActive: false,
+           isActive: false, 
            isDelivered: false,
            isAcknowledged: true,
            ignoredCount: 0,
@@ -1381,7 +1424,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `SETTLED\n-$${get().formatNumber(cost)}`, '#00FFD1');
     },
 
-    fightLawsuit: (cardType = 'technical') => {
+    fightLawsuit: async (cardType = 'technical') => {
        const state = get();
        if (!state.lawsuitState.showLawsuitPanel) return;
        
@@ -1414,7 +1457,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
        }
     },
 
-    bribeLarry: () => {
+    bribeLarry: async () => {
        const state = get();
        // Price increases 1.5x per bribe
        const bribeCost = 50000 * Math.pow(1.5, state.lawsuitState.larryBribeCount);
@@ -1426,6 +1469,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
          lawsuitState: { 
            ...s.lawsuitState, 
            larryBribeCount: s.lawsuitState.larryBribeCount + 1,
+           bribeTotal: (s.lawsuitState.bribeTotal || 0) + 1,
            lastTacticUsed: 'bribe'
          }
        }));
@@ -1434,7 +1478,33 @@ export const useMetamanGame = create<MetamanGameStore>()(
        return true;
     },
 
-    evadeLawsuit: (tactic) => {
+    ignoreLawsuit: async () => {
+      const state = get();
+      if (!state.lawsuitState.showLawsuitPanel) return;
+
+      const nextIgnoredCount = (state.lawsuitState.ignoredCount || 0) + 1;
+      const isNowClassAction = nextIgnoredCount >= 3;
+
+      set((s) => ({
+        lawsuitState: { 
+          ...s.lawsuitState, 
+          showLawsuitPanel: false, 
+          isActive: false,
+          isDelivered: false,
+          isAcknowledged: true,
+          ignoredCount: nextIgnoredCount,
+          isClassAction: isNowClassAction,
+          ignoreTotal: (s.lawsuitState.ignoreTotal || 0) + 1
+        }
+      }));
+      
+      get().modifyHeat(isNowClassAction ? 50 : 25, 'passive');
+      get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'extreme', 
+        isNowClassAction ? "CLASS ACTION SNOWBALL!" : `LAWSUIT IGNORED!\n${nextIgnoredCount}/3`
+      );
+    },
+
+    evadeLawsuit: async (tactic: 'shredder' | 'mixup' | 'bankruptcy') => {
        const state = get();
        const costMult = tactic === 'shredder' ? 0.1 : tactic === 'mixup' ? 0.3 : 0.6;
        const cost = (state.lawsuitState.amount || 100000) * costMult;
@@ -1451,7 +1521,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
            isActive: false, 
            isDelivered: false,
            lastTacticUsed: tactic,
-           ignoredCount: s.lawsuitState.ignoredCount + 1 // Still counts as "avoiding"
+           ignoredCount: (s.lawsuitState.ignoredCount || 0) + 1 // Still counts as "avoiding"
          }
        }));
 
@@ -1459,7 +1529,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
        get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'high', `${tactic.toUpperCase()} SUCCESS!`, '#9D4EDD');
     },
 
-    silenceLawsuit: () => {
+    silenceLawsuit: async () => {
        const state = get();
        if (!state.lawsuitState.showLawsuitPanel) return;
        const cost = (state.lawsuitState.amount || 0) * 2;
@@ -1470,31 +1540,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
        }));
        get().modifyHeat(-30, 'passive');
        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'high', `WITNESSES SILENCED`, '#9D4EDD');
-    },
-
-    ignoreLawsuit: () => {
-      const state = get();
-      if (state.lawsuitState.showLawsuitPanel) {
-        const nextIgnoredCount = state.lawsuitState.ignoredCount + 1;
-        const isNowClassAction = nextIgnoredCount >= 3;
-
-        set((s) => ({
-          lawsuitState: { 
-            ...s.lawsuitState, 
-            showLawsuitPanel: false, 
-            isActive: false,
-            isDelivered: false,
-            isAcknowledged: true,
-            ignoredCount: nextIgnoredCount,
-            isClassAction: isNowClassAction
-          }
-        }));
-        
-        get().modifyHeat(isNowClassAction ? 50 : 25, 'passive');
-        get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'extreme', 
-          isNowClassAction ? "CLASS ACTION SNOWBALL!" : `LAWSUIT IGNORED!\n${nextIgnoredCount}/3`
-        );
-      }
     },
     dismissLawsuit: () => {
       set((state) => {
@@ -1832,8 +1877,16 @@ export const useMetamanGame = create<MetamanGameStore>()(
         totalLifetimeIncome: s.totalLifetimeIncome + earnings,
         sessionMoney: (s.sessionMoney || 0) + earnings,
         sessionMoneyEarned: (s.sessionMoneyEarned || 0) + earnings,
-        lastPassiveUpdate: now
+        lastPassiveUpdate: now,
+        dopaCoin: s.researchState.completed.includes('synthetic_value') 
+          ? s.dopaCoin + (s.users / 1000) * diff 
+          : s.dopaCoin,
+        dopaCoinUnlocked: s.researchState.completed.includes('synthetic_value')
       }));
+
+      if (state.isPubliclyTraded) {
+        get().updateStockPrice();
+      }
 
       // Passive growth also generates a bit of heat (less than spikes)
       // Paused during an active Shitstorm to prevent endless inescapable crises at high income levels
@@ -3120,6 +3173,37 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
     setPlayTime: (time: number) => set({ totalPlayTime: time }),
+
+    buyDarkWebItem: (item: any) => {
+      const state = get();
+      const isDopaCoinItem = ['larry_decoy', 'shadow_servers'].includes(item.id);
+      const currencyAttr = isDopaCoinItem ? 'dopaCoin' : 'income';
+      
+      if (state[currencyAttr] < item.price) return;
+
+      set((s: any) => ({
+        [currencyAttr]: s[currencyAttr] - item.price,
+        lawsuitState: item.id === 'larry_decoy' ? { ...s.lawsuitState, larryDistance: 0 } : s.lawsuitState,
+        blackMarketState: item.id === 'political_lobbying' ? { ...s.blackMarketState, influencePoints: (s.blackMarketState.influencePoints || 0) + 50 } : s.blackMarketState
+      }));
+
+      get().addVisualEffect('purchase', window.innerWidth / 2, window.innerHeight / 2, 'high', `${item.name.toUpperCase()} ACQUIRED!`);
+      
+      if (item.id === 'shadow_servers') {
+        get().addBuff({ id: 'shadow_servers', type: 'income', multiplier: 2.5, expiresAt: Date.now() + 120000 });
+      }
+    },
+
+    updateStockPrice: () => {
+      const state = get();
+      if (!state.isPubliclyTraded) return;
+
+      const baseValue = (state.totalIncomePerSecond * 10) + (state.users * 0.1);
+      const heatPenalty = 1 - (state.blackMarketState.regulatoryHeat / 200);
+      const newPrice = Math.max(0.01, (baseValue / 1000000) * heatPenalty);
+
+      set({ stockPrice: Number(newPrice.toFixed(2)) });
+    },
   };
 })
 );

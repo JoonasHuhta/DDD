@@ -126,7 +126,7 @@ export default function SuitcasePanel() {
                       
                       <div className="bg-black/50 p-4 rounded-2xl border-2 border-zinc-800 mb-6 italic">
                         <p className="text-zinc-400 text-xs leading-relaxed border-l-4 border-[#FF0055] pl-3">
-                          "{lawsuitState.claim || "Metaman's platform addicted our grandchildren to endless swiping, robbing us of our family dreams..."}"
+                          "{lawsuitState.claim || "Dan's platform addicted our grandchildren to endless swiping, robbing us of our family dreams..."}"
                         </p>
                       </div>
 

@@ -219,7 +219,7 @@ const SenateHearing: React.FC = () => {
         onClose={() => setShowSenateHearing(false)}
         className="w-[900px] h-[650px] border-slate-700 bg-slate-900/80"
       >
-        <div className="flex flex-col h-full gap-6 p-6 overflow-y-auto scrollbar-thin">
+        <div className="flex flex-col h-full gap-4 p-4 sm:p-6 overflow-y-auto scrollbar-thin">
           
           {/* Stats Header */}
           <div className="flex gap-4 p-4 border rounded-lg bg-black/40 border-slate-800">
@@ -262,7 +262,7 @@ const SenateHearing: React.FC = () => {
           {!isGameOver ? (
             <>
               {/* Question Area */}
-              <div className="relative flex-1 p-8 rounded-lg bg-black/60 border border-slate-800 flex flex-col items-center justify-center text-center">
+              <div className="relative flex-1 p-4 sm:p-8 rounded-lg bg-black/60 border border-slate-800 flex flex-col items-center justify-center text-center">
                 <div className="absolute top-4 left-4 text-[10px] text-slate-600 uppercase tracking-widest">
                   Round {currentRound + 1} of {QUESTIONS.length}
                 </div>
@@ -275,7 +275,7 @@ const SenateHearing: React.FC = () => {
                     exit={{ y: -20, opacity: 0 }}
                     className="space-y-6"
                   >
-                    <div className="text-2xl font-bold text-slate-100 leading-tight max-w-2xl">
+                    <div className="text-lg sm:text-2xl font-bold text-slate-100 leading-tight max-w-2xl px-2">
                       "{QUESTIONS[currentRound].text}"
                     </div>
                     
@@ -300,9 +300,9 @@ const SenateHearing: React.FC = () => {
                     disabled={!!feedback}
                     variant="ghost"
                     onClick={() => handleAnswer(opt.impact, opt.feedback)}
-                    className="h-20 text-left justify-start items-start p-4 hover:bg-blue-900/10 border-slate-800"
+                    className="h-auto min-h-[5rem] text-left justify-start items-start p-3 sm:p-4 hover:bg-blue-900/10 border-slate-800"
                   >
-                    <span className="text-sm leading-snug">{opt.text}</span>
+                    <span className="text-xs sm:text-sm leading-snug">{opt.text}</span>
                   </AdaptiveButton>
                 ))}
               </div>

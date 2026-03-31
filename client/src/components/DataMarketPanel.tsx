@@ -33,7 +33,9 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
     incrementUsers,
     modifyHeat,
     addBuff,
-    addShopPurchase
+    addShopPurchase,
+    dopaCoin,
+    buyDarkWebItem
   } = useMetamanGame();
 
   // bulk pricing formula: orbs × 50 × (1 + orbs/20) × advertiserMultiplier
@@ -56,6 +58,9 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
   const darkWebItems = [
     { id: 'user_injection', name: 'User Injection', desc: '+3,000 users instantly', price: 2000, effect: 'Flat boost', icon: <Users size={16}/> },
     { id: 'notification_overdose', name: 'Notification Overdose', desc: '5x income for 60 seconds + 5,000 users', price: 4000, effect: 'Temporary Buff', icon: <Zap size={16}/> },
+    { id: 'political_lobbying', name: 'Political Lobbying', desc: 'Buy friends in high places. Gain 50 Influence points.', price: 50000, effect: 'Heat Defense', icon: <Skull size={16}/> },
+    { id: 'larry_decoy', name: 'Larry Decoy', desc: 'Send a fake courier to Larry. Resets his distance to 0.', price: 500, currency: 'dopaCoin', effect: 'Evasion', icon: <Ghost size={16} className="text-purple-400"/> },
+    { id: 'shadow_servers', name: 'Shadow Servers', desc: 'Untraceable infrastructure. 2.5x Income for 2m.', price: 1000, currency: 'dopaCoin', effect: 'Profit', icon: <Zap size={16} className="text-cyan-400"/> },
     { id: 'scroll_addiction_serum', name: 'Scroll Serum', desc: '+8,000 users & permanent +10% passive income', price: 6000, effect: 'Permanent', icon: <TrendingUp size={16}/> },
     { id: 'fomo_amplification', name: 'FOMO Amplification', desc: '10x manual click power for 30s + 12,000 users', price: 10000, effect: 'Temporary Buff', icon: <Target size={16}/> },
     { id: 'competitor_spy', name: 'Competitor Spy Toolkit', desc: '+15,000 users', price: 20000, effect: 'Flat boost', icon: <Ghost size={16}/> },
@@ -71,10 +76,13 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
   ];
 
   const handleDarkWebPurchase = (item: any) => {
-    if (income < item.price || shopPurchases.includes(item.id)) return;
+    if (shopPurchases.includes(item.id)) return;
     if (item.id === 'count_clickula_pact' && users < 2000000) return;
 
-    decrementIncome(item.price);
+    const currencyValue = item.currency === 'dopaCoin' ? dopaCoin : income;
+    if (currencyValue < item.price) return;
+
+    buyDarkWebItem(item);
     addShopPurchase(item.id);
 
     // Baseline user boosts
@@ -96,14 +104,8 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
     };
     if (boosts[item.id]) incrementUsers(boosts[item.id]);
 
-    // Special Mechanics Hookup
-    if (item.id === 'notification_overdose') {
-      addBuff({ id: item.id, type: 'income', multiplier: 5, expiresAt: Date.now() + 60000 });
-    } else if (item.id === 'scroll_addiction_serum') {
-      addBuff({ id: item.id, type: 'income', multiplier: 1.1, expiresAt: null });
-    } else if (item.id === 'fomo_amplification') {
-      addBuff({ id: item.id, type: 'click', multiplier: 10, expiresAt: Date.now() + 30000 });
-    } else if (item.id === 'cat_videos_2') {
+    // UI Feedback for store actions not covered by buyDarkWebItem
+    if (item.id === 'cat_videos_2') {
       modifyHeat(50, 'data');
     } else if (item.id === 'pirated_ai_trainer') {
       modifyHeat(100, 'data');
@@ -145,7 +147,12 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
               <span className="text-red-500 font-black uppercase animate-pulse flex items-center gap-2">
                 <AlertTriangle size={16} /> UNREGISTERED CONNECTION
               </span>
-              <span className="text-green-400 font-black italic">$ {formatNumber(income)}</span>
+              <div className="flex flex-col items-end">
+                <span className="text-green-400 font-black italic text-xs">$ {formatNumber(income)}</span>
+                {useMetamanGame.getState().dopaCoinUnlocked && (
+                  <span className="text-cyan-400 font-black italic text-[10px]">₿ {formatNumber(dopaCoin)} DOPA</span>
+                )}
+              </div>
             </div>
             
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -166,15 +173,17 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-green-400 font-black italic text-sm mb-1">${formatNumber(item.price)}</div>
+                        <div className={`${item.currency === 'dopaCoin' ? 'text-cyan-400' : 'text-green-400'} font-black italic text-sm mb-1`}>
+                          {item.currency === 'dopaCoin' ? '₿' : '$'} {formatNumber(item.price)}
+                        </div>
                         <button
                           onClick={() => handleDarkWebPurchase(item)}
-                          disabled={isOwned || !canAfford || isLocked}
+                          disabled={isOwned || (item.currency === 'dopaCoin' ? dopaCoin < item.price : income < item.price) || isLocked}
                           className={`px-3 py-1 font-black uppercase italic text-[10px] rounded-lg border-2 border-black transition-all ${
-                            isOwned ? 'bg-gray-600 text-gray-400' : isLocked ? 'bg-red-900 text-gray-500' : canAfford ? 'bg-red-600 text-white hover:bg-red-500 active:scale-95 shadow-[2px_2px_0_0_black]' : 'bg-gray-800 text-gray-500'
+                            isOwned ? 'bg-gray-600 text-gray-400' : isLocked ? 'bg-red-900 text-gray-500' : (item.currency === 'dopaCoin' ? dopaCoin >= item.price : income >= item.price) ? 'bg-red-600 text-white hover:bg-red-500 active:scale-95 shadow-[2px_2px_0_0_black]' : 'bg-gray-800 text-gray-500'
                           }`}
                         >
-                          {isOwned ? 'OWNED' : isLocked ? 'LOCKED (2M USERS)' : canAfford ? 'EXECUTE' : 'FUNDS LOW'}
+                          {isOwned ? 'OWNED' : isLocked ? 'LOCKED (2M USERS)' : (item.currency === 'dopaCoin' ? dopaCoin >= item.price : income >= item.price) ? 'EXECUTE' : 'FUNDS LOW'}
                         </button>
                       </div>
                     </div>

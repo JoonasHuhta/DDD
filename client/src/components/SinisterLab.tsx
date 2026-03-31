@@ -80,7 +80,7 @@ export default function SinisterLab({ onClose }: SinisterLabProps) {
     { type: 'corrupt', name: 'Corrupt Onyx', description: '+200% energy', color: 'text-purple-600', modifier: 200, rarity: 'legendary' },
     { type: 'reality', name: 'Reality Shard', description: '+500% ALL stats', color: 'text-pink-500', modifier: 500, rarity: 'legendary' },
     { type: 'temporal', name: 'Time Crystal', description: '2x passive income', color: 'text-cyan-300', modifier: 100, rarity: 'legendary' },
-    { type: 'meta', name: 'Metaman Core', description: 'Ultimate power', color: 'text-yellow-500', modifier: 1000, rarity: 'legendary' },
+    { type: 'meta', name: 'Dan Core', description: 'Ultimate power', color: 'text-yellow-500', modifier: 1000, rarity: 'legendary' },
     // NEW ENDGAME GEMS
     { type: 'quantum', name: 'Quantum Loop', description: 'Exponential user lures', color: 'text-cyan-100', modifier: 250, rarity: 'legendary' },
     { type: 'void', name: 'Void Pulse', description: 'Dampens heat spike', color: 'text-indigo-900', modifier: 15, rarity: 'legendary' },

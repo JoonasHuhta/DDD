@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Beaker, FlaskConical, Zap, Target, Lock, TrendingUp, Fingerprint, EyeOff, Brain, ShieldAlert, FastForward, CheckCircle2 } from 'lucide-react';
+import { Beaker, FlaskConical, Zap, Target, Lock, TrendingUp, Fingerprint, EyeOff, Brain, ShieldAlert, FastForward, CheckCircle2, Cpu, Briefcase } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import AdaptivePanel from './AdaptivePanel';
 import { ADDICTION_SCIENCE_TREE, DATA_DIVISION_TREE, LEGAL_SHIELD_TREE, ALL_RESEARCH_NODES, ResearchNode } from '../lib/progression/researchData';
@@ -17,7 +17,11 @@ export default function ResearchLabPanel({ onClose }: ResearchLabPanelProps) {
     queueResearch,
     cancelResearch,
     boostResearch,
-    formatNumber
+    formatNumber,
+    dopaCoin,
+    dopaCoinUnlocked,
+    isPubliclyTraded,
+    stockPrice
   } = useMetamanGame();
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -222,6 +226,44 @@ export default function ResearchLabPanel({ onClose }: ResearchLabPanelProps) {
           </div>
           
           <div className="bg-[#f8f9fa] rounded-3xl border-4 border-black p-4 shadow-inner relative overflow-hidden mb-6">
+             {/* DopaCoin Mining Terminal (Hidden until research complete) */}
+             {researchState.completed.includes('synthetic_value') && (
+               <div className="mb-6 p-4 bg-slate-900 border-4 border-black rounded-2xl shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
+                 <div className="flex justify-between items-center mb-3">
+                   <div className="flex items-center gap-2">
+                     <Cpu className="w-5 h-5 text-cyan-400 animate-pulse" />
+                     <span className="text-xs font-black text-white uppercase italic">Dopa-Rig v1.0</span>
+                   </div>
+                   <div className="text-cyan-400 font-black italic text-sm">₿ {formatNumber(dopaCoin)}</div>
+                 </div>
+                 <div className="text-[9px] text-slate-400 font-bold mb-3 leading-tight uppercase">
+                   Mining DOPACoin by harvesting excess neural entropy from {formatNumber(useMetamanGame.getState().users)} users.
+                 </div>
+                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                    <div className="h-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.5)]" style={{ width: '65%' }}></div>
+                 </div>
+               </div>
+             )}
+
+             {/* IPO Readiness Button (Hidden until research complete) */}
+             {activeTab === 'legal' && researchState.completed.includes('ipo_readiness') && !isPubliclyTraded && (
+               <div className="mb-6 p-4 bg-amber-50 border-4 border-black rounded-2xl shadow-[4px_4px_0_0_black]">
+                 <div className="flex items-center gap-3 mb-2">
+                   <Briefcase className="w-6 h-6 text-amber-600" />
+                   <div>
+                     <div className="text-xs font-black text-black uppercase italic">Public Offering Ready</div>
+                     <div className="text-[8px] font-bold text-amber-800 uppercase">Valuation: $ {formatNumber(useMetamanGame.getState().totalIncomePerSecond * 1000)}</div>
+                   </div>
+                 </div>
+                 <button
+                    onClick={() => useMetamanGame.setState({ isPubliclyTraded: true })}
+                    className="w-full bg-black text-white py-2 rounded-xl font-black uppercase italic text-xs hover:bg-gray-900 active:scale-95 transition-all"
+                 >
+                    Launch IPO on NASDAQ
+                 </button>
+               </div>
+             )}
+
              <div className="flex flex-col gap-8 items-center py-2">
                 {[1, 2, 3, 4].map(tier => (
                   <div key={tier} className="flex gap-4 justify-center w-full relative">
