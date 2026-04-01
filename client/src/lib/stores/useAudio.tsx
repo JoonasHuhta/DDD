@@ -47,7 +47,7 @@ if (success) success.volume = 0.7;
 const legal = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
 if (legal) legal.volume = 0.6;
 
-const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.wav") : null;
+const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.mp3") : null;
 if (cash4) cash4.volume = 0.8;
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -63,21 +63,19 @@ export const useAudio = create<AudioState>((set, get) => ({
   initAudio: () => {
     if (get().isInitialized) return;
     
-    // Setup ended listener for automatic progression (will be re-registered on swap)
-    const registerEnded = (player: HTMLAudioElement) => {
-      player.addEventListener('ended', () => {
+    // Only register ended on the initial active player (musicA).
+    // After any setTrack swap, it re-registers on the new active player.
+    if (musicA) {
+      musicA.addEventListener('ended', () => {
         const { isMuted, isTransitioning, currentTrack, setTrack } = get();
-        console.log('[AUDIO]', 'ENDED_EVENT', 'Moving to next track from', currentTrack);
+        console.log('[AUDIO]', 'ENDED_EVENT', 'from', currentTrack);
         if (!isMuted && !isTransitioning) {
           const currentIndex = MUSIC_TRACKS.indexOf(currentTrack);
           const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
           setTrack(MUSIC_TRACKS[nextIndex]);
         }
       }, { once: true });
-    };
-
-    if (musicA) registerEnded(musicA);
-    if (musicB) registerEnded(musicB);
+    }
 
     set({ isInitialized: true });
     console.log('[AUDIO]', 'INIT_DUAL_BUFFERS', activeIdx, get().isTransitioning);
@@ -132,9 +130,10 @@ export const useAudio = create<AudioState>((set, get) => ({
     const { active, inactive } = getPlayers();
     if (!active || !inactive) return;
     
-    // Don't reload if already playing this track
-    const { currentTrack, isMuted, setIsTransitioning } = get();
-    if (currentTrack === trackName && !active.paused) return;
+    // Don't reload if already playing exactly this track
+    const { currentTrack, setIsTransitioning } = get();
+    const isMuted = get().isMuted; // Always read fresh from store
+    if (currentTrack === trackName && active && !active.paused) return;
 
     console.log('[AUDIO]', 'LOAD_START', trackName, 'on buffer', activeIdx === 0 ? 'B' : 'A');
     setIsTransitioning(true);

@@ -2451,11 +2451,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         set({ achievementManager: new AchievementManager((achievement) => get().showAchievementShowcase(achievement)) });
       }
       
-      // Auto-show tutorial for new players
-      const hasSeenTutorial = localStorage.getItem('metaman_tutorial_seen');
-      if (!hasSeenTutorial && state.gameState === 'menu') {
-        set({ showTutorial: true });
-      }
+      // Tutorial now triggered by NEW GAME button, not here.
+      // Keeps the main menu clean on first launch.
       
       // Ensure gameState is only set to menu if it's currently undefined or initial
       set((state) => ({ 
