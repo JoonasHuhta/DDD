@@ -4,6 +4,7 @@ import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
 import { StatisticsContent } from './StatisticsPanel';
+import { ELITES } from '../lib/gameEngine/EliteRegistry';
 
 interface MansionUpgrade {
   id: string;
@@ -11,7 +12,7 @@ interface MansionUpgrade {
   description: string;
   price: number;
   currency: 'orbs' | 'diamonds' | 'money';
-  category: 'luring' | 'decoration' | 'clothing' | 'lifestyle';
+  category: 'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops';
   effect: string;
   bonus: number;
   icon: React.ReactNode;
@@ -48,11 +49,12 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     addMansionPurchase,
     exportSave,
     importSave,
-    decrementIncome
+    decrementIncome,
+    collectedElites
   } = useMetamanGame();
 
-  const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'automation' | 'stats' | 'bonuses'>('mansion');
-  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle'>('luring');
+  const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'bonuses' | 'stats' | 'trophies'>('mansion');
+  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops'>('luring');
 
   const isUpgradePurchased = (id: string) => mansionPurchases.includes(id);
 
@@ -336,6 +338,79 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
       bonus: 5000,
       icon: <Sparkles className="w-5 h-5" />,
       purchased: isUpgradePurchased('vacation_package')
+    },
+    // ── DARK WEB OPS (Baits) ────────────────────────────────────────────────
+    {
+      id: 'burned_macbook',
+      name: 'Burned MacBook',
+      description: 'Target: VC Investors. Encrypted hardware.',
+      price: 15,
+      currency: 'orbs',
+      category: 'ops',
+      effect: 'Unlock VC Spawns',
+      bonus: 0,
+      icon: <Eye className="w-5 h-5" />,
+      purchased: isUpgradePurchased('burned_macbook')
+    },
+    {
+      id: 'counter_offer_package',
+      name: 'Counter-Offer Package',
+      description: 'Target: Headhunters. Massive sign-on bonuses.',
+      price: 30,
+      currency: 'orbs',
+      category: 'ops',
+      effect: 'Unlock Headhunters',
+      bonus: 0,
+      icon: <Users className="w-5 h-5" />,
+      purchased: isUpgradePurchased('counter_offer_package')
+    },
+    {
+      id: 'web3_partnership',
+      name: 'Web3 Partnership',
+      description: 'Target: Crypto Billionaires. Tokenize your soul.',
+      price: 60,
+      currency: 'orbs',
+      category: 'ops',
+      effect: 'Unlock Crypto Elites',
+      bonus: 0,
+      icon: <TrendingUp className="w-5 h-5" />,
+      purchased: isUpgradePurchased('web3_partnership')
+    },
+    {
+      id: 'esg_compliance_report',
+      name: 'ESG Report (Fake)',
+      description: 'Target: Pension Fund Managers. Pure fiction.',
+      price: 250000,
+      currency: 'money',
+      category: 'ops',
+      effect: 'Unlock Whale Investors',
+      bonus: 0,
+      icon: <BarChart3 className="w-5 h-5" />,
+      purchased: isUpgradePurchased('esg_compliance_report')
+    },
+    {
+      id: 'consulting_engagement',
+      name: 'Consulting Engagement',
+      description: 'Target: Big 4 Auditors. Buy their silence.',
+      price: 500000,
+      currency: 'money',
+      category: 'ops',
+      effect: 'Unlock Deep State Elites',
+      bonus: 0,
+      icon: <Bot className="w-5 h-5" />,
+      purchased: isUpgradePurchased('consulting_engagement')
+    },
+    {
+      id: 'platform_reinstatement',
+      name: 'Platform Reinstatement',
+      description: 'Target: Ex-Presidents. Regain your lost reach.',
+      price: 2000000,
+      currency: 'money',
+      category: 'ops',
+      effect: 'Unlock Head of State',
+      bonus: 0,
+      icon: <Crown className="w-5 h-5" />,
+      purchased: isUpgradePurchased('platform_reinstatement')
     }
   ];
 
@@ -391,12 +466,12 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
           </div>
         </div>
 
-        <div className="flex gap-2">
-          {(['luring', 'decoration', 'clothing', 'lifestyle'] as const).map(tab => (
+        <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-2">
+          {(['luring', 'ops', 'decoration', 'clothing', 'lifestyle'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveMansionTab(tab)}
-              className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
+              className={`flex-none px-3 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9px] whitespace-nowrap transition-all ${
                 activeMansionTab === tab ? 'bg-[#FFD700] translate-y-1' : 'bg-white shadow-[4px_4px_0_0_rgba(0,0,0,1)]'
               }`}
             >
@@ -437,58 +512,6 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
               </div>
             </div>
           ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderAutomation = () => {
-    const availableUpgrades = automationSystem?.getAvailableUpgrades({
-      totalClicks: totalClicks,
-      totalIncome: income,
-      automationState: automationSystem?.getState()
-    }) || [];
-
-    return (
-      <div className="space-y-4 pb-10">
-        <div className="p-4 bg-gray-900 border-4 border-black rounded-2xl text-white shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <div className="text-xs font-bold text-blue-400 uppercase mb-2 italic">Active Systems</div>
-          <div className="grid grid-cols-3 gap-2 text-[8px] font-black uppercase text-center">
-            <div className={`p-2 border-2 border-black rounded-lg ${automationSystem?.getState().autoClickerEnabled ? 'bg-green-600' : 'bg-red-900'}`}>Clicker</div>
-            <div className={`p-2 border-2 border-black rounded-lg ${automationSystem?.getState().autoBuyerEnabled ? 'bg-green-600' : 'bg-red-900'}`}>Buyer</div>
-            <div className={`p-2 border-2 border-black rounded-lg ${automationSystem?.getState().smartBuyerEnabled ? 'bg-green-600' : 'bg-red-900'}`}>Smart</div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {availableUpgrades.length === 0 ? (
-            <div className="text-center py-10 bg-white border-4 border-black rounded-2xl">
-              <div className="text-xs font-black uppercase text-gray-500">No Upgrades Available</div>
-            </div>
-          ) : (
-            availableUpgrades.map(upgrade => {
-              const cost = automationSystem?.getUpgradeCost(upgrade.id) || 0;
-              const canAfford = income >= cost;
-              return (
-                <div key={upgrade.id} className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-black text-xs uppercase italic">{upgrade.name}</h4>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">LVL {upgrade.currentLevel}/{upgrade.maxLevel}</span>
-                  </div>
-                  <p className="text-[9px] font-bold text-gray-600 uppercase mb-3 leading-none">{upgrade.description}</p>
-                  <button
-                    onClick={() => purchaseAutomationUpgrade?.(upgrade.id)}
-                    disabled={!canAfford}
-                    className={`w-full py-2 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
-                      canAfford ? 'bg-[#FFD700] hover:bg-yellow-400' : 'bg-gray-200 text-gray-400'
-                    }`}
-                  >
-                    UPGRADE ${formatNumber(cost)}
-                  </button>
-                </div>
-              );
-            })
-          )}
         </div>
       </div>
     );
@@ -541,6 +564,83 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     );
   };
 
+  const renderTrophies = () => {
+    // ELITES is now imported at the top
+    
+    return (
+      <div className="space-y-6 pb-10">
+        <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-200 border-4 border-black rounded-2xl shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-white border-4 border-black rounded-full flex items-center justify-center text-4xl shadow-[2px_2px_0_0_black]">
+              🏆
+            </div>
+            <div>
+              <h3 className="text-xl font-black italic uppercase">The Elite Collection</h3>
+              <p className="text-[10px] font-bold text-black uppercase opacity-60">
+                You have captured {collectedElites.length} / {ELITES.length} high-value targets.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {ELITES.map((elite: any) => {
+            const isCaptured = collectedElites.includes(elite.id);
+            
+            return (
+              <div 
+                key={elite.id} 
+                className={`group relative overflow-hidden bg-white border-4 border-black rounded-2xl p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all ${
+                  isCaptured ? 'opacity-100 scale-100' : 'opacity-40 grayscale translate-y-1'
+                }`}
+              >
+                {!isCaptured && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10 bg-white/10 backdrop-blur-[1px]">
+                    <Eye className="w-8 h-8 text-black opacity-20" />
+                  </div>
+                )}
+                
+                <div className="flex items-start gap-4">
+                  <div className={`w-12 h-12 flex items-center justify-center text-3xl border-2 border-black rounded-xl ${isCaptured ? 'bg-yellow-50' : 'bg-gray-100'}`}>
+                    {isCaptured ? elite.visual : '?'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-black text-xs uppercase italic truncate max-w-[120px]">
+                        {isCaptured ? elite.name : '??? UNKNOWN'}
+                      </h4>
+                      <div className={`px-2 py-0.5 border-2 border-black rounded-full text-[8px] font-black uppercase ${
+                        elite.tier === 3 ? 'bg-red-500 text-white' : elite.tier === 2 ? 'bg-yellow-400' : 'bg-green-400'
+                      }`}>
+                        TIER {elite.tier}
+                      </div>
+                    </div>
+                    
+                    <p className="text-[9px] font-bold text-gray-600 uppercase mt-1 line-clamp-2 leading-tight">
+                      {isCaptured ? elite.danQuip : "Capture this individual to unlock their profile."}
+                    </p>
+                    
+                    {isCaptured && (
+                      <div className="mt-3 pt-2 border-t-2 border-black/5 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[8px] font-black text-green-600 uppercase">
+                          <Users className="w-3 h-3" />
+                          +{formatNumber(elite.userValue)} Users
+                        </div>
+                        <div className="text-[8px] font-black uppercase text-gray-400 italic">
+                          Captured
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AdaptivePanel title="DAN'S SUITE" onClose={onClose} position="center" className="max-w-2xl">
       {/* Main Tabs */}
@@ -561,14 +661,7 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
         >
           Bonuses
         </button>
-        <button
-          onClick={() => setActiveMainTab('automation')}
-          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
-            activeMainTab === 'automation' ? 'bg-[#4ECDC4] shadow-[2px_2px_0_0_rgba(0,0,0,1)]' : 'bg-white'
-          }`}
-        >
-          Auto
-        </button>
+
         <button
           onClick={() => setActiveMainTab('stats')}
           className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
@@ -577,13 +670,21 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
         >
           Stats
         </button>
+        <button
+          onClick={() => setActiveMainTab('trophies')}
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[10px] transition-all ${
+            activeMainTab === 'trophies' ? 'bg-[#FFD700] shadow-[2px_2px_0_0_rgba(0,0,0,1)]' : 'bg-white'
+          }`}
+        >
+          Trophies
+        </button>
       </div>
 
       <div className="px-1">
         {activeMainTab === 'mansion' && renderMansion()}
         {activeMainTab === 'bonuses' && renderBonuses()}
-        {activeMainTab === 'automation' && renderAutomation()}
         {activeMainTab === 'stats' && renderStats()}
+        {activeMainTab === 'trophies' && renderTrophies()}
       </div>
     </AdaptivePanel>
   );

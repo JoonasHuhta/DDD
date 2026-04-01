@@ -1,5 +1,5 @@
 import { City } from "./City";
-import type { EliteDefinition } from "./EliteRegistry";
+import { ELITES, EliteDefinition } from "./EliteRegistry";
 
 export class Citizen {
   private x: number;
@@ -39,6 +39,7 @@ export class Citizen {
   private isPosing: boolean = false;
   private readonly POSE_INTERVAL = 5000;  // Pose every 5s
   private readonly POSE_DURATION = 3000;  // Hold pose for 3s
+  private lastLuredTime: number = 0;
   // Jetset state
   public isJetsetLanding: boolean = false;
   public jetsetY: number = 0;            // Current Y during landing animation
@@ -104,6 +105,7 @@ export class Citizen {
       : deltaSeconds;
 
     this.resistance = Math.max(0, this.resistance - effectiveDelta);
+    this.lastLuredTime = Date.now();
 
     if (this.resistance <= 0) return 'captured';
     return 'capturing';
@@ -113,11 +115,14 @@ export class Citizen {
   public onLureInterrupted(): void {
     if (!this.isElite) return;
     this.lureAttempts++;
+    
     // Partial resistance restore (lose 30% progress on interruption)
     this.resistance = Math.min(this.maxResistance, this.resistance + this.maxResistance * 0.3);
+    
     // Paranoid / fleeing behavior: flee faster after failed attempt
-    if (this.eliteBehavior === 'paranoid' || this.eliteBehavior === 'fleeing') {
-      this.speed *= 1.5;
+    if (this.eliteBehavior === 'paranoid' || this.eliteBehavior === 'fleeing' || this.eliteBehavior === 'suspicious') {
+      this.speed *= 1.4; // Gain speed on every failed attempt
+      this.setNewTarget(); // Panic and change direction
     }
   }
 
@@ -202,6 +207,13 @@ export class Citizen {
 
   // Get user value based on citizen color (progressive rewards)
   public getUserValue(): number {
+    // ── ELITE: Use registry value ───────────────────────────────────────────
+    if (this.isElite) {
+      const def = ELITES.find(e => e.id === this.eliteType);
+      return def ? def.userValue : 10;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     switch (this.color) {
       // Ultra high-value citizens (exponential system)
       case '#FF1493': return 15; // Pink - Ultra-whale (15 users) - NEW!
@@ -265,6 +277,13 @@ export class Citizen {
     if (this.isElite && !this.isHooked) {
       this.eliteElapsedMs += deltaTime;
 
+      // Handle interrupted lure detection
+      if (this.resistance < this.maxResistance && Date.now() - this.lastLuredTime > 500) {
+        // We were being lured, but the beam is gone for 0.5s
+        this.onLureInterrupted();
+        this.lastLuredTime = Date.now(); // Reset so we don't spam it
+      }
+
       // Jetset landing animation (descends from above screen)
       if (this.eliteBehavior === 'jetset' && this.isJetsetLanding) {
         const descentSpeed = 0.3;
@@ -295,6 +314,37 @@ export class Citizen {
           this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
           return;
         }
+      }
+
+      // Fleeing behavior: Run away from tower if being lured
+      if (this.eliteBehavior === 'fleeing' && this.resistance < this.maxResistance) {
+        const metamanX = this.city.width / 2;
+        const dx = this.x - metamanX;
+        // Direction away from Dan
+        const fleeDir = dx >= 0 ? 1 : -1;
+        this.x += fleeDir * this.speed * deltaTime * 1.5;
+        this.y += (Math.random() - 0.5) * this.speed * deltaTime;
+        
+        // Don't use normal pathfinding while fleeing
+        this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
+        this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
+        return;
+      }
+
+      // Suspicious behavior: Stops and stares at the tower
+      if (this.eliteBehavior === 'suspicious') {
+        const isStaring = (Math.floor(this.eliteElapsedMs / 4000) % 2 === 0);
+        if (isStaring) {
+          // Freeze and look at tower
+          this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
+          this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
+          return;
+        }
+      }
+      
+      // Paranoid behavior: Erratic movement
+      if (this.eliteBehavior === 'paranoid') {
+        this.pathfindingTimer += deltaTime * 2; // Recalculate paths twice as fast
       }
     }
     // ────────────────────────────────────────────────────────────────────────
@@ -381,6 +431,18 @@ export class Citizen {
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     
+    // ── ELITE GENDER & AURA ─────────────────────────────────────────────────
+    if (this.isElite && !this.isHooked) {
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = this.eliteGlowColor;
+      
+      // Suburban glow/aura
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, headSize * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `${this.eliteGlowColor}33`; // 20% opacity
+      ctx.fill();
+    }
+
     // Hooked glow
     if (this.isHooked) {
       ctx.shadowBlur = 15;
@@ -411,6 +473,55 @@ export class Citizen {
     ctx.beginPath();
     ctx.arc(this.x, this.y - headSize/4, headSize/4, 0.2 * Math.PI, 0.8 * Math.PI);
     ctx.stroke();
+
+    // ── ELITE PROPS ─────────────────────────────────────────────────────────
+    if (this.isElite && !this.isHooked) {
+      // Draw smartphone
+      ctx.fillStyle = '#333333';
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1;
+      const phoneX = this.x + (this.isPosing ? -headSize/2 : headSize/3);
+      const phoneY = this.y - headSize/2;
+      ctx.fillRect(phoneX, phoneY, headSize/3, headSize/2);
+      ctx.strokeRect(phoneX, phoneY, headSize/3, headSize/2);
+      
+      // Screen glow
+      ctx.fillStyle = '#00FFFF';
+      ctx.fillRect(phoneX + 1, phoneY + 1, headSize/3 - 2, headSize/2 - 2);
+
+      // Selfie Flash Animation
+      if (this.isPosing && (Math.floor(Date.now() / 200) % 5 === 0)) {
+        ctx.beginPath();
+        ctx.arc(phoneX, phoneY, headSize, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'white';
+        ctx.fill();
+      }
+    }
+
+    // ── RESISTANCE BAR ──────────────────────────────────────────────────────
+    if (this.isElite && !this.isHooked && this.resistance < this.maxResistance) {
+      const barWidth = headSize * 2;
+      const barHeight = 6;
+      const barX = this.x - barWidth/2;
+      const barY = this.y - headSize - 15;
+
+      // Background
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+      
+      // Progress
+      const progress = 1 - this.getResistanceFraction();
+      ctx.fillStyle = '#00FF00';
+      if (progress > 0.8) ctx.fillStyle = '#FFD700'; // Gold when almost yours
+      ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+      
+      // Border
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+    }
 
     // Reset shadow
     ctx.shadowBlur = 0;

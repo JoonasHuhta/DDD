@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Settings, Volume2, VolumeX, Save, Download, Upload, Trash2, Power, HelpCircle } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
-import { useAudio } from '../lib/stores/useAudio';
+import { useAudio, MUSIC_TRACKS } from '../lib/stores/useAudio';
 import AdaptivePanel from './AdaptivePanel';
 
 interface OptionsPanelProps {
@@ -49,7 +49,7 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
           <div className="space-y-2 border-t-2 border-dashed border-gray-200 pt-3">
             <span className="text-[10px] font-black uppercase text-gray-500 block mb-2">Select Track</span>
             <div className="grid grid-cols-2 gap-2">
-              {['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3'].map((track) => (
+              {MUSIC_TRACKS.map((track, i) => (
                 <button
                   key={track}
                   onClick={() => setTrack(track)}
@@ -57,9 +57,9 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
                     currentTrack === track 
                       ? 'bg-black text-white' 
                       : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
+                  } ${track === 'Forgo5.mp3' ? 'col-span-2' : ''}`}
                 >
-                  {track.replace('.mp3', '')}
+                  TRACK {i + 1}
                 </button>
               ))}
             </div>

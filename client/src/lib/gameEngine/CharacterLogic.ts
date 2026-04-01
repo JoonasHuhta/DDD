@@ -2,6 +2,7 @@
  * CharacterLogic.ts
  * Definitions for character personalities, dialogue and trigger conditions.
  */
+import { getStage } from "../utils/stageSystem";
 
 export interface DialogueNode {
   id: string;
@@ -40,6 +41,14 @@ export const CHARACTERS: Record<string, Character> = {
     portrait: '👤',
     color: 'text-cyan-400',
     description: 'Someone who knows too much about the algorithm.'
+  },
+  dan: {
+    id: 'dan',
+    name: 'Dopamine Dealer Dan',
+    title: 'C.E.O. & Visionary',
+    portrait: '🕶️',
+    color: 'text-yellow-500',
+    description: 'The man himself. Optimization at any cost.'
   }
 };
 
@@ -112,8 +121,9 @@ export class CharacterLogic {
     // CRITICAL: Block character events during active crisis or if dialogue is already open
     if (state.lawsuitState.isCrisisActive || state.showCharacterDialogue) return null;
 
-    // Trigger Walsh if Heat is high and we haven't met him
-    if (state.blackMarketState.regulatoryHeat > 70 && !state.characters.walsh.flags.includes('met_walsh')) {
+    // Trigger Walsh if Heat is very high and we are established (Stage 3+)
+    const stage = getStage(state.users);
+    if (stage >= 3 && state.blackMarketState.regulatoryHeat > 85 && !state.characters.walsh.flags.includes('met_walsh')) {
       return 'walsh_intro_1';
     }
 

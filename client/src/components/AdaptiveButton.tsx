@@ -82,7 +82,7 @@ export default function AdaptiveButton({
         <span className={`${children ? 'mr-2' : ''}`}>{icon}</span>
       )}
       {children && (
-        <span className="truncate">{children}</span>
+        <span className="whitespace-normal leading-tight flex-1">{children}</span>
       )}
       {icon && iconPosition === 'right' && (
         <span className={`${children ? 'ml-2' : ''}`}>{icon}</span>

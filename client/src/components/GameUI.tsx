@@ -142,6 +142,8 @@ export default function GameUI() {
     }, 50);
   };
 
+  const lastGameStateRef = useRef(gameState);
+
   const togglePanel = (panelName: string, currentlyOpen: boolean) => {
     if (currentlyOpen) {
       closeAllPanels();
@@ -192,22 +194,42 @@ export default function GameUI() {
   useEffect(() => {
     initAudio();
     
-    // Automatic track maintenance (non-blocking)
-    if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3' && !isTransitioning) {
-      setTrack('Forgo1.mp3');
-    } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3' && !isTransitioning) {
-      setTrack('Forgo2.mp3');
+    // Automatic track maintenance - ONLY on state change
+    if (gameState !== lastGameStateRef.current && !isTransitioning) {
+      if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3') {
+        setTrack('Forgo1.mp3');
+      } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3') {
+        // Only auto-switch to Forgo2 if we were explicitly using the menu track
+        setTrack('Forgo2.mp3');
+      }
+      lastGameStateRef.current = gameState;
     }
 
     const timer = setTimeout(() => {
       if (!isMuted && !isTransitioning) {
+        console.log('[AUDIO]', 'AUTO_PLAY_TIMER_FIRE', gameState);
         playBackgroundMusic();
       }
-    }, 1000);
+    }, 500); // Shorter delay for menu startup
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        console.log('[AUDIO]', 'APP_HIDDEN', 'Pausing music');
+        pauseBackgroundMusic();
+      } else {
+        console.log('[AUDIO]', 'APP_VISIBLE', 'Resuming music');
+        if (!isMuted) playBackgroundMusic();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const startAudioOnInteraction = () => {
       initAudio();
-      if (!isMuted && !isTransitioning) playBackgroundMusic();
+      if (!isMuted && !isTransitioning) {
+        console.log('[AUDIO]', 'INTERACTION_PLAY');
+        playBackgroundMusic();
+      }
       window.removeEventListener('click', startAudioOnInteraction);
       window.removeEventListener('touchstart', startAudioOnInteraction);
     };
@@ -219,8 +241,9 @@ export default function GameUI() {
       clearTimeout(timer);
       window.removeEventListener('click', startAudioOnInteraction);
       window.removeEventListener('touchstart', startAudioOnInteraction);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [initAudio, playBackgroundMusic, isMuted, gameState, currentTrack, isTransitioning]);
+  }, [initAudio, playBackgroundMusic, isMuted, gameState, isTransitioning, setTrack, currentTrack]);
 
 
 
@@ -298,42 +321,16 @@ export default function GameUI() {
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#FF6B35] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
             >
-              NEW GAME!
+              NEW GAME
             </button>
 
             <button
               onClick={() => {
-                const screenAny = screen as any;
-                if (screenAny.orientation && screenAny.orientation.lock) {
-                  screenAny.orientation.lock('portrait').catch(() => {});
-                }
-
-                // Track Switch Sequence
-                setIsTransitioning(true);
-                pauseBackgroundMusic();
-                playCash4(); 
-                setTrack('Forgo2.mp3');
-
-                // 1. View switch delay
-                setTimeout(() => {
-                  const success = useMetamanGame.getState().loadGame();
-                  if (!success) {
-                    alert("No save found!");
-                    setIsTransitioning(false); // Reset if failed
-                    setTrack('Forgo1.mp3'); // Revert track
-                    playBackgroundMusic();
-                  }
-                }, 2000);
-
-                // 2. Longer delay for music (Sound completion + Gap)
-                setTimeout(() => {
-                  setIsTransitioning(false);
-                  playBackgroundMusic();
-                }, 3500);
+                openPanel('options');
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#4ECDC4] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
             >
-              CONTINUE
+              SETTINGS
             </button>
           </div>
           
@@ -354,8 +351,9 @@ export default function GameUI() {
             </div>
           </div>
           
-          {/* Ensure Tutorial can show over the menu */}
+          {/* Ensure Tutorial and Options can show over the menu */}
           {showTutorial && <TutorialPanel />}
+          {panels.isPanelOpen('options') && <OptionsPanel onClose={() => panels.closePanel('options')} />}
         </div>
       </div>
     );

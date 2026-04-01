@@ -7,6 +7,7 @@ import { CampaignSystem, CAMPAIGNS } from "./CampaignSystem";
 import { BasementView } from "./BasementView";
 import { RedNpc } from "./RedNpc";
 import { ELITES, getSpawnableElites, pickWeightedElite } from "./EliteRegistry";
+import { useMetamanGame } from '../stores/useMetamanGame';
 
 export class MetamanEngine {
   private ctx: CanvasRenderingContext2D;
@@ -427,6 +428,10 @@ export class MetamanEngine {
     }
   }
 
+  public setActiveBaits(baits: string[]): void {
+    this.activeBaits = baits;
+  }
+
   public handleClick(x: number, y: number, campaignId: string, income: number, campaignCharges: number = 5): boolean {
     if (this.currentView === 'basement') {
       // ENHANCED: Basement orb collection gives both data AND orbs
@@ -465,12 +470,20 @@ export class MetamanEngine {
       // Create electric lure effect with campaign color and radius
       this.electricLure.addLure(lureOrigin.x, lureOrigin.y, x, y, campaign.color, campaign.radius);
       
-      // Hook nearby citizens based on campaign effectiveness
-      const hookedCount = this.hookNearbyCitizens(x, y, campaign);
-      
-      // Dan's catchphrase when campaigns are successful
-      if (hookedCount > 0) {
-        console.log(`🎯 Ding Ding Ding! - Campaign "${campaign.name}" hooked ${hookedCount} citizens!`);
+      // Elite Scan Handling
+      if (campaignId === 'elite_scan') {
+        console.log('[ELITE] Scan initiated — searching for high-value targets...');
+        this.spawnElite(); // Force an elite spawn check
+        this.metaman.setPhoneEmoji('📡', 1000); 
+        // No normal citizens hooked
+      } else {
+        // Hook nearby citizens based on campaign effectiveness
+        const hookedCount = this.hookNearbyCitizens(x, y, campaign);
+        
+        // Dan's catchphrase when campaigns are successful
+        if (hookedCount > 0) {
+          console.log(`🎯 Ding Ding Ding! - Campaign "${campaign.name}" hooked ${hookedCount} citizens!`);
+        }
       }
       
       // Use campaign (updates risk but not cooldown since we use charges)
@@ -539,9 +552,6 @@ export class MetamanEngine {
   }
 
   /** Called from store/GameCanvas when Dark Web baits change. */
-  public setActiveBaits(baits: string[]): void {
-    this.activeBaits = baits;
-  }
 
   /** Manually spawn an elite of a specific type (for bait-triggered spawns). */
   public spawnElite(eliteId?: string): void {
@@ -608,6 +618,11 @@ export class MetamanEngine {
           citizen.hook(metamanPos.x, metamanPos.y);
           hookedCount++;
           console.log(`[ELITE] ${citizen.eliteType} captured! Resistance depleted.`);
+          
+          // REWARD: Connect to store
+          if (citizen.eliteType) {
+            useMetamanGame.getState().collectElite(citizen.eliteType);
+          }
         } else {
           const pct = Math.round((1 - citizen.getResistanceFraction()) * 100);
           console.log(`[ELITE] ${citizen.eliteType} resist ${pct}% depleted — keep applying!`);

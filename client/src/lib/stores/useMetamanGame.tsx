@@ -12,6 +12,8 @@ import { RandomLawsuitManager, RandomLawsuit } from "../../data/randomLawsuits";
 import { MarketLogic } from "../gameEngine/MarketLogic";
 import { DEFAULT_DEPARTMENTS, Department } from "../content/departments";
 import { getStage } from "../utils/stageSystem";
+import { ELITES } from "../gameEngine/EliteRegistry";
+import { DialogueNode } from "../gameEngine/CharacterLogic";
 import { LAWYERS, Lawyer } from "../../data/lawyers";
 import { ALL_RESEARCH_NODES } from "../progression/researchData";
 
@@ -209,11 +211,31 @@ interface MetamanGameStore {
   showTrophyPanel: boolean;
   campaignCooldownReduction: number;
   campaignCharges: number;
+  darkWebPurchases: string[];
   
   // NOTE: showDepartments, showProgression, showAutomation, showStatistics,
   // showSynergies, showOptions, showSinisterLab are managed as local useState
   // in GameUI.tsx via usePanelState hook — not duplicated in the store.
   showTutorial: boolean;
+  
+  characters: {
+    walsh: { suspicion: number; flags: string[] };
+    whistleblower: { active: boolean; ignoredCount: number };
+    rival: { users: number; growthRate: number };
+  };
+  
+  // ELITE SYSTEM
+  collectedElites: string[];
+  collectElite: (eliteId: string) => void;
+  metamanEngine: any;
+  setMetamanEngine: (engine: any) => void;
+  
+  // CHARACTER DIALOGUE SYSTEM
+  showCharacterDialogue: boolean;
+  activeCharacter: string | null;           // ID for static nodes (CharacterLogic)
+  activeDialogueNode: DialogueNode | null;  // Direct node for dynamic/elite dialogue
+  setCharacterDialogue: (charIdOrNode: string | DialogueNode | null) => void;
+  updateCharacterState: (charName: 'walsh' | 'whistleblower' | 'rival', updates: any) => void;
   
   lawsuitState: {
     isActive: boolean;
@@ -471,18 +493,7 @@ interface MetamanGameStore {
   addDataToMarketInventory: (type: 'behavioral' | 'location' | 'financial' | 'biometric', amount: number) => void;
   sellData: (type: 'behavioral' | 'location' | 'financial' | 'biometric', amount: number, multiplier: number, heatIncrease: number) => void;
 
-  // Character System Actions & State
-  characters: {
-    walsh: { suspicion: number; flags: string[] };
-    whistleblower: { active: boolean; ignoredCount: number };
-    rival: { users: number; growthRate: number };
-  };
-  showCharacterDialogue: boolean;
-  activeCharacter: string | null;
-  setCharacterDialogue: (charId: string | null) => void;
-  updateCharacterState: (charName: 'walsh' | 'whistleblower' | 'rival', updates: any) => void;
-
-  // Phase 3 Minigame State
+  // Minigame State
   showEspionage: boolean;
   setShowEspionage: (show: boolean) => void;
   showServerDefense: boolean;
@@ -602,6 +613,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
       achievementSystem,
       automationSystem,
       synergySystem,
+      metamanEngine: null,
+      setMetamanEngine: (engine: any) => set({ metamanEngine: engine }),
+      collectedElites: [],
+      showCharacterDialogue: false,
+      activeCharacter: null,
+      activeDialogueNode: null,
       gameState: "menu",
       income: 0, 
       users: 0,
@@ -758,8 +775,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
         if (state.mansionPurchases.includes('lure_charger')) max += 2;
         return max;
       },
-    showCharacterDialogue: false,
-    activeCharacter: null,
 
     // ── HEAT SYSTEM ────────────────────────────────────────────────────────────
     heat: 0,
@@ -795,8 +810,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
         else if (newHeat >= 50) level = 'critical';
         else if (newHeat >= 25) level = 'elevated';
         
-        const isCrisisActive = newHeat >= 90;
-        const isCrisisWarning = newHeat >= 75 && newHeat < 90;
+        // HYSTERESIS: Enter crisis at 90, exit only at 60
+        const isCrisisActive = state.lawsuitState.isCrisisActive 
+          ? newHeat > 60 
+          : newHeat >= 90;
+
+        const isCrisisWarning = newHeat >= 75 && !isCrisisActive;
 
         if (newHeat === state.heat && level === state.heatLevel && isCrisisActive === state.lawsuitState.isCrisisActive && isCrisisWarning === state.lawsuitState.isCrisisWarning) {
           return state;
@@ -857,8 +876,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
       else if (newHeat >= 50) level = 'critical';
       else if (newHeat >= 25) level = 'elevated';
       
-      const isCrisisActive = newHeat >= 90;
-      const isCrisisWarning = newHeat >= 75 && newHeat < 90;
+      // HYSTERESIS: Enter crisis at 90, exit only at 60
+      const isCrisisActive = state.lawsuitState.isCrisisActive 
+        ? newHeat > 60 
+        : newHeat >= 90;
+
+      const isCrisisWarning = newHeat >= 75 && !isCrisisActive;
 
       set((state) => ({ 
         heat: newHeat, 
@@ -896,6 +919,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
     // UI Panel states — showDepartments/Progression/etc. are in usePanelState hook
     showTrophyPanel: false,
+    darkWebPurchases: [],
     showTutorial: false,
     showOfflinePopup: false,
     achievementQueue: [],
@@ -1991,6 +2015,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         lastPassiveUserUpdate: saveData.gameState.lastPassiveUserUpdate || Date.now(),
         activeBuffs: saveData.gameState.activeBuffs || [],
         totalPlayTime: saveData.gameState.totalPlayTime || (saveData.statistics?.totalPlayTime || 0),
+        collectedElites: saveData.gameState.collectedElites || [],
+        darkWebPurchases: saveData.gameState.darkWebPurchases || [],
         gameState: "playing" // Switch to playing when loaded
       });
 
@@ -2255,11 +2281,49 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
     closeRandomLawsuit: () => set({ showRandomLawsuit: false, currentRandomLawsuit: null }),
 
-    setCharacterDialogue: (charId) => {
-      // COMBINE: Single set() to prevent many re-renders
+    collectElite: (eliteId: string) => {
+      const state = get();
+      const eliteDef = ELITES.find(e => e.id === eliteId);
+      if (!eliteDef) return;
+
+      // 1. Reward: Fixed users from registry
+      get().incrementUsers(eliteDef.userValue);
+      
+      // 2. State: Record capture
+      if (!state.collectedElites.includes(eliteId)) {
+        set((s) => ({ collectedElites: [...s.collectedElites, eliteId] }));
+      }
+
+      // 3. Dialogue: Show dyna-node
+      const danReply: DialogueNode = {
+        id: `elite_capture_${eliteId}`,
+        text: `[CAPTURADO: ${eliteDef.name.toUpperCase()}]\n\nDan: "${eliteDef.danQuip}"`,
+        options: [{ text: "Excellent.", nextId: null }]
+      };
+      
+      get().setCharacterDialogue(danReply);
+
+      // 4. Effects: Metaman Celebration
+      if (state.metamanEngine) {
+        state.metamanEngine.triggerMetamanSmile(5000);
+      }
+      
+      // 5. Heat: Capturing elites calms the regulators (PR win)
+      const heatReduction = 5 + (eliteDef.tier * 2); 
+      get().modifyHeat(-heatReduction);
+      
+      console.log(`🏆 ELITE COLLECTED: ${eliteDef.name}. +${eliteDef.userValue} users. Heat -%${heatReduction}.`);
+    },
+
+    setCharacterDialogue: (charIdOrNode) => {
       set((state) => {
+        // Handle input type
+        const isNode = typeof charIdOrNode !== 'string' && charIdOrNode !== null;
+        const charId = isNode ? (charIdOrNode as DialogueNode).id : (charIdOrNode as string | null);
+        const node = isNode ? (charIdOrNode as DialogueNode) : null;
+
         let characterUpdates = {};
-        if (charId === 'walsh_intro_1') {
+        if (charId === 'walsh_intro_1' && !state.characters.walsh.flags.includes('met_walsh')) {
           characterUpdates = { 
             characters: { 
               ...state.characters, 
@@ -2275,13 +2339,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
           };
         }
 
-        if (state.activeCharacter === charId && state.showCharacterDialogue === !!charId) {
-          return state;
-        }
-
         return { 
-          activeCharacter: charId, 
-          showCharacterDialogue: !!charId,
+          activeCharacter: node ? null : charId, 
+          activeDialogueNode: node,
+          showCharacterDialogue: !!charIdOrNode,
           ...characterUpdates
         };
       });
@@ -2690,6 +2751,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
     setIncome: (amount: number) => set({ income: amount }),
+
     decrementIncome: (amount: number) => set((state) => ({ income: Math.max(0, state.income - amount) })),
 
     updatePassiveUserGeneration: () => {
@@ -3186,6 +3248,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
       set((s: any) => ({
         [currencyAttr]: s[currencyAttr] - item.price,
+        darkWebPurchases: [...(s.darkWebPurchases || []), item.id],
         lawsuitState: item.id === 'larry_decoy' ? { ...s.lawsuitState, larryDistance: 0 } : s.lawsuitState,
         blackMarketState: item.id === 'political_lobbying' ? { ...s.blackMarketState, influencePoints: (s.blackMarketState.influencePoints || 0) + 50 } : s.blackMarketState
       }));

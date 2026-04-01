@@ -7,6 +7,7 @@ import { CHARACTERS, DIALOGUE_NODES, Character, DialogueNode, DialogueOption } f
 export default function CharacterDialogue() {
   const { 
     activeCharacter, 
+    activeDialogueNode,
     showCharacterDialogue, 
     setCharacterDialogue,
     updateCharacterState
@@ -16,27 +17,34 @@ export default function CharacterDialogue() {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-  // Character lookup
-  const charId = activeCharacter?.split('_')[0] || '';
-  const character: Character = CHARACTERS[charId] || CHARACTERS.walsh;
-  
   // Set initial node when dialogue opens
   useEffect(() => {
-    if (showCharacterDialogue && activeCharacter) {
-      setCurrentNodeId(activeCharacter);
+    if (showCharacterDialogue) {
+      if (activeDialogueNode) {
+        // use directly from state
+        setDisplayedText("");
+      } else if (activeCharacter) {
+        setCurrentNodeId(activeCharacter);
+      }
     } else {
       setCurrentNodeId(null);
       setDisplayedText("");
     }
-  }, [showCharacterDialogue, activeCharacter]);
+  }, [showCharacterDialogue, activeCharacter, activeDialogueNode]);
+
+  // Determine actual node AND character
+  const isEliteCapture = activeDialogueNode?.id?.startsWith('elite_capture');
+  const eliteChar = CHARACTERS.dan;
+  
+  const charIdFromId = activeCharacter?.split('_')[0] || '';
+  const character: Character = isEliteCapture ? eliteChar : (CHARACTERS[charIdFromId] || CHARACTERS.walsh);
+  
+  const node = activeDialogueNode || (currentNodeId ? DIALOGUE_NODES[currentNodeId] : null);
 
   // Typewriter effect
   useEffect(() => {
-    if (!currentNodeId) return;
-    
-    const node = DIALOGUE_NODES[currentNodeId];
     if (!node) return;
-
+    
     setDisplayedText("");
     setIsTyping(true);
     
@@ -51,12 +59,9 @@ export default function CharacterDialogue() {
     }, 20);
 
     return () => clearInterval(interval);
-  }, [currentNodeId]);
+  }, [node?.id, node?.text]);
 
-  if (!showCharacterDialogue || !currentNodeId) return null;
-
-  const node = DIALOGUE_NODES[currentNodeId];
-  if (!node) return null;
+  if (!showCharacterDialogue || !node) return null;
 
   const handleOption = (option: DialogueOption) => {
     if (option.action) {

@@ -13,8 +13,16 @@ interface CampaignPanelProps {
 }
 
 export default function CampaignPanel({ onCampaignSelect, regulatoryRisk, campaignCooldowns, campaignCharges, onClose }: CampaignPanelProps) {
-  const { income, purchaseCampaign, users } = useMetamanGame();
+  const { income, purchaseCampaign, users, darkWebPurchases, mansionPurchases } = useMetamanGame();
   const currentStage = getStage(users);
+
+  const ownedBaits = [...(darkWebPurchases || []), ...(mansionPurchases || [])];
+  const hasAnyBait = ownedBaits.length > 0;
+
+  const filteredCampaigns = CAMPAIGNS.filter(c => {
+    if (c.id === 'elite_scan') return hasAnyBait;
+    return true;
+  });
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toLocaleString()}`;
@@ -72,7 +80,7 @@ export default function CampaignPanel({ onCampaignSelect, regulatoryRisk, campai
 
         {/* Campaigns */}
         <div className="space-y-3">
-          {CAMPAIGNS.map((campaign) => {
+          {filteredCampaigns.map((campaign) => {
             const isLocked = campaign.requiredStage > currentStage;
             const affordable = canAfford(campaign);
             const cooldown = isOnCooldown(campaign.id);

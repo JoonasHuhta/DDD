@@ -39,7 +39,9 @@ export default function GameCanvas() {
     updateLarryDistance,
     lastRewardTimestamp,
     lastUserLossTime,
-    lastStageCompleteTimestamp
+    lastStageCompleteTimestamp,
+    darkWebPurchases,
+    mansionPurchases
   } = useMetamanGame();
   
   const panels = usePanelState();
@@ -298,6 +300,14 @@ export default function GameCanvas() {
     }
     prevRiskRef.current = regulatoryRisk;
   }, [regulatoryRisk]);
+
+  // Sync baits to engine
+  useEffect(() => {
+    if (engineRef.current) {
+      const ownedBaits = [...(darkWebPurchases || []), ...(mansionPurchases || [])];
+      engineRef.current.setActiveBaits(ownedBaits);
+    }
+  }, [darkWebPurchases, mansionPurchases]);
 
   return (
     <div className="relative w-full h-full">

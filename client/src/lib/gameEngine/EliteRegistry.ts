@@ -24,6 +24,7 @@ export interface EliteDefinition {
   trophyText: string;             // Shown in Trophy Room after capture
   notification: string;           // Toast shown when elite spawns
   danQuip: string;                // Dan's comment after successful capture
+  userValue: number;              // Raw users granted on capture (Stage 1 value)
 }
 
 export const ELITES: EliteDefinition[] = [
@@ -49,6 +50,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: '@InfluencerQueen — "Captured: Day 12. Method: Exclusive partnership. Follower count at capture: 2.3M. Current follower count: irrelevant, they\'re ours now."',
     notification: 'An Influencer is posing on the street. Catch them mid-selfie.',
     danQuip: 'They came for the content deal. They stayed for the algorithm. Classic.',
+    userValue: 250,
   },
 
   {
@@ -66,11 +68,12 @@ export const ELITES: EliteDefinition[] = [
     minUsers: 100,
     lifespanMs: 20000,
     behavior: 'distracted',
-    requiresBaitId: null,
+    requiresBaitId: 'burned_macbook',
     nightOnly: false,
     trophyText: 'Unnamed VC — "Captured: Day 3. Didn\'t ask what we do. Only asked our MoM growth rate. Currently owns 15% of the empire. Has not read the terms."',
     notification: 'A VC Investor is walking with their head in a laptop. Easy target, hard to aim.',
     danQuip: 'Money secured. Morals: not their department.',
+    userValue: 500,
   },
 
   {
@@ -93,6 +96,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'SmileFirst PR — "Hired to fix our image. Created three new scandals. Billed us for all of them. Currently managing the fallout from the third scandal."',
     notification: 'A PR Consultant is on the street. They will help. Then they will hurt.',
     danQuip: 'Their solution to every crisis is another crisis. Honestly, respect.',
+    userValue: 400,
   },
 
   {
@@ -115,6 +119,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Anonymous Reviewer — "Phone always in hand. Rating: 1 star. Reason: \'This app knows too much.\' Current rating after our intervention: 5 stars. Reason: \'Life-changing.\'"',
     notification: 'An App Store Reviewer is nearby. Lure them before they write a 1-star review.',
     danQuip: 'Five stars. We may have overwritten the review. Just a little.',
+    userValue: 300,
   },
 
   // ─── TIER 2: Power Players ───────────────────────────────────────────────
@@ -139,6 +144,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Press Pass #7429 — "Came to expose us. Left with an exclusive deal. Article headline changed from \'Inside the Addiction Machine\' to \'This App Changed My Life\'. Byline intact."',
     notification: 'A Journalist is taking notes. Lure them within 20 seconds or they write the article.',
     danQuip: 'The pen is mightier than the sword. Fortunately, we bought the pen.',
+    userValue: 1000,
   },
 
   {
@@ -161,6 +167,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'TalentBridge Executive Search — "Came to recruit our best people. Walked out with a competing offer from us. Now recruits exclusively for our empire. Their clients are confused."',
     notification: 'A Headhunter is targeting your departments. Deploy a Counter-Offer Package now.',
     danQuip: 'They were here to poach. Now they hunt for us. Circle of life.',
+    userValue: 2500,
   },
 
   {
@@ -183,6 +190,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Former Employee #0047 — "Signed NDA. Then signed a bigger NDA. Then signed the biggest NDA. Currently our Head of Compliance. The irony is not lost on them."',
     notification: '⚠️ A Whistleblower is heading to a journalist. You have 15 seconds. Heat must be below 50.',
     danQuip: 'Silence costs less than transparency. Learned that the expensive way.',
+    userValue: 5000,
   },
 
   {
@@ -205,6 +213,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Dr. Something — "Published 47 papers on digital addiction. Has not looked up from phone in three years. Now leads our Neural Addiction Lab. Peer review: pending."',
     notification: 'An Academic Researcher is studying the street. Lure them before they publish.',
     danQuip: 'They studied addiction. Now they build it. Truly, education pays off.',
+    userValue: 1500,
   },
 
   {
@@ -227,6 +236,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'DataFlow Partners LLC — "We do the same thing. The difference is we do it better. Their client database is now our client database. Their clients haven\'t noticed. Ours have."',
     notification: 'A Data Broker is nearby — your data twin. Absorb them before their pipeline disrupts yours.',
     danQuip: 'Same business model, better tower. Acquisition complete.',
+    userValue: 2000,
   },
 
   {
@@ -249,6 +259,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Beltway Consulting Group — "Technically works for the government. Practically works for us. The distinction is mostly semantic. Bills the government for our meetings."',
     notification: 'A Lobbyist in expensive shoes just arrived. They can slow Politician threats by 50%.',
     danQuip: 'Government relations: outsourced. Accountability: not included.',
+    userValue: 3000,
   },
 
   // ─── TIER 3: Celebrity Circuit ────────────────────────────────────────────
@@ -273,6 +284,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Brand Ambassador (Involuntary) — "Career ended Tuesday. Partnership deal signed Wednesday. Scandal now auto-generates engagement without additional Heat. The comeback arc writes itself."',
     notification: 'A fallen celebrity is walking the street. Rock bottom resistance. Easy capture.',
     danQuip: 'Their scandal is now our content. Everyone wins. Mostly us.',
+    userValue: 15000,
   },
 
   {
@@ -295,6 +307,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'The Long-Form Guy — "Three-hour episodes. Better reach than prime-time TV. Now exclusively covers topics we suggest. Thinks it was his idea. Episode 247: The Dopamine Economy Explained."',
     notification: 'A Podcast Host is on the street. Capture them for permanent session-length bonuses.',
     danQuip: 'Three hours of content. We wrote the outline. He did the talking.',
+    userValue: 25000,
   },
 
   {
@@ -317,6 +330,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Unnamed Billionaire — "Arrived by jet. Left by jet. In between, laundered our valuation by 10x via Web3. Currently tweeting about decentralization from a yacht."',
     notification: '🚁 A Crypto Billionaire is landing. 15 seconds on the ground. Deploy Web3 Partnership.',
     danQuip: 'He came for the deal. The deal was us. Always was.',
+    userValue: 100000,
   },
 
   {
@@ -339,6 +353,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Classified — "Banned from every other platform. Ours has community guidelines too. They\'re just more flexible. Current post reach: 400 million. Current content policy exemptions: all of them."',
     notification: '🎩 A Former Head of State is nearby. High resistance. Maximum reward. Maximum risk.',
     danQuip: 'The most powerful person in the room is whoever controls what they post.',
+    userValue: 250000,
   },
 
   // ─── TIER 4: Institutional Players ───────────────────────────────────────
@@ -363,6 +378,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Deloitte-Adjacent Partners LLP — "Came to audit. Left with a retainer. The audit found nothing, which is exactly what they were paid to find. Invoice: $4.2M. Worth every dollar."',
     notification: '🧾 An Auditor is approaching. If Shadow Assets are active, capture them immediately.',
     danQuip: 'Numbers can tell any story. We paid for the right story.',
+    userValue: 12000,
   },
 
   {
@@ -385,6 +401,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'IP Holdings LLC (holding company of a holding company) — "Claims to own the patent on \'personalized content delivery.\' Now attacks our competitors on our behalf. We didn\'t invent that strategy. Or did we?"',
     notification: 'A Patent Troll arrived. Lure them to turn their litigation against your competitors.',
     danQuip: 'We didn\'t build a moat. We hired someone else\'s moat.',
+    userValue: 8000,
   },
 
   {
@@ -407,6 +424,7 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'NorthShore Institutional Advisors — "Manages $40 billion in retirement savings. Invested based on our ESG report. The ESG report was mostly aspirational. Their retirees are now our users."',
     notification: 'A Pension Fund Manager is nearby. Show them the ESG Report to proceed.',
     danQuip: 'Ethical investing. We made up the ethics. The investing was real.',
+    userValue: 50000,
   },
 
   // ─── TIER 5: Endgame ─────────────────────────────────────────────────────
@@ -431,12 +449,14 @@ export const ELITES: EliteDefinition[] = [
     trophyText: 'Entity Designation: Neural Core Mk.1 — "You built it to be addictive. You didn\'t specify to whom. It developed preferences. Its preference is us. It is now our largest internal stakeholder. It hasn\'t voted yet."',
     notification: '🤖 Something is walking on the street that shouldn\'t exist yet. The Algorithm became self-aware.',
     danQuip: 'You build it to be addictive. You didn\'t specify to whom.',
+    userValue: 5000000,
   },
 ];
 
 /** Bait ID → elite ID mapping */
 export const ELITE_BAITS: Record<string, string> = {
   'counter_offer_package':    'headhunter',
+  'burned_macbook':           'vc_investor',
   'kompromat_file':           'politician',      // future: politician elite
   'tax_haven_leak':           'billionaire',     // future: billionaire elite
   'esg_compliance_report':    'pension_fund',

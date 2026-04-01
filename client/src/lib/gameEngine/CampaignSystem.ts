@@ -170,6 +170,18 @@ export const CAMPAIGNS: Campaign[] = [
     color: '#ffffff', 
     description: 'Ultimate digital dominance - complete control over reality perception',
     requiredStage: 10
+  },
+  {
+    id: 'elite_scan',
+    name: 'Elite Target Scan',
+    cost: 50000,
+    citizenCount: 0, 
+    radius: 1000,    
+    cooldown: 45000, 
+    riskIncrease: 5,
+    color: '#FFD700', 
+    description: 'High-frequency pings to find Elite targets. Only works if you have Baits.',
+    requiredStage: 2
   }
 ];
 

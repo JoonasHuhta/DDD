@@ -67,6 +67,8 @@ export interface GameSaveData {
     achievementManagerData?: any;
     achievementQueue?: any[];
     totalPlayTime?: number;
+    collectedElites?: string[];
+    darkWebPurchases?: string[];
   };
   progression: {
     prestigeState: any;
@@ -192,6 +194,8 @@ export class SaveSystem {
         achievementManagerData: gameData.achievementManager?.serialize() || null,
         achievementQueue: gameData.achievementQueue || [],
         totalPlayTime: gameData.totalPlayTime || 0,
+        collectedElites: gameData.collectedElites || [],
+        darkWebPurchases: gameData.darkWebPurchases || []
       },
       progression: {
         prestigeState: gameData.prestigeState || {},
