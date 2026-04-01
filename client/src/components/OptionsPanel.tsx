@@ -10,7 +10,7 @@ interface OptionsPanelProps {
 
 export default function OptionsPanel({ onClose }: OptionsPanelProps) {
   const { performHardReset, gameSettings, updateGameSettings } = useMetamanGame();
-  const { isMuted, toggleMute } = useAudio();
+  const { isMuted, toggleMute, currentTrack, setTrack } = useAudio();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
 
@@ -31,7 +31,7 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
       <div className="space-y-4 px-1">
         {/* Audio */}
         <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               <span className="text-sm font-black text-black uppercase">Audio</span>
@@ -44,6 +44,25 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
             >
               {isMuted ? 'MUTED' : 'ON'}
             </button>
+          </div>
+
+          <div className="space-y-2 border-t-2 border-dashed border-gray-200 pt-3">
+            <span className="text-[10px] font-black uppercase text-gray-500 block mb-2">Select Track</span>
+            <div className="grid grid-cols-2 gap-2">
+              {['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3'].map((track) => (
+                <button
+                  key={track}
+                  onClick={() => setTrack(track)}
+                  className={`text-[8px] font-black py-1.5 px-2 rounded-lg border-2 border-black truncate uppercase transition-all ${
+                    currentTrack === track 
+                      ? 'bg-black text-white' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {track.replace('.mp3', '')}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

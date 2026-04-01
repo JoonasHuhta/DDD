@@ -16,13 +16,12 @@ import MetamanCooldownIndicator from "./MetamanCooldownIndicator";
 import CampaignVisualEffects from "./CampaignVisualEffects";
 import LawsuitPanel from "./LawsuitPanel";
 import SuitcasePanel from "./SuitcasePanel";
-import ShopPanel from "./ShopPanel";
 import AchievementShowcase from './AchievementShowcase';
 import ProgressionOverview from './ProgressionOverview';
 import AdaptiveText from "./AdaptiveText";
 import AdaptiveButton from "./AdaptiveButton";
 import { useResponsiveUI } from "../hooks/useResponsiveUI";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import AchievementPopup from "./AchievementPopup";
 import VisualEffects from "./VisualEffects";
 import TrophyPanel from "./TrophyPanel";
@@ -184,19 +183,70 @@ export default function GameUI() {
     return () => clearInterval(interval);
   }, [updateClickParticles]);
 
-  // Auto-save every 30 seconds
+  // Initialize and play music on first load / interaction
+  const { initAudio, playBackgroundMusic, currentTrack, setTrack, pauseBackgroundMusic, playCash4 } = useAudio();
+  const transitioningRef = useRef(false);
+  
   useEffect(() => {
-    const saveInterval = setInterval(() => {
-      saveGame();
-    }, 30000);
+    initAudio();
+    
+    // Ensure correct track for state
+    if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3') {
+      setTrack('Forgo1.mp3');
+    } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3') {
+      setTrack('Forgo2.mp3');
+    }
 
-    return () => clearInterval(saveInterval);
-  }, [saveGame]);
+    const timer = setTimeout(() => {
+      // Only auto-play if we are NOT in the middle of a purposeful transition
+      if (!isMuted && !transitioningRef.current) {
+        playBackgroundMusic();
+      }
+    }, 1000);
+
+    const startAudioOnInteraction = () => {
+      initAudio();
+      if (!isMuted && !transitioningRef.current) playBackgroundMusic();
+      window.removeEventListener('click', startAudioOnInteraction);
+      window.removeEventListener('touchstart', startAudioOnInteraction);
+    };
+
+    window.addEventListener('click', startAudioOnInteraction);
+    window.addEventListener('touchstart', startAudioOnInteraction);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', startAudioOnInteraction);
+      window.removeEventListener('touchstart', startAudioOnInteraction);
+    };
+  }, [initAudio, playBackgroundMusic, isMuted, gameState, currentTrack]); // Reliable dependencies
+
+  // Orientation Check
+  const [isLandscape, setIsLandscape] = useState(false);
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight && responsive.isMobile);
+    };
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation();
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, [responsive.isMobile]);
 
 
   if (gameState === 'menu') {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-[#87CEEB]">
+        {/* PORTRAIT LOCK OVERLAY */}
+        {isLandscape && (
+          <div className="fixed inset-0 bg-black z-[1000] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-20 h-20 border-4 border-white rounded-xl mb-6 animate-bounce flex items-center justify-center">
+              <div className="w-1 h-12 bg-white rounded-full transform rotate-45"></div>
+            </div>
+            <h2 className="text-white text-2xl font-black uppercase mb-2 italic">Dopamine Dealer Order:</h2>
+            <p className="text-white/70 font-bold uppercase tracking-widest text-sm">Please Rotate Device to Portrait</p>
+          </div>
+        )}
+
         <div className="text-center p-8">
           {/* Cartoon City Silhouettes behind Dan could be added here */}
           
@@ -218,11 +268,21 @@ export default function GameUI() {
           
           {/* Game Title */}
           <h1 
-            className={`${responsive.isMobile ? 'text-6xl' : 'text-[120px]'} font-black comic-title transform -rotate-[5deg] ${responsive.isMobile ? 'mb-6' : 'mb-8'} select-none drop-shadow-2xl`}
+            className={`${responsive.isMobile ? 'text-6xl' : 'text-[120px]'} font-black comic-title transform -rotate-[5deg] ${responsive.isMobile ? 'mb-6' : 'mb-8'} select-none drop-shadow-2xl animate-pulse-slow`}
             data-game-title
           >
             DOPAMINE<br/>DEALER DAN
           </h1>
+          
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes pulse-slow {
+              0%, 100% { transform: rotate(-5deg) scale(1); }
+              50% { transform: rotate(-5deg) scale(1.05); }
+            }
+            .animate-pulse-slow {
+              animation: pulse-slow 4s ease-in-out infinite;
+            }
+          `}} />
           
           <p className={`text-black font-black ${responsive.isMobile ? 'text-sm' : 'text-xl'} ${responsive.isMobile ? 'mb-4' : 'mb-8'} uppercase tracking-widest bg-white/50 py-2 rounded-full inline-block px-6 border-2 border-black`}>
             The World's Most Addictive App!
@@ -235,7 +295,23 @@ export default function GameUI() {
                 if (screenAny.orientation && screenAny.orientation.lock) {
                   screenAny.orientation.lock('portrait').catch(() => {});
                 }
-                startGame();
+                
+                // Track Switch Sequence
+                transitioningRef.current = true;
+                pauseBackgroundMusic();
+                playCash4(); // Ka-ching! (specific sound)
+                setTrack('Forgo2.mp3');
+                
+                // 1. View switch delay (Menu -> City) - Wait for sound to be well underway
+                setTimeout(() => {
+                  startGame();
+                }, 2000);
+
+                // 2. Longer delay for music (Sound completion + Gap)
+                setTimeout(() => {
+                  playBackgroundMusic();
+                  transitioningRef.current = false;
+                }, 3500);
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#FF6B35] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
             >
@@ -248,8 +324,29 @@ export default function GameUI() {
                 if (screenAny.orientation && screenAny.orientation.lock) {
                   screenAny.orientation.lock('portrait').catch(() => {});
                 }
-                const success = useMetamanGame.getState().loadGame();
-                if (!success) alert("No save found!");
+
+                // Track Switch Sequence
+                transitioningRef.current = true;
+                pauseBackgroundMusic();
+                playCash4(); 
+                setTrack('Forgo2.mp3');
+
+                // 1. View switch delay
+                setTimeout(() => {
+                  const success = useMetamanGame.getState().loadGame();
+                  if (!success) {
+                    alert("No save found!");
+                    transitioningRef.current = false; // Reset if failed
+                    setTrack('Forgo1.mp3'); // Revert track
+                    playBackgroundMusic();
+                  }
+                }, 2000);
+
+                // 2. Longer delay for music (Sound completion + Gap)
+                setTimeout(() => {
+                  playBackgroundMusic();
+                  transitioningRef.current = false;
+                }, 3500);
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#4ECDC4] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
             >
@@ -258,17 +355,15 @@ export default function GameUI() {
           </div>
           
           {/* Footer Info / Briefing */}
-          <div 
-            className="absolute left-0 right-0 px-4 flex justify-between items-end z-50 bottom-14"
-          >
+          <div className={`flex flex-col ${responsive.isMobile ? 'gap-2' : 'gap-4'} mt-4 max-w-sm mx-auto w-full`}>
             <button 
               onClick={() => setShowTutorial(true)}
-              className="group flex items-center gap-1.5 text-black/40 hover:text-[#4ECDC4] transition-colors pointer-events-auto"
+              className="flex items-center justify-center gap-2 text-black/40 hover:text-[#4ECDC4] transition-colors py-2"
             >
-              <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-[10px] font-black group-hover:scale-110 transition-transform">
+              <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center text-[10px] font-black">
                 i
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Mission Briefing</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Mission Briefing</span>
             </button>
 
             <div className="text-black/40 font-black text-[10px] uppercase tracking-widest">

@@ -41,14 +41,14 @@ export default function Game() {
     initializeGame();
   }, [initializeGame]);
 
-  // Reactive Music Control: Play/Pause based on game state and mute status
-  useEffect(() => {
-    if (gameState === 'playing' && !isMuted) {
-      playBackgroundMusic();
-    } else {
-      pauseBackgroundMusic();
-    }
-  }, [gameState, isMuted, playBackgroundMusic, pauseBackgroundMusic]);
+  // Reactive Music Control: Consolidated to GameUI for reliability
+  // useEffect(() => {
+  //   if (gameState === 'playing' && !isMuted) {
+  //     playBackgroundMusic();
+  //   } else {
+  //     pauseBackgroundMusic();
+  //   }
+  // }, [gameState, isMuted, playBackgroundMusic, pauseBackgroundMusic]);
 
   // Update campaign cooldowns regularly and auto-recharge
   useEffect(() => {
