@@ -6,6 +6,7 @@ import { ElectricLure } from "./ElectricLure";
 import { CampaignSystem, CAMPAIGNS } from "./CampaignSystem";
 import { BasementView } from "./BasementView";
 import { RedNpc } from "./RedNpc";
+import { ELITES, getSpawnableElites, pickWeightedElite } from "./EliteRegistry";
 
 export class MetamanEngine {
   private ctx: CanvasRenderingContext2D;
@@ -53,6 +54,15 @@ export class MetamanEngine {
   private lastEmptyStreetTime: number = 0;
   private readonly WAVE_SPAWN_THRESHOLD = 800; // 0.8 seconds of empty street triggers a wave
   private clouds: { x: number; y: number; scale: number; speed: number }[] = [];
+
+  // ── ELITE SYSTEM ──────────────────────────────────────────────────────
+  private eliteSpawnTimer: number = 0;
+  private readonly ELITE_SPAWN_CHECK_MS = 30000; // Check every 30 seconds
+  private activeBaits: string[] = [];            // Set from store via setActiveBaits()
+  private currentLureTargetId: number | null = null; // Index of citizen being actively lured
+  private onEliteSpawned?: (eliteType: string, notification: string) => void;
+  private onEliteCollected?: (eliteType: string) => void;
+  private onJournalistBecamesThreat?: () => void;
 
   constructor(ctx: CanvasRenderingContext2D, width: number, height: number, isMobile: boolean = false) {
     this.ctx = ctx;
@@ -203,6 +213,24 @@ export class MetamanEngine {
     // PROGRESSIVE USER LURING: Remove collected citizens and grant variable user rewards
     citizensToRemove.reverse().forEach(index => {
       const citizen = this.citizens[index];
+
+      // ── ELITE COLLECTION: fire callback, skip normal user reward scaling ──
+      if (citizen.isElite) {
+        console.log(`[ELITE] 🏆 ${citizen.eliteType} reached the tower!`);
+        if (this.onEliteCollected) {
+          this.onEliteCollected(citizen.eliteType);
+        }
+        // Elites still grant base users via getUserValue() — but not exponential scaling
+        if (this.onUsersUpdate) {
+          const eliteUsers = citizen.getUserValue() * 5;
+          this.onUsersUpdate(eliteUsers);
+          this.userCount += eliteUsers;
+        }
+        this.citizens.splice(index, 1);
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       // Get progressive user value based on citizen color/type
       const userReward = citizen.getUserValue();
       
@@ -213,45 +241,47 @@ export class MetamanEngine {
       if (this.userCount >= 1000) {
         const exponentialScale = Math.min(50, Math.floor(this.userCount / 1000) * 5 + 10); // 10x at 1k, up to 50x
         baseBonus = userReward * exponentialScale;
-        console.log(`💥 EXPONENTIAL MODE: ${exponentialScale}x multiplier active!`);
       }
       
       const exponentialBonus = this.userCount >= 100 ? 
         Math.floor(baseBonus * (1 + Math.log10(this.userCount / 100) * 0.8)) : baseBonus;
       
-      // Enhanced citizen type logging
-      let citizenType = 'Regular';
-      const citizenColor = citizen.getColor();
-      if (citizenColor === '#9B59B6') citizenType = 'Influencer (Purple)';
-      else if (citizenColor === '#F1C40F') citizenType = 'Whale (Gold)';
-      else if (citizenColor === '#E74C3C') citizenType = 'Addicted (Red)';
-      else if (citizenColor === '#4A90E2') citizenType = 'Engaged (Blue)';
-      else if (citizenColor === '#808080') citizenType = 'Regular (Gray)';
-      else citizenType = 'Colorful Regular';
-
-      console.log(`Collected ${citizenType} citizen: +${exponentialBonus} users (base: ${userReward}, 3x multiplier)`);
-      
-      // STATS TRACKING: Track user collection
-      // Note: Stats tracking handled by parent component
-      
       if (this.onUsersUpdate) {
-        // EXPONENTIAL USER REWARDS: Dramatic scaling after 1000 users
         let finalBonus = exponentialBonus;
         
-        // Additional milestone bonuses for reaching 1k+ users
         if (this.userCount >= 1000) {
-          const milestoneBonus = Math.floor(exponentialBonus * 0.5); // 50% bonus on top
+          const milestoneBonus = Math.floor(exponentialBonus * 0.5);
           finalBonus += milestoneBonus;
-          console.log(`🚀 MILESTONE BONUS: +${milestoneBonus} extra users (1K+ achievement)`);
         }
         
         this.onUsersUpdate(finalBonus);
         this.userCount += finalBonus;
-        // Floating "pill" particles removed per user request for more integrated HUD feedback
       }
       
       this.citizens.splice(index, 1);
     });
+
+    // ── ELITE: Remove expired elites that timed out ───────────────────────
+    this.citizens = this.citizens.filter(c => {
+      if (c.isElite && c.isExpired() && !c.getHookedState()) {
+        console.log(`[ELITE] ${c.eliteType} left the street (timed out).`);
+        return false;
+      }
+      return true;
+    });
+
+    // ── ELITE: Periodic spawn check ───────────────────────────────────────
+    this.eliteSpawnTimer += deltaTime;
+    if (this.eliteSpawnTimer >= this.ELITE_SPAWN_CHECK_MS && this.currentView === 'city') {
+      this.eliteSpawnTimer = 0;
+      // Only spawn if no elite is currently on the street
+      const hasElite = this.citizens.some(c => c.isElite);
+      if (!hasElite && Math.random() < 0.4) { // 40% chance per check = ~every ~75s average
+        this.spawnElite();
+      }
+    }
+
+
     
     // Update Red NPC if active
     if (this.redNpc) {
@@ -490,7 +520,57 @@ export class MetamanEngine {
 
   public triggerMeltingFace(duration: number = 3000): void {
     if (this.metaman) {
-      this.metaman.setPhoneEmoji('🫠', duration);
+      this.metaman.setPhoneEmoji('\u{1FAE0}', duration);
+    }
+  }
+
+  // ── ELITE PUBLIC API ───────────────────────────────────────────────
+
+  public setOnEliteSpawned(cb: (eliteType: string, notification: string) => void): void {
+    this.onEliteSpawned = cb;
+  }
+
+  public setOnEliteCollected(cb: (eliteType: string) => void): void {
+    this.onEliteCollected = cb;
+  }
+
+  public setOnJournalistThreat(cb: () => void): void {
+    this.onJournalistBecamesThreat = cb;
+  }
+
+  /** Called from store/GameCanvas when Dark Web baits change. */
+  public setActiveBaits(baits: string[]): void {
+    this.activeBaits = baits;
+  }
+
+  /** Manually spawn an elite of a specific type (for bait-triggered spawns). */
+  public spawnElite(eliteId?: string): void {
+    const stage = Math.max(1, Math.floor(Math.log10(Math.max(10, this.userCount))));
+    const candidates = getSpawnableElites(stage, this.userCount, this.activeBaits);
+
+    let def = eliteId ? ELITES.find(e => e.id === eliteId) : pickWeightedElite(candidates);
+    if (!def) {
+      console.log('[ELITE] No eligible elite for current stage/baits.');
+      return;
+    }
+
+    // Pick a random street position, away from edges
+    const streetPositions = this.city.getStreetPositions();
+    if (streetPositions.length === 0) return;
+    const pos = streetPositions[Math.floor(Math.random() * streetPositions.length)];
+
+    const elite = new Citizen(
+      pos.x + (Math.random() - 0.5) * 80,
+      pos.y + (Math.random() - 0.5) * 30,
+      this.city
+    );
+    elite.userCountFromEngine = this.userCount;
+    elite.applyEliteDefinition(def);
+    this.citizens.push(elite);
+
+    console.log(`[ELITE] Spawned: ${def.name} (tier ${def.tier}) on street.`);
+    if (this.onEliteSpawned) {
+      this.onEliteSpawned(def.id, def.notification);
     }
   }
 
@@ -499,61 +579,54 @@ export class MetamanEngine {
     let hookedCount = 0;
     let targetCount = campaign.citizenCount;
     
-    // CRITICAL HIT SYSTEM: 15% chance for critical strikes
+    // CRITICAL HIT SYSTEM: 15% chance for critical strikes (normal citizens only)
     const isCritical = Math.random() < 0.15;
     if (isCritical) {
-      targetCount = Math.floor(targetCount * 1.8); // 80% bonus on critical
+      targetCount = Math.floor(targetCount * 1.8);
     }
     
     // Find eligible citizens within range
-    const eligibleCitizens = this.citizens
-      .filter(citizen => !citizen.getHookedState())
-      .map(citizen => {
-        const citizenPos = citizen.getPosition();
-        const distance = Math.sqrt(
-          Math.pow(citizenPos.x - clickX, 2) + Math.pow(citizenPos.y - clickY, 2)
+    const eligible = this.citizens
+      .filter(c => !c.getHookedState())
+      .map(c => {
+        const pos = c.getPosition();
+        const dist = Math.sqrt(
+          Math.pow(pos.x - clickX, 2) + Math.pow(pos.y - clickY, 2)
         );
-        return { citizen, distance };
+        return { citizen: c, distance: dist };
       })
       .filter(({ distance }) => distance <= campaign.radius)
-      .sort((a, b) => a.distance - b.distance); // Sort by closest first
-    
-    // Hook up to the campaign's target count
-    for (let i = 0; i < Math.min(targetCount, eligibleCitizens.length); i++) {
-      eligibleCitizens[i].citizen.hook(metamanPos.x, metamanPos.y);
-      hookedCount++;
+      .sort((a, b) => a.distance - b.distance);
+
+    let normalHooked = 0;
+    for (const { citizen } of eligible) {
+      // ── ELITE HANDLING ─────────────────────────────────────────────
+      if (citizen.isElite) {
+        // Beam hit: reduce resistance by ~0.5s per click
+        const result = citizen.applyLure(0.5);
+        if (result === 'captured') {
+          citizen.hook(metamanPos.x, metamanPos.y);
+          hookedCount++;
+          console.log(`[ELITE] ${citizen.eliteType} captured! Resistance depleted.`);
+        } else {
+          const pct = Math.round((1 - citizen.getResistanceFraction()) * 100);
+          console.log(`[ELITE] ${citizen.eliteType} resist ${pct}% depleted — keep applying!`);
+        }
+        // Don't count elite lures against normal targetCount
+        continue;
+      }
+      // ── NORMAL CITIZEN HANDLING ─────────────────────────────────────
+      if (normalHooked < targetCount) {
+        citizen.hook(metamanPos.x, metamanPos.y);
+        normalHooked++;
+        hookedCount++;
+      }
     }
     
-    if (isCritical) {
-      console.log(`🎯 CRITICAL HIT! ${campaign.name}: Hooked ${hookedCount}/${campaign.citizenCount} → ${targetCount} citizens (${Math.floor(((targetCount/campaign.citizenCount - 1) * 100))}% bonus!)`);
-      
-      // Dan's critical hit dialogue
-      const criticalMessages = [
-        "Holy moly! That hit HARD! These users can't resist!",
-        "CRITICAL STRIKE! My tactics are getting scary good!",
-        "BOOM! Double damage! Even I'm impressed with that manipulation!",
-        "That's surgical precision! Users never saw it coming!",
-        "JACKPOT! When you're this good, critics become customers!"
-      ];
-      const criticalMessage = criticalMessages[Math.floor(Math.random() * criticalMessages.length)];
-      console.log(`💬 Dan says: "${criticalMessage}"`);
-    } else {
-      console.log(`${campaign.name}: Hooked ${hookedCount}/${targetCount} citizens in ${campaign.radius}px radius`);
-      
-      // MORE DAN DIALOGUE: Random encouraging comments during normal campaigns  
-      if (Math.random() < 0.4) { // 40% chance for Dan to speak (increased from 30%)
-        const encouragingMessages = [
-          "Keep it flowing! They're eating this up!",
-          "Smooth operation! Just like I taught you!",
-          "Perfect timing! Users love consistent content!",
-          "That's the spirit! Building an empire one click at a time!",
-          "Nice work! The algorithm is your friend when you feed it right!",
-          "Steady progress! Rome wasn't built in a day, but social media empires? Different story!",
-          "You're getting the hang of this! Natural-born influencer!"
-        ];
-        const message = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
-        console.log(`💬 Dan says: "${message}"`);
-      }
+    if (isCritical && normalHooked > 0) {
+      console.log(`🎯 CRITICAL HIT! ${campaign.name}: Hooked ${hookedCount} citizens!`);
+    } else if (normalHooked > 0) {
+      console.log(`${campaign.name}: Hooked ${hookedCount}/${targetCount} targets in ${campaign.radius}px radius`);
     }
     
     return hookedCount;

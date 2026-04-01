@@ -83,7 +83,6 @@ export default function Game() {
       updatePassiveIncome(); // Recalculate rates
       applyPassiveIncome();   // Apply money gains
       applyPassiveUserGeneration(); // Apply user generation
-      updateHeat();           // Passive Heat decay (-2/s)
       
       const state = useMetamanGame.getState();
       

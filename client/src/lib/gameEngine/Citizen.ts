@@ -1,4 +1,5 @@
 import { City } from "./City";
+import type { EliteDefinition } from "./EliteRegistry";
 
 export class Citizen {
   private x: number;
@@ -20,6 +21,29 @@ export class Citizen {
   private skyscraperTarget: { x: number, y: number } | null = null;
   public userCountFromEngine: number = 0; // Will be set by the game engine
 
+  // ── ELITE FIELDS (Phase 1 infrastructure — non-breaking) ──────────────────
+  public isElite: boolean = false;
+  public eliteType: string = 'none';
+  public resistance: number = 0;        // remaining resistance in seconds
+  public maxResistance: number = 0;
+  public lureAttempts: number = 0;
+  public maxLureAttempts: number = 3;
+  private eliteBehavior: string = 'normal';
+  private eliteLifespanMs: number = 0;
+  private eliteElapsedMs: number = 0;
+  private eliteGlowColor: string = '#FFFFFF';
+  private eliteSize: number = 1.0;       // Multiplier from registry
+  private eliteSpeedMult: number = 1.0;
+  // Posing state for 'posing' behavior
+  private posingTimer: number = 0;
+  private isPosing: boolean = false;
+  private readonly POSE_INTERVAL = 5000;  // Pose every 5s
+  private readonly POSE_DURATION = 3000;  // Hold pose for 3s
+  // Jetset state
+  public isJetsetLanding: boolean = false;
+  public jetsetY: number = 0;            // Current Y during landing animation
+  private jetsetLandedY: number = 0;
+
   constructor(x: number, y: number, city: City) {
     this.x = x;
     this.y = y;
@@ -33,6 +57,94 @@ export class Citizen {
     this.originalColor = this.color;
     this.size = 4 + Math.random() * 4;
     this.setNewTarget();
+  }
+
+  // ── ELITE API ─────────────────────────────────────────────────────────────
+
+  /** Apply an EliteDefinition to turn this citizen into an elite. */
+  public applyEliteDefinition(def: EliteDefinition): void {
+    this.isElite = true;
+    this.eliteType = def.id;
+    this.resistance = def.resistanceSec;
+    this.maxResistance = def.resistanceSec;
+    this.maxLureAttempts = def.maxAttempts;
+    this.lureAttempts = 0;
+    this.eliteBehavior = def.behavior;
+    this.eliteLifespanMs = def.lifespanMs;
+    this.eliteElapsedMs = 0;
+    this.eliteGlowColor = def.glowColor;
+    this.eliteSize = def.size;
+    this.eliteSpeedMult = def.speed;
+    // Override visual properties
+    this.color = def.color;
+    this.originalColor = def.color;
+    this.size = (4 + Math.random() * 2) * def.size; // Base size * multiplier
+    this.speed = this.speed * def.speed;
+    // Jetset starts above screen
+    if (def.behavior === 'jetset') {
+      this.isJetsetLanding = true;
+      this.jetsetY = -60;
+      this.jetsetLandedY = this.y;
+      this.y = -60;
+    }
+  }
+
+  /**
+   * Apply lure beam for deltaTime seconds.
+   * Returns true when resistance reaches 0 (ready to hook).
+   * Returns false if lure attempt failed (max attempts exceeded).
+   */
+  public applyLure(deltaSeconds: number): 'capturing' | 'captured' | 'failed' {
+    if (!this.isElite) return 'captured'; // Non-elite: instant capture
+    if (this.isHooked) return 'capturing';
+
+    // Posing behavior: zero resistance during pose
+    const effectiveDelta = (this.eliteBehavior === 'posing' && this.isPosing)
+      ? deltaSeconds * 5  // 5× faster capture during selfie
+      : deltaSeconds;
+
+    this.resistance = Math.max(0, this.resistance - effectiveDelta);
+
+    if (this.resistance <= 0) return 'captured';
+    return 'capturing';
+  }
+
+  /** Called when lure beam is removed before capture completes. */
+  public onLureInterrupted(): void {
+    if (!this.isElite) return;
+    this.lureAttempts++;
+    // Partial resistance restore (lose 30% progress on interruption)
+    this.resistance = Math.min(this.maxResistance, this.resistance + this.maxResistance * 0.3);
+    // Paranoid / fleeing behavior: flee faster after failed attempt
+    if (this.eliteBehavior === 'paranoid' || this.eliteBehavior === 'fleeing') {
+      this.speed *= 1.5;
+    }
+  }
+
+  /** Returns true if this elite has overstayed and should despawn. */
+  public isExpired(): boolean {
+    if (!this.isElite) return false;
+    return this.eliteElapsedMs >= this.eliteLifespanMs;
+  }
+
+  /** Fraction of resistance remaining (1.0 = full, 0.0 = captured). */
+  public getResistanceFraction(): number {
+    if (this.maxResistance <= 0) return 0;
+    return this.resistance / this.maxResistance;
+  }
+
+  /** Returns render-relevant info for the engine without exposing internals. */
+  public getEliteRenderInfo(): {
+    isElite: boolean; eliteType: string; glowColor: string;
+    resistanceFraction: number; isPosing: boolean;
+  } {
+    return {
+      isElite: this.isElite,
+      eliteType: this.eliteType,
+      glowColor: this.eliteGlowColor,
+      resistanceFraction: this.getResistanceFraction(),
+      isPosing: this.isPosing,
+    };
   }
 
   // PROGRESSIVE USER LURING: Determine citizen type and color based on user count
@@ -149,6 +261,44 @@ export class Citizen {
   }
 
   public update(deltaTime: number): void {
+    // ── ELITE: track lifespan and posing state ──────────────────────────────
+    if (this.isElite && !this.isHooked) {
+      this.eliteElapsedMs += deltaTime;
+
+      // Jetset landing animation (descends from above screen)
+      if (this.eliteBehavior === 'jetset' && this.isJetsetLanding) {
+        const descentSpeed = 0.3;
+        this.y += descentSpeed * deltaTime;
+        if (this.y >= this.jetsetLandedY) {
+          this.y = this.jetsetLandedY;
+          this.isJetsetLanding = false;
+        }
+        // Don't apply normal movement while landing
+        this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
+        return;
+      }
+
+      // Posing behavior — stop and "take selfie" periodically
+      if (this.eliteBehavior === 'posing') {
+        this.posingTimer += deltaTime;
+        if (!this.isPosing && this.posingTimer > this.POSE_INTERVAL) {
+          this.isPosing = true;
+          this.posingTimer = 0;
+        } else if (this.isPosing && this.posingTimer > this.POSE_DURATION) {
+          this.isPosing = false;
+          this.posingTimer = 0;
+        }
+        // Freeze movement during pose
+        if (this.isPosing) {
+          // Keep within bounds but don't move
+          this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
+          this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
+          return;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     if (this.isHooked && this.skyscraperTarget) {
       // Move directly toward skyscraper when hooked
       const dx = this.skyscraperTarget.x - this.x;
@@ -199,6 +349,7 @@ export class Citizen {
     this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
     this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
   }
+
 
   // Check if citizen would collide with the tower at given position
   private checkTowerCollision(x: number, y: number): boolean {

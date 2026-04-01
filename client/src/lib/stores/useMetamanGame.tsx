@@ -775,16 +775,18 @@ export const useMetamanGame = create<MetamanGameStore>()(
           finalDelta *= 0.9;
         }
 
-        // Apply Global Ghost bonus (-30% all heat if equipped)
-        if (legalBonuses.globalGeneration > 0) {
+        // Apply Global Ghost bonus (e.g. -30% heat generation)
+        if (finalDelta > 0 && legalBonuses.globalGeneration > 0) {
            finalDelta *= (1 - legalBonuses.globalGeneration);
         }
 
         // Apply specific source bonuses
-        if (source === 'click' && legalBonuses.clickHeat > 0) {
-           finalDelta *= (1 - legalBonuses.clickHeat);
-        } else if (source === 'data' && legalBonuses.dataHeat > 0) {
-           finalDelta *= (1 - legalBonuses.dataHeat);
+        if (finalDelta > 0) {
+          if (source === 'click' && legalBonuses.clickHeat > 0) {
+             finalDelta *= (1 - legalBonuses.clickHeat);
+          } else if (source === 'data' && legalBonuses.dataHeat > 0) {
+             finalDelta *= (1 - legalBonuses.dataHeat);
+          }
         }
 
         const newHeat = Math.max(0, Math.min(100, state.heat + finalDelta));
@@ -1790,7 +1792,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
       stateAfterUpdate.checkGameOver();
 
       // Growth = Heat: More users = more surveillance
-      if (boostedAmount > 0) {
+      // PAUSED during active crisis to allow recovery
+      if (boostedAmount > 0 && !get().lawsuitState.isCrisisActive) {
         get().modifyHeat(boostedAmount / 100, 'click');
       }
 

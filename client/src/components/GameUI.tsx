@@ -173,6 +173,9 @@ export default function GameUI() {
       
       const state = useMetamanGame.getState();
       
+      // HEAT DECAY: High frequency updates for smoothness
+      state.updateHeat();
+      
       // Update click cooldown visual
       const now = Date.now();
       const timeSinceClick = now - state.lastClickTime;
