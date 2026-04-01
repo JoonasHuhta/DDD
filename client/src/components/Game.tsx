@@ -57,7 +57,7 @@ export default function Game() {
     // Check if we have the Lure Charger for faster recharge
     const state = useMetamanGame.getState();
     const hasLureCharger = state.mansionPurchases.includes('lure_charger');
-    const rechargeInterval = hasLureCharger ? 2000 : 3000;
+    const rechargeInterval = hasLureCharger ? 1333 : 2000; // 1.5x faster (from 2000/3000)
     
     const interval = setInterval(() => {
       updateCampaignCooldowns();

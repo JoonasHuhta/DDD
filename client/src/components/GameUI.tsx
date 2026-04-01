@@ -184,29 +184,27 @@ export default function GameUI() {
   }, [updateClickParticles]);
 
   // Initialize and play music on first load / interaction
-  const { initAudio, playBackgroundMusic, currentTrack, setTrack, pauseBackgroundMusic, playCash4 } = useAudio();
-  const transitioningRef = useRef(false);
+  const { initAudio, playBackgroundMusic, currentTrack, setTrack, pauseBackgroundMusic, playCash4, isTransitioning, setIsTransitioning } = useAudio();
   
   useEffect(() => {
     initAudio();
     
-    // Ensure correct track for state
-    if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3') {
+    // Automatic track maintenance (non-blocking)
+    if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3' && !isTransitioning) {
       setTrack('Forgo1.mp3');
-    } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3') {
+    } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3' && !isTransitioning) {
       setTrack('Forgo2.mp3');
     }
 
     const timer = setTimeout(() => {
-      // Only auto-play if we are NOT in the middle of a purposeful transition
-      if (!isMuted && !transitioningRef.current) {
+      if (!isMuted && !isTransitioning) {
         playBackgroundMusic();
       }
     }, 1000);
 
     const startAudioOnInteraction = () => {
       initAudio();
-      if (!isMuted && !transitioningRef.current) playBackgroundMusic();
+      if (!isMuted && !isTransitioning) playBackgroundMusic();
       window.removeEventListener('click', startAudioOnInteraction);
       window.removeEventListener('touchstart', startAudioOnInteraction);
     };
@@ -219,33 +217,15 @@ export default function GameUI() {
       window.removeEventListener('click', startAudioOnInteraction);
       window.removeEventListener('touchstart', startAudioOnInteraction);
     };
-  }, [initAudio, playBackgroundMusic, isMuted, gameState, currentTrack]); // Reliable dependencies
+  }, [initAudio, playBackgroundMusic, isMuted, gameState, currentTrack, isTransitioning]);
 
-  // Orientation Check
-  const [isLandscape, setIsLandscape] = useState(false);
-  useEffect(() => {
-    const checkOrientation = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight && responsive.isMobile);
-    };
-    window.addEventListener('resize', checkOrientation);
-    checkOrientation();
-    return () => window.removeEventListener('resize', checkOrientation);
-  }, [responsive.isMobile]);
+
 
 
   if (gameState === 'menu') {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-[#87CEEB]">
-        {/* PORTRAIT LOCK OVERLAY */}
-        {isLandscape && (
-          <div className="fixed inset-0 bg-black z-[1000] flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-20 h-20 border-4 border-white rounded-xl mb-6 animate-bounce flex items-center justify-center">
-              <div className="w-1 h-12 bg-white rounded-full transform rotate-45"></div>
-            </div>
-            <h2 className="text-white text-2xl font-black uppercase mb-2 italic">Dopamine Dealer Order:</h2>
-            <p className="text-white/70 font-bold uppercase tracking-widest text-sm">Please Rotate Device to Portrait</p>
-          </div>
-        )}
+
 
         <div className="text-center p-8">
           {/* Cartoon City Silhouettes behind Dan could be added here */}
@@ -297,7 +277,7 @@ export default function GameUI() {
                 }
                 
                 // Track Switch Sequence
-                transitioningRef.current = true;
+                setIsTransitioning(true);
                 pauseBackgroundMusic();
                 playCash4(); // Ka-ching! (specific sound)
                 setTrack('Forgo2.mp3');
@@ -309,8 +289,8 @@ export default function GameUI() {
 
                 // 2. Longer delay for music (Sound completion + Gap)
                 setTimeout(() => {
+                  setIsTransitioning(false);
                   playBackgroundMusic();
-                  transitioningRef.current = false;
                 }, 3500);
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#FF6B35] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}
@@ -326,7 +306,7 @@ export default function GameUI() {
                 }
 
                 // Track Switch Sequence
-                transitioningRef.current = true;
+                setIsTransitioning(true);
                 pauseBackgroundMusic();
                 playCash4(); 
                 setTrack('Forgo2.mp3');
@@ -336,7 +316,7 @@ export default function GameUI() {
                   const success = useMetamanGame.getState().loadGame();
                   if (!success) {
                     alert("No save found!");
-                    transitioningRef.current = false; // Reset if failed
+                    setIsTransitioning(false); // Reset if failed
                     setTrack('Forgo1.mp3'); // Revert track
                     playBackgroundMusic();
                   }
@@ -344,8 +324,8 @@ export default function GameUI() {
 
                 // 2. Longer delay for music (Sound completion + Gap)
                 setTimeout(() => {
+                  setIsTransitioning(false);
                   playBackgroundMusic();
-                  transitioningRef.current = false;
                 }, 3500);
               }}
               className={`${responsive.isMobile ? 'px-8 py-3 text-xl' : 'px-12 py-5 text-3xl'} bg-[#4ECDC4] border-4 border-black text-white font-black rounded-2xl transition-all duration-100 transform hover:scale-105 active:scale-95 active:translate-y-2 shadow-[0_8px_0_0_rgba(0,0,0,1)] active:shadow-none uppercase`}

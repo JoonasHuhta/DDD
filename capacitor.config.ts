@@ -4,6 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.metaman.dopaminedan',
   appName: 'Dopamine Dealer Dan',
   webDir: 'dist/public',
+  orientation: 'portrait',
   server: {
     androidScheme: 'https'
   },

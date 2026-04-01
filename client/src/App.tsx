@@ -18,7 +18,8 @@ function App() {
 
   useEffect(() => {
     // Initialize audio system once
-    initAudio();
+    // Consolidated to GameUI for reliability
+    // initAudio();
 
     // Update page title
     document.title = `${gameConfig.name} - ${gameConfig.description}`;

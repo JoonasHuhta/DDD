@@ -98,9 +98,9 @@ export class City {
     // Update the central tower building with new height
     if (this.buildings.length > 0) {
       const centerX = this.width / 2;
-      // Mobile-specific tower width for better visibility
+      // Mobile-specific tower width removed to keep it narrow as requested
       const baseWidth = 80;
-      const skyscraperWidth = isMobile ? Math.floor(baseWidth * 1.8) : baseWidth; // 80% larger on mobile
+      const skyscraperWidth = baseWidth; 
       this.buildings[0] = {
         x: centerX - skyscraperWidth / 2,
         y: this.height - dynamicHeight,
@@ -142,9 +142,9 @@ export class City {
     ctx.fillStyle = '#2c3e50'; 
     ctx.fillRect(building.x, building.y, building.width, building.height);
     
-    // Saturated walls with cel-shading
+    // Saturated walls - uniform color
     ctx.fillStyle = '#3b82f6'; // Bright blue
-    ctx.fillRect(building.x, building.y, building.width * 0.7, building.height);
+    ctx.fillRect(building.x, building.y, building.width, building.height);
     
     // DOPA Branding area at the VERY TOP
     const logoH = 50; 
@@ -177,10 +177,7 @@ export class City {
       ctx.lineTo(building.x + building.width, floorY);
       ctx.stroke();
       
-      // Small side windows
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(building.x + building.width - 15, floorY - 30, 8, 20);
-      ctx.strokeRect(building.x + building.width - 15, floorY - 30, 8, 20);
+
     }
 
     // Windows always lit in comic style
@@ -203,22 +200,23 @@ export class City {
     const windowSpacing = 12;
     
     const centerX = building.x + building.width / 2;
-    const dopaWidth = 40; // Total width of the DOPA spelling grid
+    const windowOffset = 30; // Distance from center for windows
+    let windowIndex = 0;
 
-    for (let y = building.y + 60; y < building.y + building.height - 20; y += windowSpacing) {
-      for (let x = building.x + 10; x < building.x + building.width - 10; x += windowSpacing) {
-        // Skip the vertical strip where DOPA is spelled
-        if (x > centerX - dopaWidth / 2 && x < centerX + dopaWidth / 2) continue;
-
-        const seed = Math.sin(x * 0.1) * Math.cos(y * 0.1);
-        if (seed > -0.4) { 
+    for (let y = building.y + 65; y < building.y + building.height - 20; y += windowSpacing) {
+      // Create groups of 3 (skip every 4th slot)
+      if (windowIndex % 4 !== 3) {
+        // Draw symmetrical windows on both sides
+        [centerX - windowOffset, centerX + windowOffset].forEach(xPos => {
+          const x = xPos - windowWidth / 2;
           ctx.fillStyle = '#ffd700';
           ctx.fillRect(x, y, windowWidth, windowHeight);
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 1;
           ctx.strokeRect(x, y, windowWidth, windowHeight);
-        }
+        });
       }
+      windowIndex++;
     }
   }
 
