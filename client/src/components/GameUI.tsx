@@ -308,12 +308,6 @@ export default function GameUI() {
                 playCash4(); // Ka-ching! (specific sound)
                 setTrack('Forgo2.mp3');
                 
-                // Check if this is their first time (tutorial)  
-                const hasSeenTutorial = localStorage.getItem('metaman_tutorial_seen');
-                if (!hasSeenTutorial) {
-                  setShowTutorial(true);
-                }
-
                 // 1. View switch delay (Menu -> City) - Wait for sound to be well underway
                 setTimeout(() => {
                   startGame();
