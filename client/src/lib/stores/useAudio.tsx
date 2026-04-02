@@ -2,6 +2,16 @@ import { create } from "zustand";
 
 export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3', 'infinitescroll.mp3'];
 
+// Sprite manifest with exact timings and 1s padding
+const MUSIC_SPRITE = {
+  'Forgo1.mp3': { start: 0, duration: 159.92 },
+  'Forgo2.mp3': { start: 160.92, duration: 234.08 },
+  'Forgo3.mp3': { start: 396.00, duration: 215.64 },
+  'Forgo4.mp3': { start: 612.64, duration: 178.44 },
+  'Forgo5.mp3': { start: 792.08, duration: 230.00 },
+  'infinitescroll.mp3': { start: 1023.08, duration: 315.00 }
+};
+
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
   hitSound: HTMLAudioElement | null;
@@ -25,33 +35,21 @@ interface AudioState {
   setIsTransitioning: (v: boolean) => void;
 }
 
-// Module-level singletons to prevent multiple instances and restart loops
-const musicA = typeof Audio !== 'undefined' ? new Audio("/sounds/Forgo1.mp3") : null;
-const musicB = typeof Audio !== 'undefined' ? new Audio("/sounds/Forgo2.mp3") : null;
-let activeIdx = 0; // 0 for A, 1 for B
-
-if (musicA) musicA.volume = 0.3;
-if (musicB) musicB.volume = 0; // Inactive starts silent
-
-const getPlayers = () => ({
-  active: activeIdx === 0 ? musicA : musicB,
-  inactive: activeIdx === 0 ? musicB : musicA
-});
+// Module-level singletons (Never change src, only currentTime)
+const musicSprite = typeof Audio !== 'undefined' ? new Audio("/sounds/music_sprite.mp3") : null;
+if (musicSprite) {
+  musicSprite.volume = 0.3;
+  // preload significantly faster for better seeking
+  musicSprite.preload = "auto";
+}
 
 const hit = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
-if (hit) hit.volume = 0.5;
-
 const success = typeof Audio !== 'undefined' ? new Audio("/sounds/success.mp3") : null;
-if (success) success.volume = 0.7;
-
 const legal = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
-if (legal) legal.volume = 0.6;
-
 const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.mp3") : null;
-if (cash4) cash4.volume = 0.8;
 
 export const useAudio = create<AudioState>((set, get) => ({
-  backgroundMusic: musicA, // Just a reference for types, logic uses getPlayers()
+  backgroundMusic: musicSprite,
   hitSound: hit,
   successSound: success,
   legalSound: legal,
@@ -61,146 +59,117 @@ export const useAudio = create<AudioState>((set, get) => ({
   currentTrack: "Forgo1.mp3",
   
   initAudio: () => {
-    if (get().isInitialized) return;
+    if (get().isInitialized || !musicSprite) return;
     
-    // Only register ended on the initial active player (musicA).
-    // After any setTrack swap, it re-registers on the new active player.
-    if (musicA) {
-      musicA.addEventListener('ended', () => {
-        const { isMuted, isTransitioning, currentTrack, setTrack } = get();
-        console.log('[AUDIO]', 'ENDED_EVENT', 'from', currentTrack);
-        if (!isMuted && !isTransitioning) {
-          const currentIndex = MUSIC_TRACKS.indexOf(currentTrack);
-          const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
-          setTrack(MUSIC_TRACKS[nextIndex]);
-        }
-      }, { once: true });
-    }
+    // Register timeupdate to handle looping within the sprite
+    musicSprite.addEventListener('timeupdate', () => {
+      const { currentTrack, isMuted } = get();
+      const trackData = MUSIC_SPRITE[currentTrack as keyof typeof MUSIC_SPRITE];
+      if (!trackData) return;
+
+      const end = trackData.start + trackData.duration;
+      // If we overshoot the track duration in the sprite, loop back to the start of this segment
+      if (musicSprite.currentTime >= end) {
+        musicSprite.currentTime = trackData.start;
+        if (!isMuted) musicSprite.play().catch(() => {});
+      }
+    });
 
     set({ isInitialized: true });
-    console.log('[AUDIO]', 'INIT_DUAL_BUFFERS', activeIdx, get().isTransitioning);
+    console.log('[AUDIO]', 'SPRITE_INITIALIZED', 'Path: /sounds/music_sprite.mp3');
   },
   
   toggleMute: () => {
-    const { isMuted, isTransitioning } = get();
+    const { isMuted } = get();
     const newMutedState = !isMuted;
-    const { active, inactive } = getPlayers();
     
     set({ isMuted: newMutedState });
-    console.log('[AUDIO]', 'TOGGLE_MUTE', newMutedState, 'TRANSITIONING:', isTransitioning);
+    console.log('[AUDIO]', 'TOGGLE_MUTE', newMutedState);
     
-    if (newMutedState) {
-      // Mute active/inactive immediately
-      if (active) { active.pause(); active.volume = 0; }
-      if (inactive) { inactive.pause(); inactive.volume = 0; }
-    } else {
-      // Unmute active only
-      if (active && !isTransitioning) {
-        active.volume = 0.3;
-        active.play().catch(() => {});
+    if (musicSprite) {
+      if (newMutedState) {
+        musicSprite.pause();
+        musicSprite.volume = 0;
+      } else {
+        musicSprite.volume = 0.3;
+        musicSprite.play().catch(() => {});
       }
     }
   },
   
   playBackgroundMusic: () => {
-    const { isMuted, isInitialized, isTransitioning } = get();
-    if (!isInitialized) return;
-    const { active } = getPlayers();
+    const { isMuted, isInitialized } = get();
+    if (!isInitialized || !musicSprite) return;
     
-    console.log('[AUDIO]', 'PLAY_BG_REQUEST', 'MUTED:', isMuted, 'TRANSITION:', isTransitioning);
-
-    if (active && !isMuted && !isTransitioning && active.paused) {
-      active.play().catch(error => {
+    if (!isMuted && musicSprite.paused) {
+      // Ensure we are in the correct segment
+      const trackData = MUSIC_SPRITE[get().currentTrack as keyof typeof MUSIC_SPRITE];
+      if (trackData && (musicSprite.currentTime < trackData.start || musicSprite.currentTime > trackData.start + trackData.duration)) {
+        musicSprite.currentTime = trackData.start;
+      }
+      
+      musicSprite.play().catch(error => {
         if (error.name !== 'NotAllowedError') {
-          console.warn("[AUDIO] Background music play error:", error);
+          console.warn("[AUDIO] Sprite play error:", error);
         }
       });
     }
   },
   
   pauseBackgroundMusic: () => {
-    const { isTransitioning } = get();
-    const { active, inactive } = getPlayers();
-    console.log('[AUDIO]', 'PAUSE_BG', 'TRANSITION:', isTransitioning);
-    if (active && !active.paused) active.pause();
-    if (inactive && !inactive.paused) inactive.pause();
+    if (musicSprite && !musicSprite.paused) musicSprite.pause();
   },
   
   setTrack: (trackName: string) => {
-    const { active, inactive } = getPlayers();
-    if (!active || !inactive) return;
+    if (!musicSprite) return;
     
-    // Don't reload if already playing exactly this track
-    const { currentTrack, setIsTransitioning } = get();
-    const isMuted = get().isMuted; // Always read fresh from store
-    if (currentTrack === trackName && active && !active.paused) return;
+    const { currentTrack, setIsTransitioning, isMuted } = get();
+    if (currentTrack === trackName) return;
 
-    console.log('[AUDIO]', 'LOAD_START', trackName, 'on buffer', activeIdx === 0 ? 'B' : 'A');
+    const trackData = MUSIC_SPRITE[trackName as keyof typeof MUSIC_SPRITE];
+    if (!trackData) return;
+
+    console.log('[AUDIO]', 'SPRITE_SEEK', trackName, 'to', trackData.start);
     setIsTransitioning(true);
     
-    // Prepare inactive buffer
-    inactive.src = `/sounds/${trackName}`;
-    inactive.volume = 0;
-    inactive.load(); // Force load
-    set({ currentTrack: trackName });
-
-    let hasTransitioned = false;
-    
-    const performTransition = () => {
-      if (hasTransitioned) return;
-      hasTransitioned = true;
-      
-      console.log('[AUDIO]', 'SWAP_BUFFERS', 'New track ready:', trackName);
-      
-      // Swap IDs
-      activeIdx = activeIdx === 0 ? 1 : 0;
-      const players = getPlayers(); // Get newly swapped
-      
-      // Re-register ended listener for the new active player
-      players.active?.addEventListener('ended', () => {
-        const state = get();
-        console.log('[AUDIO]', 'ENDED_EVENT', 'Moving to next track from', state.currentTrack);
-        if (!state.isMuted && !state.isTransitioning) {
-          const currentIndex = MUSIC_TRACKS.indexOf(state.currentTrack);
-          const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
-          state.setTrack(MUSIC_TRACKS[nextIndex]);
-        }
-      }, { once: true });
-
-      if (!isMuted) {
-        players.active?.play().catch(() => {});
+    // Crossfade effect using volume
+    if (!isMuted) {
+      let fadeStep = 0;
+      const fadeInterval = setInterval(() => {
+        fadeStep++;
+        const progress = fadeStep / 10;
         
-        // Simple crossfade
-        let fadeStep = 0;
-        const fadeInterval = setInterval(() => {
-          fadeStep++;
-          const progress = fadeStep / 10;
-          if (players.active) players.active.volume = 0.3 * progress;
-          if (players.inactive) players.inactive.volume = 0.3 * (1 - progress);
+        // Fade out
+        musicSprite.volume = 0.3 * (1 - progress);
+        
+        if (fadeStep >= 10) {
+          clearInterval(fadeInterval);
           
-          if (fadeStep >= 10) {
-            clearInterval(fadeInterval);
-            setIsTransitioning(false);
-            if (players.inactive) {
-              players.inactive.pause();
-              players.inactive.currentTime = 0;
+          // Seek to new track segment
+          musicSprite.currentTime = trackData.start;
+          set({ currentTrack: trackName });
+          
+          // Fade in
+          let fadeInStep = 0;
+          const fadeInInterval = setInterval(() => {
+            fadeInStep++;
+            musicSprite.volume = 0.3 * (fadeInStep / 10);
+            if (fadeInStep >= 10) {
+              clearInterval(fadeInInterval);
+              setIsTransitioning(false);
+              console.log('[AUDIO]', 'SPRITE_SEEK_COMPLETE', trackName);
             }
-            console.log('[AUDIO]', 'TRANSITION_COMPLETE', trackName);
-          }
-        }, 50);
-      } else {
-        setIsTransitioning(false);
-      }
-    };
-
-    // Transition when ready OR after safety timeout
-    inactive.addEventListener('canplaythrough', performTransition, { once: true });
-    setTimeout(performTransition, 3000); // 3s safety fallback
+          }, 50);
+        }
+      }, 50);
+    } else {
+      musicSprite.currentTime = trackData.start;
+      set({ currentTrack: trackName });
+      setIsTransitioning(false);
+    }
   },
 
   setIsTransitioning: (v: boolean) => {
-    const { active } = getPlayers();
-    console.log('[AUDIO]', 'SET_TRANSITIONING', v, 'Active:', active?.currentTime || 0, 'Paused:', active?.paused || true);
     set({ isTransitioning: v });
   },
   
@@ -233,10 +202,10 @@ export const useAudio = create<AudioState>((set, get) => ({
   playCash4: () => {
     const { isMuted } = get();
     if (cash4 && !isMuted) {
-      // Create a clone to allow overlapping sounds (important for fast sequences)
       const soundClone = cash4.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.8;
       soundClone.play().catch(() => {});
     }
   }
 }));
+
