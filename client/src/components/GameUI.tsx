@@ -259,7 +259,7 @@ export default function GameUI() {
           {/* Dan Face Centerpiece */}
           <div className={`${responsive.isMobile ? 'mb-4' : 'mb-8'} relative container mx-auto flex justify-center`}>
             <img 
-              src="/game-logo.png"
+              src="/dan_bust.png?v=2"
               alt="Dopamine Dealer Dan"
               className={`${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative`}
             />
