@@ -256,15 +256,15 @@ export default function GameUI() {
         <div className="text-center p-8">
           {/* Cartoon City Silhouettes behind Dan could be added here */}
           
-          {/* Game Logo */}
-          <div className={`${responsive.isMobile ? 'mb-4' : 'mb-8'} relative`}>
+          {/* Dan Face Centerpiece */}
+          <div className={`${responsive.isMobile ? 'mb-4' : 'mb-8'} relative container mx-auto flex justify-center`}>
             <img 
-              src="/dan-face-final.png"
+              src="/dan-main-final.png"
               alt="Dopamine Dealer Dan"
-              className={`mx-auto ${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative animation-float`}
+              className={`${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative`}
             />
-            {/* Comic burst behind logo */}
-            <div className="absolute inset-0 bg-[#FFD700] rounded-full blur-3xl opacity-30 animate-pulse"></div>
+            {/* Subtle static glow for depth */}
+            <div className="absolute inset-0 bg-[#FFD700] rounded-full blur-3xl opacity-20 pointer-events-none"></div>
           </div>
           
           {/* Game Title */}
