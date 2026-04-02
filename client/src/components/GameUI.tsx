@@ -263,8 +263,8 @@ export default function GameUI() {
               alt="Dopamine Dealer Dan"
               className={`${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative`}
             />
-            {/* Subtle static glow for depth */}
-            <div className="absolute inset-0 bg-[#FFD700] rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+            {/* Stronger pulsing yellow glow for energy */}
+            <div className="absolute inset-0 bg-[#FFD700] rounded-full blur-3xl opacity-40 animate-pulse pointer-events-none"></div>
           </div>
           
           {/* Game Title */}
