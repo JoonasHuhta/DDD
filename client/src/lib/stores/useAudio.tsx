@@ -61,17 +61,20 @@ export const useAudio = create<AudioState>((set, get) => ({
   initAudio: () => {
     if (get().isInitialized || !musicSprite) return;
     
-    // Register timeupdate to handle looping within the sprite
+    // Register timeupdate to handle playlist progression within the sprite
     musicSprite.addEventListener('timeupdate', () => {
-      const { currentTrack, isMuted } = get();
+      const { currentTrack, isMuted, isTransitioning, setTrack } = get();
+      if (isTransitioning) return;
+      
       const trackData = MUSIC_SPRITE[currentTrack as keyof typeof MUSIC_SPRITE];
       if (!trackData) return;
 
       const end = trackData.start + trackData.duration;
-      // If we overshoot the track duration in the sprite, loop back to the start of this segment
-      if (musicSprite.currentTime >= end) {
-        musicSprite.currentTime = trackData.start;
-        if (!isMuted) musicSprite.play().catch(() => {});
+      // If we reach the end of the current track segment, move to the next track in the playlist
+      if (musicSprite.currentTime >= (end - 0.1)) { // 0.1s buffer to ensure we catch it
+        const currentIndex = MUSIC_TRACKS.indexOf(currentTrack);
+        const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
+        setTrack(MUSIC_TRACKS[nextIndex]);
       }
     });
 
