@@ -262,11 +262,6 @@ export default function GameUI() {
               src="/dan-face-final.png"
               alt="Dopamine Dealer Dan"
               className={`mx-auto ${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative animation-float`}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const fallback = e.currentTarget.parentElement?.nextElementSibling as HTMLElement;
-                if (fallback) fallback.style.display = 'block';
-              }}
             />
             {/* Comic burst behind logo */}
             <div className="absolute inset-0 bg-[#FFD700] rounded-full blur-3xl opacity-30 animate-pulse"></div>

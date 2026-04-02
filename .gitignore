@@ -42,8 +42,8 @@ tsc_full_errors.txt
 tsc_output.txt
 browser_test.js
 test_*.js
-*.webp
-*.png
+# *.webp
+# *.png
 .gemini/
 attached_assets/
 tmp/
