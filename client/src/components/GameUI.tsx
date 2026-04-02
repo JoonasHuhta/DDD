@@ -259,9 +259,9 @@ export default function GameUI() {
           {/* Game Logo */}
           <div className={`${responsive.isMobile ? 'mb-4' : 'mb-8'} relative`}>
             <img 
-              src="/game-logo.png"
-              alt="Game Logo"
-              className={`mx-auto ${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative`}
+              src="/dan-face-final.png"
+              alt="Dopamine Dealer Dan"
+              className={`mx-auto ${responsive.isMobile ? 'max-w-[12rem]' : 'max-w-lg'} w-full h-auto drop-shadow-2xl z-10 relative animation-float`}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
                 const fallback = e.currentTarget.parentElement?.nextElementSibling as HTMLElement;
