@@ -57,7 +57,7 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
                     currentTrack === track 
                       ? 'bg-black text-white' 
                       : 'bg-gray-100 hover:bg-gray-200'
-                  } ${track === 'Forgo5.mp3' ? 'col-span-2' : ''}`}
+                  }`}
                 >
                   TRACK {i + 1}
                 </button>

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3'];
+export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3', 'infinitescroll.mp3'];
 
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
