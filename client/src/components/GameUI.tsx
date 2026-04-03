@@ -189,28 +189,25 @@ export default function GameUI() {
   }, [updateClickParticles]);
 
   // Initialize and play music on first load / interaction
-  const { initAudio, playBackgroundMusic, currentTrack, setTrack, pauseBackgroundMusic, playCash4, isTransitioning, setIsTransitioning } = useAudio();
+  const { initAudio, primeAudio, playBackgroundMusic, currentTrack, setTrack, pauseBackgroundMusic, isTransitioning, setIsTransitioning, playCash4 } = useAudio();
   
+  // 1. Audio Initialization and Interaction Setup (Run once on mount)
   useEffect(() => {
     initAudio();
     
-    // Automatic track maintenance - ONLY on state change
-    if (gameState !== lastGameStateRef.current && !isTransitioning) {
-      if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3') {
-        setTrack('Forgo1.mp3');
-      } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3') {
-        // Only auto-switch to Forgo2 if we were explicitly using the menu track
-        setTrack('Forgo2.mp3');
-      }
-      lastGameStateRef.current = gameState;
-    }
-
-    const timer = setTimeout(() => {
+    const startAudioOnInteraction = async () => {
+      console.log('[AUDIO]', 'INTERACTION_DETECTED - PRIMING');
+      await primeAudio();
       if (!isMuted && !isTransitioning) {
-        console.log('[AUDIO]', 'AUTO_PLAY_TIMER_FIRE', gameState);
         playBackgroundMusic();
       }
-    }, 500); // Shorter delay for menu startup
+      // Remove listeners after first interaction attempt
+      window.removeEventListener('click', startAudioOnInteraction);
+      window.removeEventListener('touchstart', startAudioOnInteraction);
+    };
+
+    window.addEventListener('click', startAudioOnInteraction);
+    window.addEventListener('touchstart', startAudioOnInteraction);
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -224,26 +221,35 @@ export default function GameUI() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const startAudioOnInteraction = () => {
-      initAudio();
-      if (!isMuted && !isTransitioning) {
-        console.log('[AUDIO]', 'INTERACTION_PLAY');
-        playBackgroundMusic();
-      }
-      window.removeEventListener('click', startAudioOnInteraction);
-      window.removeEventListener('touchstart', startAudioOnInteraction);
-    };
-
-    window.addEventListener('click', startAudioOnInteraction);
-    window.addEventListener('touchstart', startAudioOnInteraction);
-
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('click', startAudioOnInteraction);
       window.removeEventListener('touchstart', startAudioOnInteraction);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [initAudio, playBackgroundMusic, isMuted, gameState, isTransitioning, setTrack, currentTrack]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
+
+  // 2. Track Switching and Autoplay logic (On state/mute change)
+  useEffect(() => {
+    // Automatic track maintenance - ONLY on state change
+    if (gameState !== lastGameStateRef.current && !isTransitioning) {
+      if (gameState === 'menu' && currentTrack !== 'Forgo1.mp3') {
+        setTrack('Forgo1.mp3');
+      } else if (gameState === 'playing' && currentTrack === 'Forgo1.mp3') {
+        setTrack('Forgo2.mp3');
+      }
+      lastGameStateRef.current = gameState;
+    }
+
+    const timer = setTimeout(() => {
+      if (!isMuted && !isTransitioning) {
+        console.log('[AUDIO]', 'AUTO_PLAY_SYNC', gameState);
+        playBackgroundMusic();
+      }
+    }, 1500); // Higher delay for mobile stability
+
+    return () => clearTimeout(timer);
+  }, [gameState, isMuted, isTransitioning, currentTrack, setTrack, playBackgroundMusic]);
 
 
 

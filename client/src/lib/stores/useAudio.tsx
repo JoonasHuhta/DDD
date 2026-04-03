@@ -1,16 +1,7 @@
 import { create } from "zustand";
 
-export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3', 'infinitescroll.mp3'];
-
-// Sprite manifest with exact timings and 1s padding
-const MUSIC_SPRITE = {
-  'Forgo1.mp3': { start: 0, duration: 159.92 },
-  'Forgo2.mp3': { start: 160.92, duration: 234.08 },
-  'Forgo3.mp3': { start: 396.00, duration: 215.64 },
-  'Forgo4.mp3': { start: 612.64, duration: 178.44 },
-  'Forgo5.mp3': { start: 792.08, duration: 230.00 },
-  'infinitescroll.mp3': { start: 1023.08, duration: 315.00 }
-};
+// Removed infinitescroll.mp3 to save APK space as requested
+export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3'];
 
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
@@ -19,8 +10,10 @@ interface AudioState {
   legalSound: HTMLAudioElement | null;
   isMuted: boolean;
   isInitialized: boolean;
+  isPrimed: boolean;
   
   initAudio: () => void;
+  primeAudio: () => Promise<void>;
   toggleMute: () => void;
   
   playBackgroundMusic: () => void;
@@ -35,11 +28,14 @@ interface AudioState {
   setIsTransitioning: (v: boolean) => void;
 }
 
-// Module-level singletons (Never change src, only currentTime)
-const musicSprite = typeof Audio !== 'undefined' ? new Audio("/sounds/music_sprite.mp3") : null;
+// Module-level singletons
+const musicSprite = typeof Audio !== 'undefined' ? new Audio() : null;
+let playingPromise: Promise<void> | null = null;
+let lastFadeInterval: ReturnType<typeof setInterval> | null = null;
+
 if (musicSprite) {
   musicSprite.volume = 0.3;
-  // preload significantly faster for better seeking
+  musicSprite.loop = true; 
   musicSprite.preload = "auto";
 }
 
@@ -55,126 +51,158 @@ export const useAudio = create<AudioState>((set, get) => ({
   legalSound: legal,
   isMuted: false,
   isInitialized: false,
+  isPrimed: false,
   isTransitioning: false,
   currentTrack: "Forgo1.mp3",
   
   initAudio: () => {
     if (get().isInitialized || !musicSprite) return;
     
-    // Register timeupdate to handle playlist progression within the sprite
-    musicSprite.addEventListener('timeupdate', () => {
-      const { currentTrack, isMuted, isTransitioning, setTrack } = get();
-      if (isTransitioning) return;
-      
-      const trackData = MUSIC_SPRITE[currentTrack as keyof typeof MUSIC_SPRITE];
-      if (!trackData) return;
-
-      const end = trackData.start + trackData.duration;
-      // If we reach the end of the current track segment, move to the next track in the playlist
-      if (musicSprite.currentTime >= (end - 0.1)) { // 0.1s buffer to ensure we catch it
-        const currentIndex = MUSIC_TRACKS.indexOf(currentTrack);
-        const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
-        setTrack(MUSIC_TRACKS[nextIndex]);
-      }
+    // Recovery listeners for mobile WebView stalls
+    musicSprite.addEventListener('stalled', () => {
+      console.warn('[AUDIO]', 'STALLED', 'Attempting recovery...');
+      const { isMuted, isTransitioning, isPrimed } = get();
+      if (!isMuted && !isTransitioning && isPrimed) get().playBackgroundMusic();
     });
 
+    musicSprite.addEventListener('error', (e) => {
+      console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
+    });
+
+    // Set initial src
+    musicSprite.src = "/sounds/Forgo1.mp3";
+    musicSprite.load();
+
     set({ isInitialized: true });
-    console.log('[AUDIO]', 'SPRITE_INITIALIZED', 'Path: /sounds/music_sprite.mp3');
+    console.log('[AUDIO]', 'INITIALIZED', 'Path: /sounds/Forgo1.mp3');
+  },
+
+  primeAudio: async () => {
+    const { isInitialized, isPrimed } = get();
+    if (!isInitialized || isPrimed || !musicSprite) return;
+
+    console.log('[AUDIO]', 'PRIMING_START');
+    try {
+      // Play at near-zero volume to "unlock" the audio element
+      const originalVolume = 0.3;
+      musicSprite.volume = 0.001;
+      await musicSprite.play();
+      
+      // If successful, we are primed
+      set({ isPrimed: true });
+      console.log('[AUDIO]', 'PRIMING_SUCCESS');
+      
+      // Restore volume if not muted
+      if (get().isMuted) {
+        musicSprite.pause();
+      } else {
+        musicSprite.volume = originalVolume;
+      }
+    } catch (error) {
+      console.warn('[AUDIO]', 'PRIMING_FAIL', error);
+    }
   },
   
   toggleMute: () => {
-    const { isMuted } = get();
+    const { isMuted, playBackgroundMusic, isPrimed } = get();
     const newMutedState = !isMuted;
     
     set({ isMuted: newMutedState });
-    console.log('[AUDIO]', 'TOGGLE_MUTE', newMutedState);
     
     if (musicSprite) {
       if (newMutedState) {
-        musicSprite.pause();
-        musicSprite.volume = 0;
-      } else {
-        musicSprite.volume = 0.3;
-        musicSprite.play().catch(() => {});
+        if (playingPromise) {
+          playingPromise.then(() => musicSprite.pause()).catch(() => musicSprite.pause());
+        } else {
+          musicSprite.pause();
+        }
+      } else if (isPrimed) {
+        playBackgroundMusic();
       }
     }
   },
   
   playBackgroundMusic: () => {
-    const { isMuted, isInitialized } = get();
+    const { isMuted, isInitialized, isPrimed } = get();
     if (!isInitialized || !musicSprite) return;
     
-    if (!isMuted && musicSprite.paused) {
-      // Ensure we are in the correct segment
-      const trackData = MUSIC_SPRITE[get().currentTrack as keyof typeof MUSIC_SPRITE];
-      if (trackData && (musicSprite.currentTime < trackData.start || musicSprite.currentTime > trackData.start + trackData.duration)) {
-        musicSprite.currentTime = trackData.start;
-      }
-      
-      musicSprite.play().catch(error => {
-        if (error.name !== 'NotAllowedError') {
-          console.warn("[AUDIO] Sprite play error:", error);
-        }
+    if (!isMuted && musicSprite.paused && isPrimed) {
+      playingPromise = musicSprite.play();
+      playingPromise.then(() => {
+        playingPromise = null;
+      }).catch(error => {
+        playingPromise = null;
+        console.warn("[AUDIO] Play error:", error);
       });
     }
   },
   
   pauseBackgroundMusic: () => {
-    if (musicSprite && !musicSprite.paused) musicSprite.pause();
+    if (musicSprite && !musicSprite.paused) {
+      if (playingPromise) {
+        playingPromise.then(() => musicSprite.pause()).catch(() => musicSprite.pause());
+      } else {
+        musicSprite.pause();
+      }
+    }
   },
   
   setTrack: (trackName: string) => {
     if (!musicSprite) return;
     
-    const { currentTrack, setIsTransitioning, isMuted } = get();
+    const { currentTrack, setIsTransitioning, isMuted, isPrimed } = get();
     if (currentTrack === trackName) return;
 
-    const trackData = MUSIC_SPRITE[trackName as keyof typeof MUSIC_SPRITE];
-    if (!trackData) return;
-
-    console.log('[AUDIO]', 'SPRITE_SEEK', trackName, 'to', trackData.start);
+    console.log('[AUDIO]', 'SRC_CHANGE', trackName);
     setIsTransitioning(true);
     
-    // Crossfade effect using volume
-    if (!isMuted) {
+    // Simple transition: Fade out -> Swap Src -> Play -> Fade in
+    if (!isMuted && isPrimed) {
+      if (lastFadeInterval) clearInterval(lastFadeInterval);
+      
       let fadeStep = 0;
-      const fadeInterval = setInterval(() => {
+      const maxVolume = 0.3;
+      lastFadeInterval = setInterval(() => {
         fadeStep++;
-        const progress = fadeStep / 10;
-        
-        // Fade out
-        musicSprite.volume = 0.3 * (1 - progress);
+        musicSprite.volume = Math.max(0, maxVolume * (1 - (fadeStep / 10)));
         
         if (fadeStep >= 10) {
-          clearInterval(fadeInterval);
+          if (lastFadeInterval) clearInterval(lastFadeInterval);
           
-          // Seek to new track segment
-          musicSprite.currentTime = trackData.start;
+          musicSprite.src = `/sounds/${trackName}`;
+          musicSprite.load();
           set({ currentTrack: trackName });
           
-          // Fade in
-          let fadeInStep = 0;
-          const fadeInInterval = setInterval(() => {
-            fadeInStep++;
-            musicSprite.volume = 0.3 * (fadeInStep / 10);
-            if (fadeInStep >= 10) {
-              clearInterval(fadeInInterval);
-              setIsTransitioning(false);
-              console.log('[AUDIO]', 'SPRITE_SEEK_COMPLETE', trackName);
-            }
-          }, 50);
+          const onCanPlay = () => {
+            musicSprite.removeEventListener('canplay', onCanPlay);
+            
+            let fadeInStep = 0;
+            lastFadeInterval = setInterval(() => {
+              fadeInStep++;
+              musicSprite.volume = Math.min(maxVolume, maxVolume * (fadeInStep / 10));
+              if (fadeInStep >= 10) {
+                if (lastFadeInterval) clearInterval(lastFadeInterval);
+                setIsTransitioning(false);
+                console.log('[AUDIO]', 'SRC_CHANGE_COMPLETE', trackName);
+              }
+            }, 50);
+
+            playingPromise = musicSprite.play();
+            playingPromise.catch(() => { playingPromise = null; });
+          };
+          
+          musicSprite.addEventListener('canplay', onCanPlay);
         }
       }, 50);
     } else {
-      musicSprite.currentTime = trackData.start;
+      musicSprite.src = `/sounds/${trackName}`;
+      musicSprite.load();
       set({ currentTrack: trackName });
       setIsTransitioning(false);
     }
   },
 
-  setIsTransitioning: (v: boolean) => {
-    set({ isTransitioning: v });
-  },
+  setIsTransitioning: (v: boolean) => set({ isTransitioning: v }),
   
   playHit: () => {
     const { isMuted } = get();
@@ -211,4 +239,3 @@ export const useAudio = create<AudioState>((set, get) => ({
     }
   }
 }));
-
