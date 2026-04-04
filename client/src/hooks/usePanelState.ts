@@ -25,7 +25,8 @@ export type PanelId =
   | 'dataMarket'
   | 'espionage'
   | 'serverDefense'
-  | 'researchLab';
+  | 'researchLab'
+  | 'globalDominance';
 
 type PanelStateStore = {
   openPanelId: PanelId | null;

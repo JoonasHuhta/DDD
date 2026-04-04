@@ -588,11 +588,57 @@ interface MetamanGameStore {
     faceSpace: { defeated: boolean; acquireCount: number };
     dataVault: { defeated: boolean };
     viralVoid: { defeated: boolean };
-    connectCore: { defeated: boolean; networkRaceWon: boolean };
+    connectCore: { defeated: boolean; grandmotherDefeated: boolean; networkRaceWon: boolean };
   };
   updateDialogHistory: (updates: Partial<MetamanGameStore['dialogHistory']>) => void;
+
+  // ── GLOBAL DOMINANCE SYSTEM (Phase 2) ──────────────────────────────────────
+  globalDominance: {
+    isUnlocked: boolean;
+    countries: Record<string, {
+      stage: number;      // 0 to 5 (MAX)
+      progress: number;   // 0 to 100 for next stage
+      isUnlocked: boolean;
+      buildings: Record<string, number>; // buildingId -> level
+    }>;
+  };
+  advanceCountryStage: (countryId: string) => void;
+  buyBuilding: (countryId: string, buildingId: string) => void;
+  unlockCountry: (countryId: string) => void;
+  checkGlobalDominanceUnlocks: () => void;
+  getTotalHeatGrowthMultiplier: () => number;
 }
 
+
+export const BUILDINGS_CONFIG: Record<string, { name: string; baseCost: number; orbCost?: number; unlockStage?: number; output: any }> = {
+  data_center: { name: 'Data Center', baseCost: 5000, orbCost: 50, unlockStage: 2, output: { orbs: 10 } },
+  ai_factory: { name: 'AI Factory', baseCost: 10000, unlockStage: 2, output: { users: 100 } },
+  ethics_theater: { name: 'Ethics Theater', baseCost: 25000, unlockStage: 3, output: { heatGrowthReduction: 0.1 } },
+  free_tools: { name: 'Free Tools Division', baseCost: 2500, unlockStage: 1, output: { unlockAdjacent: true } },
+  lobby_office: { name: 'Lobby Office', baseCost: 50000, unlockStage: 3, output: { heatFlat: 0.5 } },
+  gdpr_laundry: { name: 'GDPR Laundry', baseCost: 75000, orbCost: 100, unlockStage: 3, output: { lawsuitImmunity: 0.05 } },
+  sauna_algorithm: { name: 'Sauna Algorithm', baseCost: 15000, unlockStage: 3, output: { localUserBoost: 0.25 } },
+  mutual_arrangement: { name: 'Mutual Arrangement', baseCost: 100000, orbCost: 250, unlockStage: 3, output: { chinaDataBoost: 2.0, heatGrowthRisk: 0.3 } },
+  amazon_hub: { name: 'Amazon Hub', baseCost: 150000, orbCost: 500, unlockStage: 3, output: { globalIncomeBoost: 0.15 } },
+  orbital_relay: { name: 'Orbital Relay', baseCost: 1000000, orbCost: 5000, unlockStage: 1, output: { globalOutputBoost: 0.2 } },
+  void_node: { name: 'Void Node', baseCost: 5000000, orbCost: 10000, unlockStage: 1, output: { massiveUsers: 1000 } }
+};
+
+export const NEIGHBOR_MAP: Record<string, string[]> = {
+  us: ['gb', 'cn'],
+  eu: ['fi', 'ru'],
+  gb: ['in', 'ng'],
+  fi: ['id', 'sa'],
+  cn: ['jp', 'gs'],
+  br: ['gs', 'id'],
+  ru: ['cn', 'in'],
+  in: ['id', 'sa'],
+  id: ['ng', 'gs'],
+  ng: ['sa', 'gs'],
+  sa: ['jp'],
+  jp: ['gs'],
+  gs: []
+};
 
 export const useMetamanGame = create<MetamanGameStore>()(
   subscribeWithSelector((set, get) => {
@@ -641,6 +687,28 @@ export const useMetamanGame = create<MetamanGameStore>()(
       stockPrice: 10.0,
       isPubliclyTraded: false,
       dopaCoinUnlocked: false,
+
+      // GLOBAL DOMINANCE INITIAL STATE
+      globalDominance: {
+        isUnlocked: false,
+        countries: {
+          us: { stage: 0, progress: 0, isUnlocked: true, buildings: {} },
+          eu: { stage: 0, progress: 0, isUnlocked: true, buildings: {} },
+          gb: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          fi: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          cn: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          br: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          in: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          ru: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          id: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          ng: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          sa: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          jp: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          gs: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          lun: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          sec: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+        }
+      },
       
       // RESEARCH LAB SYSTEM
       researchState: {
@@ -785,6 +853,18 @@ export const useMetamanGame = create<MetamanGameStore>()(
         const legalBonuses = get().getLegalBonuses();
         let finalDelta = delta;
 
+        // Apply Ethics Theater growth reduction if heat is increasing
+        if (finalDelta > 0) {
+          let multiplier = get().getTotalHeatGrowthMultiplier();
+          
+          // Apply China Risk (Mutual Arrangement HQ)
+          if (state.globalDominance.countries.cn.buildings.mutual_arrangement) {
+            multiplier += (state.globalDominance.countries.cn.buildings.mutual_arrangement * 0.3);
+          }
+          
+          finalDelta *= multiplier;
+        }
+
         // Lobbying Network: -10% heat generating from any source
         if (finalDelta > 0 && state.researchState.completed.includes('lobbying_network')) {
           finalDelta *= 0.9;
@@ -908,14 +988,169 @@ export const useMetamanGame = create<MetamanGameStore>()(
       faceSpace: { defeated: false, acquireCount: 0 },
       dataVault: { defeated: false },
       viralVoid: { defeated: false },
-      connectCore: { defeated: false, networkRaceWon: false },
+      connectCore: { defeated: false, grandmotherDefeated: false, networkRaceWon: false },
     },
 
-    updateDialogHistory: (updates) => {
-      set((state) => ({
-        dialogHistory: { ...state.dialogHistory, ...updates }
-      }));
+    updateDialogHistory: (updates) => set((state) => ({
+      dialogHistory: { ...state.dialogHistory, ...updates }
+    })),
+
+    // ── GLOBAL DOMINANCE ACTIONS ─────────────────────────────────────────────
+    advanceCountryStage: (countryId: string) => set((state) => {
+      const country = state.globalDominance.countries[countryId];
+      if (!country || country.stage >= 5) return state;
+
+      // Logic: Cost increases with stage
+      const cost = Math.pow(10, country.stage + 3); // Simple exponent for now
+      if (state.income < cost) return state;
+
+      const newCountries = { ...state.globalDominance.countries };
+      newCountries[countryId] = {
+        ...country,
+        stage: country.stage + 1
+      };
+
+      return {
+        income: state.income - cost,
+        globalDominance: {
+          ...state.globalDominance,
+          countries: newCountries
+        }
+      };
+    }),
+
+    buyBuilding: (countryId, buildingId) => set((state) => {
+      const country = state.globalDominance.countries[countryId];
+      if (!country) return state;
+
+      const currentLevel = country.buildings[buildingId] || 0;
+      if (currentLevel >= 5) return state;
+
+      const config = BUILDINGS_CONFIG[buildingId];
+      if (!config || (country.stage < (config.unlockStage || 0))) return state;
+
+      const cost = Math.floor(config.baseCost * Math.pow(1.5, currentLevel));
+      const orbCost = config.orbCost ? Math.floor(config.orbCost * Math.pow(1.5, currentLevel)) : 0;
+
+      if (state.income < cost || state.orbsInventory < orbCost) return state;
+
+      const nextCountries = { ...state.globalDominance.countries };
+      nextCountries[countryId] = {
+        ...country,
+        buildings: {
+          ...country.buildings,
+          [buildingId]: currentLevel + 1
+        }
+      };
+
+      return {
+        income: state.income - cost,
+        orbsInventory: state.orbsInventory - orbCost,
+        globalDominance: {
+          ...state.globalDominance,
+          countries: nextCountries
+        }
+      };
+    }),
+
+    unlockCountry: (countryId: string) => set((state) => {
+      if (!state.globalDominance.countries[countryId]) return state;
+      return {
+        globalDominance: {
+          ...state.globalDominance,
+          countries: {
+            ...state.globalDominance.countries,
+            [countryId]: { ...state.globalDominance.countries[countryId], isUnlocked: true }
+          }
+        }
+      };
+    }),
+
+    getTotalHeatGrowthMultiplier: () => {
+      const state = get();
+      let totalReduction = 0;
+      Object.values(state.globalDominance.countries).forEach(c => {
+        const theaterLevel = c.buildings['ethics_theater'] || 0;
+        totalReduction += theaterLevel * 0.1;
+      });
+      return Math.max(0.5, 1 - totalReduction);
     },
+
+    checkGlobalDominanceUnlocks: () => set((state) => {
+      const g = state.globalDominance;
+      const c = g.countries;
+      let changed = false;
+      const nextCountries = { ...c };
+
+      // 1. System Unlock
+      if (!g.isUnlocked && state.users >= 1000) {
+        g.isUnlocked = true;
+        changed = true;
+      }
+
+      // 2. UK: USA Stage 2
+      if (!c.gb.isUnlocked && c.us.stage >= 2) {
+        nextCountries.gb.isUnlocked = true;
+        changed = true;
+      }
+
+      // 3. Finland: EU Stage 2
+      if (!c.fi.isUnlocked && c.eu.stage >= 2) {
+        nextCountries.fi.isUnlocked = true;
+        changed = true;
+      }
+
+      // 4. China: 10k users
+      if (!c.cn.isUnlocked && state.users >= 10000) {
+        nextCountries.cn.isUnlocked = true;
+        changed = true;
+      }
+
+      // 5. Brazil: 25k users
+      if (!c.br.isUnlocked && state.users >= 25000) {
+        nextCountries.br.isUnlocked = true;
+        changed = true;
+      }
+
+      // 6. Russia: Any country Stage 3
+      if (!c.ru.isUnlocked && Object.values(c).some(country => country.stage >= 3)) {
+        nextCountries.ru.isUnlocked = true;
+        changed = true;
+      }
+
+      // 7. Global South: Brazil Stage 2
+      if (!c.gs.isUnlocked && c.br.stage >= 2) {
+        nextCountries.gs.isUnlocked = true;
+        changed = true;
+      }
+
+      // 8. India/Asia Cluster: user milestones
+      if (!c.in.isUnlocked && state.users >= 50000) { nextCountries.in.isUnlocked = true; changed = true; }
+      if (!c.id.isUnlocked && state.users >= 100000) { nextCountries.id.isUnlocked = true; changed = true; }
+      if (!c.jp.isUnlocked && state.users >= 250000) { nextCountries.jp.isUnlocked = true; changed = true; }
+
+      // 9. Special End-Game Locations
+      // Lunar Base: Prestige Level 3
+      if (!c.lun.isUnlocked && state.prestigeState.prestigeLevel >= 3) {
+        nextCountries.lun.isUnlocked = true;
+        changed = true;
+      }
+
+      // Sector 7: Alien Chapter (Grandmother Defeated)
+      if (!c.sec.isUnlocked && state.dialogHistory.connectCore.grandmotherDefeated) {
+        nextCountries.sec.isUnlocked = true;
+        changed = true;
+      }
+
+      if (!changed) return state;
+
+      return {
+        globalDominance: {
+          ...g,
+          countries: nextCountries
+        }
+      };
+    }),
 
     // UI Panel states — showDepartments/Progression/etc. are in usePanelState hook
     showTrophyPanel: false,
@@ -1330,9 +1565,18 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const state = get();
       const legalBonuses = state.getLegalBonuses();
       
-      // LAWYER IMMUNITY CHECK (Ironclad Irene)
-      if (legalBonuses.lawsuitDefense > 0 && Math.random() < legalBonuses.lawsuitDefense) {
-        console.log("🛡️ LEGAL DEFENSE: Lawsuit blocked by legal wall!");
+      // Integrate GDPR Laundry Immunity (from EU)
+      let buildingImmunity = 0;
+      Object.values(state.globalDominance.countries).forEach(c => {
+        if (c.buildings.gdpr_laundry) {
+          buildingImmunity += c.buildings.gdpr_laundry * 0.05;
+        }
+      });
+      
+      // LAWYER IMMUNITY CHECK (Ironclad Irene + GDPR Laundry)
+      const totalDefense = legalBonuses.lawsuitDefense + buildingImmunity;
+      if (totalDefense > 0 && Math.random() < totalDefense) {
+        console.log("🛡️ LEGAL DEFENSE: Lawsuit blocked by legal wall (including GDPR Laundry)!");
         get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 2, 'high', 'DEFENSE SUCCESS!');
         return;
       }
@@ -1674,7 +1918,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       });
 
-      return multiplier;
+      const globalStageBonus = Object.values(state.globalDominance.countries).reduce((sum, c) => sum + (c.stage || 0), 0) * 0.01;
+      return multiplier * (1 + globalStageBonus);
     },
 
     getTotalUserMultiplier: () => {
@@ -1692,8 +1937,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (state.researchState.completed.includes('micro_targeting')) {
         multiplier *= 1.2;
       }
-      
-      return multiplier;
+
+      const globalStageBonus = Object.values(state.globalDominance.countries).reduce((sum, c) => sum + (c.stage || 0), 0) * 0.01;
+      return multiplier * (1 + globalStageBonus);
     },
 
     getClickPowerMultiplier: () => {
@@ -1887,6 +2133,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (diff <= 0) return;
       
       get().tickResearch(now - state.lastPassiveUpdate);
+      get().checkGlobalDominanceUnlocks();
 
       // Clean up expired buffs
       const expiredBuffs = state.activeBuffs.filter(b => b.expiresAt !== null && b.expiresAt <= now);
@@ -1897,14 +2144,71 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // Apply gem efficiency bonus to passive income
       const gemBonuses = get().getGemBonuses();
       const efficiencyMultiplier = 1 + (gemBonuses.departmentEfficiency / 100);
-      const incomeMultiplier = get().getTotalIncomeMultiplier();
+      // ── BUILDING PRODUCTION ──────────────────────────────────────────────────
+      let totalBuildingsOrbs = 0;
+      let totalBuildingsUsers = 0;
+      let totalBuildingsHeatFlat = 0;
+      
+      const countries = Object.entries(state.globalDominance.countries);
+      
+      // Global Multipliers
+      let globalBuildingMultiplier = 1.0;
+      let globalIncomeBuildingMultiplier = 1.0;
+      
+      countries.forEach(([id, c]) => {
+        if (id === 'lun' && c.buildings.orbital_relay) {
+          globalBuildingMultiplier += c.buildings.orbital_relay * 0.2;
+        }
+        if (id === 'br' && c.buildings.amazon_hub) {
+          globalIncomeBuildingMultiplier += c.buildings.amazon_hub * 0.15;
+        }
+      });
+
+      countries.forEach(([id, c]) => {
+        // Data Orbs
+        if (c.buildings.data_center) {
+          let orbOutput = (c.buildings.data_center * BUILDINGS_CONFIG.data_center.output.orbs);
+          if (id === 'cn' && c.buildings.mutual_arrangement) orbOutput *= 2; // Mutual Arrangement HQ
+          totalBuildingsOrbs += orbOutput * globalBuildingMultiplier;
+        }
+
+        // Users
+        if (c.buildings.ai_factory) {
+          let userOutput = (c.buildings.ai_factory * BUILDINGS_CONFIG.ai_factory.output.users);
+          if (id === 'fi' && c.buildings.sauna_algorithm) userOutput *= 1.25; // Sauna Algorithm
+          totalBuildingsUsers += userOutput * globalBuildingMultiplier;
+        }
+        
+        // Void Node (Sector 7)
+        if (id === 'sec' && c.buildings.void_node) {
+          totalBuildingsUsers += (c.buildings.void_node * BUILDINGS_CONFIG.void_node.output.massiveUsers);
+        }
+
+        // Heat
+        if (id === 'us' && c.buildings.lobby_office) {
+          totalBuildingsHeatFlat += (c.buildings.lobby_office * BUILDINGS_CONFIG.lobby_office.output.heatFlat);
+        }
+      });
+
+      const incomeMultiplier = get().getTotalIncomeMultiplier() * globalIncomeBuildingMultiplier;
       const earnings = state.totalIncomePerSecond * diff * efficiencyMultiplier * incomeMultiplier;
+      
+      const sessionMoney = (state.sessionMoney || 0) + earnings;
+      const sessionMoneyEarned = (state.sessionMoneyEarned || 0) + earnings;
+
+      // Apply flat heat reduction from Lobby Offices
+      if (totalBuildingsHeatFlat > 0) {
+        get().modifyHeat(-(totalBuildingsHeatFlat * diff));
+      }
+
       set((s) => ({ 
         income: s.income + earnings,
         totalLifetimeIncome: s.totalLifetimeIncome + earnings,
-        sessionMoney: (s.sessionMoney || 0) + earnings,
-        sessionMoneyEarned: (s.sessionMoneyEarned || 0) + earnings,
+        sessionMoney: sessionMoney,
+        sessionMoneyEarned: sessionMoneyEarned,
         lastPassiveUpdate: now,
+        orbsInventory: s.orbsInventory + (totalBuildingsOrbs * diff),
+        users: s.users + (totalBuildingsUsers * diff),
         dopaCoin: s.researchState.completed.includes('synthetic_value') 
           ? s.dopaCoin + (s.users / 1000) * diff 
           : s.dopaCoin,

@@ -646,6 +646,21 @@ export class MetamanEngine {
     
     return hookedCount;
   }
+  
+  public playPlopSound(): void {
+    try {
+      const { useAudio } = require("../stores/useAudio");
+      useAudio.getState().playPlop();
+    } catch (e) {
+      console.warn("Audio trigger failed:", e);
+    }
+  }
+
+  public triggerConfetti(x: number, y: number): void {
+    if (this.onAddEffect) {
+      this.onAddEffect('confetti' as any, x, y, 'medium', '');
+    }
+  }
 
   private playZapSound(): void {
     if (!this.audioContext) return;

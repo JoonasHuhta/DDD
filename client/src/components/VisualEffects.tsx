@@ -3,7 +3,7 @@ import { DollarSign, Users, Shield, Zap, Box } from 'lucide-react';
 
 interface Effect {
   id: number;
-  type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis';
+  type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis' | 'confetti';
   x: number;
   y: number;
   duration: number;
@@ -121,6 +121,33 @@ const VisualEffectItem = React.memo(({ effect, onComplete }: { effect: Effect, o
         </div>
       );
 
+    case 'confetti':
+      const confettiColors = ['bg-yellow-400', 'bg-blue-400', 'bg-red-500', 'bg-green-400', 'bg-purple-500', 'bg-pink-500'];
+      return (
+        <div className={baseClasses} style={effectStyle}>
+          <div className="relative">
+            {[...Array(16)].map((_, i) => {
+              const randomColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+              const angle = (Math.PI * 2 * i) / 16 + (Math.random() * 0.5);
+              const distance = 20 + Math.random() * 40;
+              const delay = Math.random() * 0.2;
+              return (
+                <div
+                  key={i}
+                  className={`absolute w-1.5 h-1.5 ${randomColor} rounded-sm shadow-sm`}
+                  style={{
+                    animation: `confettiPop 0.8s cubic-bezier(0.1, 0.8, 0.4, 1.0) ${delay}s forwards`,
+                    '--tx': `${Math.cos(angle) * distance}px`,
+                    '--ty': `${Math.sin(angle) * distance}px`,
+                    '--rot': `${Math.random() * 360}deg`
+                  } as any}
+                />
+              );
+            })}
+          </div>
+        </div>
+      );
+
     default:
       return null;
   }
@@ -158,6 +185,11 @@ const VisualEffects = ({ effects, onEffectComplete }: VisualEffectsProps) => {
         @keyframes achievementEntrance {
           0% { transform: scale(0) rotate(-180deg); opacity: 0; }
           100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        @keyframes confettiPop {
+          0% { transform: translate(0, 0) rotate(0deg) scale(0); opacity: 1; }
+          10% { transform: translate(0, 0) rotate(0deg) scale(1.5); opacity: 1; }
+          100% { transform: translate(var(--tx), calc(var(--ty) + 100px)) rotate(var(--rot)) scale(0.5); opacity: 0; }
         }
       `}</style>
     </div>

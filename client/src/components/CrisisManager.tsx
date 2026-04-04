@@ -17,13 +17,19 @@ interface PoopThreat {
 }
 
 export default function CrisisManager() {
-  const { lawsuitState, modifyHeat, incrementUsers, incrementIncome, formatNumber, addVisualEffect, showCharacterDialogue, triggerCrisisSpeech } = useMetamanGame();
-  const { isCrisisActive, isCrisisWarning } = lawsuitState;
+  const isCrisisActive = useMetamanGame(state => state.lawsuitState.isCrisisActive);
+  const isCrisisWarning = useMetamanGame(state => state.lawsuitState.isCrisisWarning);
+  const modifyHeat = useMetamanGame(state => state.modifyHeat);
+  const formatNumber = useMetamanGame(state => state.formatNumber);
+  const addVisualEffect = useMetamanGame(state => state.addVisualEffect);
+  const triggerCrisisSpeech = useMetamanGame(state => state.triggerCrisisSpeech);
+  const showCharacterDialogue = useMetamanGame(state => state.speechBubbleState.isVisible);
+  const showSenateHearing = useMetamanGame(state => state.showSenateHearing);
   
   const [threats, setThreats] = useState<PoopThreat[]>([]);
   const [score, setScore] = useState(0);
   const [hitPulse, setHitPulse] = useState(false);
-  const { playHit, playSuccess } = useAudio();
+  const { playHit, playSuccess, playPlop } = useAudio();
   
   const requestRef = useRef<number>();
   const lastTimeRef = useRef<number>();
@@ -129,8 +135,8 @@ export default function CrisisManager() {
         }
       }
 
+      let hitDetected = false;
       setThreats(prev => {
-        let hitDetected = false;
         const remaining = prev.map(t => {
           const dx = targetX - t.x;
           const dy = targetY - t.y;
@@ -152,12 +158,12 @@ export default function CrisisManager() {
           };
         }).filter(Boolean) as PoopThreat[];
 
-        if (hitDetected) {
-          triggerHitPulse();
-        }
-
         return remaining;
       });
+
+      if (hitDetected) {
+        triggerHitPulse();
+      }
     }
     lastTimeRef.current = time;
     requestRef.current = requestAnimationFrame(update);
@@ -188,7 +194,8 @@ export default function CrisisManager() {
         }
 
         if (newHp <= 0) {
-          playSuccess();
+          playPlop(); // Use the new satisfying plop sound
+          addVisualEffect('confetti' as any, t.x, t.y, 'medium', ''); // Trigger the PR Spin confetti
           setScore(s => s + 1);
           // Deflecting poops significantly reduces heat!
           modifyHeat(-2.0); 
@@ -248,7 +255,7 @@ export default function CrisisManager() {
 
       {/* Warning Ticker (Phase 1) */}
       <AnimatePresence>
-        {isCrisisWarning && !isCrisisActive && !showCharacterDialogue && !useMetamanGame.getState().showSenateHearing && (
+        {isCrisisWarning && !isCrisisActive && !showCharacterDialogue && !showSenateHearing && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}

@@ -180,7 +180,7 @@ export default function CampaignVisualEffects() {
         } bg-[#FFD700] rounded-xl border-[3px] border-black p-2 shadow-[4px_4px_0_0_rgba(0,0,0,1)] flex flex-col items-center min-w-[110px] -rotate-2 origin-bottom-left transition-all z-50 pointer-events-auto transform scale-80`}>
           <div className="flex flex-col items-center">
             <div className="font-black text-black uppercase text-[11px] tracking-tighter text-center leading-tight mb-1">
-              {selectedCampaign.replace('_', ' ').split(' ').map(word => 
+              {selectedCampaign.replace(/_/g, ' ').split(' ').map(word => 
                 word.charAt(0).toUpperCase() + word.slice(1)
               ).join(' ')}
             </div>
