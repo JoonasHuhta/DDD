@@ -1097,8 +1097,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
       let changed = false;
       const nextCountries = { ...c };
 
-      // 1. System Unlock
-      if (!g.isUnlocked && state.users >= 1000) {
+      // 1. System Unlock (Moved from 1k to 100k users to ensure it remains a mid/late game feature)
+      if (!g.isUnlocked && state.users >= 100000) {
         g.isUnlocked = true;
         changed = true;
       }
@@ -1115,14 +1115,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
         changed = true;
       }
 
-      // 4. China: 10k users
-      if (!c.cn.isUnlocked && state.users >= 10000) {
+      // 4. China: 250k users (Scaled up from 10k)
+      if (!c.cn.isUnlocked && state.users >= 250000) {
         nextCountries.cn.isUnlocked = true;
         changed = true;
       }
 
-      // 5. Brazil: 25k users
-      if (!c.br.isUnlocked && state.users >= 25000) {
+      // 5. Brazil: 500k users (Scaled up from 25k)
+      if (!c.br.isUnlocked && state.users >= 500000) {
         nextCountries.br.isUnlocked = true;
         changed = true;
       }
@@ -1139,10 +1139,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
         changed = true;
       }
 
-      // 8. India/Asia Cluster: user milestones
-      if (!c.in.isUnlocked && state.users >= 50000) { nextCountries.in.isUnlocked = true; changed = true; }
-      if (!c.id.isUnlocked && state.users >= 100000) { nextCountries.id.isUnlocked = true; changed = true; }
-      if (!c.jp.isUnlocked && state.users >= 250000) { nextCountries.jp.isUnlocked = true; changed = true; }
+      // 8. India/Asia Cluster: user milestones (Scaled up heavily for late game)
+      if (!c.in.isUnlocked && state.users >= 1000000) { nextCountries.in.isUnlocked = true; changed = true; }
+      if (!c.id.isUnlocked && state.users >= 2500000) { nextCountries.id.isUnlocked = true; changed = true; }
+      if (!c.jp.isUnlocked && state.users >= 5000000) { nextCountries.jp.isUnlocked = true; changed = true; }
 
       // 9. Special End-Game Locations
       // Lunar Base: Prestige Level 3

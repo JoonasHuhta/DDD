@@ -56,14 +56,14 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
   }, [advertiserData.totalDataSold, advertiserData.nextMilestone]);
 
   const darkWebItems = [
-    { id: 'user_injection', name: 'User Injection', desc: '+3,000 users instantly', price: 2000, effect: 'Flat boost', icon: <Users size={16}/> },
-    { id: 'notification_overdose', name: 'Notification Overdose', desc: '5x income for 60 seconds + 5,000 users', price: 4000, effect: 'Temporary Buff', icon: <Zap size={16}/> },
+    { id: 'user_injection', name: 'User Injection', desc: '+3,000 users instantly', price: 15000, effect: 'Flat boost', icon: <Users size={16}/> },
+    { id: 'notification_overdose', name: 'Notification Overdose', desc: '5x income for 60 seconds + 5,000 users', price: 25000, effect: 'Temporary Buff', icon: <Zap size={16}/> },
     { id: 'political_lobbying', name: 'Political Lobbying', desc: 'Buy friends in high places. Gain 50 Influence points.', price: 50000, effect: 'Heat Defense', icon: <Skull size={16}/> },
     { id: 'larry_decoy', name: 'Larry Decoy', desc: 'Send a fake courier to Larry. Resets his distance to 0.', price: 500, currency: 'dopaCoin', effect: 'Evasion', icon: <Ghost size={16} className="text-purple-400"/> },
     { id: 'shadow_servers', name: 'Shadow Servers', desc: 'Untraceable infrastructure. 2.5x Income for 2m.', price: 1000, currency: 'dopaCoin', effect: 'Profit', icon: <Zap size={16} className="text-cyan-400"/> },
-    { id: 'scroll_addiction_serum', name: 'Scroll Serum', desc: '+8,000 users & permanent +10% passive income', price: 6000, effect: 'Permanent', icon: <TrendingUp size={16}/> },
-    { id: 'fomo_amplification', name: 'FOMO Amplification', desc: '10x manual click power for 30s + 12,000 users', price: 10000, effect: 'Temporary Buff', icon: <Target size={16}/> },
-    { id: 'competitor_spy', name: 'Competitor Spy Toolkit', desc: '+15,000 users', price: 20000, effect: 'Flat boost', icon: <Ghost size={16}/> },
+    { id: 'scroll_addiction_serum', name: 'Scroll Serum', desc: '+8,000 users & permanent +10% passive income', price: 45000, effect: 'Permanent', icon: <TrendingUp size={16}/> },
+    { id: 'fomo_amplification', name: 'FOMO Amplification', desc: '10x manual click power for 30s + 12,000 users', price: 75000, effect: 'Temporary Buff', icon: <Target size={16}/> },
+    { id: 'competitor_spy', name: 'Competitor Spy Toolkit', desc: '+15,000 users', price: 100000, effect: 'Flat boost', icon: <Ghost size={16}/> },
     { id: 'cat_videos_2', name: 'Cat Videos 2.0', desc: '+20,000 users. WARNING: +50 Heat!', price: 18000, effect: 'High Risk', icon: <AlertTriangle size={16} className="text-red-500"/> },
     { id: 'data_mining_malware', name: 'Data Malware', desc: '+22,000 users', price: 28000, effect: 'Flat boost', icon: <Database size={16}/> },
     { id: 'deepfake_gen', name: 'Deepfake Generator', desc: '+30,000 users', price: 35000, effect: 'Flat boost', icon: <Ghost size={16}/> },
@@ -130,13 +130,22 @@ export default function DataMarketPanel({ onClose }: { onClose: () => void }) {
           WHITELIST
         </button>
         <button 
-          onClick={() => setActiveTab('darkweb')}
+          onClick={() => {
+            if (users >= 25000) setActiveTab('darkweb')
+          }}
           className={`flex-1 py-3 border-4 border-black rounded-t-2xl font-black uppercase italic flex items-center justify-center gap-2 transition-all ${
-            activeTab === 'darkweb' ? 'bg-red-600 text-white shadow-none border-b-0 translate-y-1' : 'bg-gray-900 text-gray-600 shadow-[2px_-2px_0_0_rgba(0,0,0,1)]'
+            users < 25000 
+              ? 'bg-gray-800 text-gray-500 opacity-60 cursor-not-allowed shadow-[2px_-2px_0_0_rgba(0,0,0,1)]'
+              : activeTab === 'darkweb' 
+                ? 'bg-red-600 text-white shadow-none border-b-0 translate-y-1' 
+                : 'bg-gray-900 text-gray-600 hover:text-gray-400 shadow-[2px_-2px_0_0_rgba(0,0,0,1)]'
           }`}
         >
-          <Skull size={18} />
-          DARK WEB
+          {users >= 25000 ? (
+            <><Skull size={18} /> DARK WEB</>
+          ) : (
+            <><Lock size={16} /> CLASSIFIED (25K USERS)</>
+          )}
         </button>
       </div>
 
