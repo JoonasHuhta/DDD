@@ -1,29 +1,45 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Game from "./components/Game";
 import MobileOptimizer from "./components/MobileOptimizer";
 import GameTitle from "./components/GameTitle";
+import BootSequence from "./components/BootSequence";
 import { useAudio } from "./lib/stores/useAudio";
 import { useMetamanGame } from "./lib/stores/useMetamanGame";
 import { getGameConfig } from "./lib/config/GameConfig";
-// Import game name utils for global access
 import "./lib/utils/gameNameUtils";
-// Import theme testing utils for global access
 import "./lib/utils/themeTestUtils";
+import { motion, AnimatePresence } from "framer-motion";
 import "@fontsource/inter";
 
 function App() {
-  const initAudio = useAudio(state => state.initAudio);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const primeAudio = useAudio(state => state.primeAudio);
+  const playBackgroundMusic = useAudio(state => state.playBackgroundMusic);
   const simulateSafeArea = useMetamanGame(state => state.gameSettings.simulateSafeArea);
   const gameConfig = getGameConfig();
 
-  useEffect(() => {
-    // Initialize audio system once
-    // Consolidated to GameUI for reliability
-    // initAudio();
+  const initAudio = useAudio(state => state.initAudio);
 
+  useEffect(() => {
+    // Initialize audio system once (sets source)
+    initAudio();
     // Update page title
     document.title = `${gameConfig.name} - ${gameConfig.description}`;
   }, [initAudio, gameConfig.name, gameConfig.description]);
+
+  const handleStartGame = async () => {
+    try {
+      // 1. Prime the audio (unlocks the element on mobile)
+      await primeAudio();
+      // 2. Start the music immediately
+      playBackgroundMusic();
+      // 3. Enter the game
+      setHasAcceptedTerms(true);
+    } catch (error) {
+      console.error("[BOOT]", "Failed to start game audio", error);
+      setHasAcceptedTerms(true); // Still proceed even if audio fails
+    }
+  };
   
   return (
     <MobileOptimizer>
@@ -38,13 +54,13 @@ function App() {
           paddingBottom: 'var(--safe-bottom)'
         }}
       >
-        {/* Game Title Overlay - Only shown briefly or in loading */}
-        {false && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-            <GameTitle showDescription={true} />
-          </div>
-        )}
-        <Game />
+        <AnimatePresence mode="wait">
+          {!hasAcceptedTerms ? (
+            <BootSequence key="boot" onComplete={handleStartGame} />
+          ) : (
+            <Game key="game" />
+          )}
+        </AnimatePresence>
       </div>
     </MobileOptimizer>
   );
