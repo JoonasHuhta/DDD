@@ -13,6 +13,7 @@ export default function ProgressionOverview({ onClose }: { onClose: () => void }
   const heat = useMetamanGame(state => state.heat);
   const heatLevel = useMetamanGame(state => state.heatLevel);
   const formatNumber = useMetamanGame(state => state.formatNumber);
+  const isGlobalUnlocked = useMetamanGame(state => state.globalDominance.isUnlocked);
   
   const stageInfo = getStageInfo(users);
   const stageProgress = getStageProgress(users);
@@ -42,14 +43,22 @@ export default function ProgressionOverview({ onClose }: { onClose: () => void }
             <Activity className="w-3 h-3" /> STATUS
           </button>
           <button 
-            onClick={() => setActiveTab('assets')}
+            onClick={() => {
+              if (isGlobalUnlocked) setActiveTab('assets');
+            }}
             className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-2 font-black uppercase text-[10px] transition-all rounded-lg ${
-              activeTab === 'assets' 
-                ? 'bg-black text-white shadow-[2px_2px_0_0_black]' 
-                : 'text-black hover:bg-black/10'
+              !isGlobalUnlocked
+                ? 'opacity-50 cursor-not-allowed hover:bg-transparent text-black'
+                : activeTab === 'assets' 
+                  ? 'bg-black text-white shadow-[2px_2px_0_0_black]' 
+                  : 'text-black hover:bg-black/10'
             }`}
           >
-            <Globe className="w-3 h-3" /> GLOBAL
+            {isGlobalUnlocked ? (
+              <><Globe className="w-3 h-3" /> GLOBAL</>
+            ) : (
+              <>CLASSIFIED (100K)</>
+            )}
           </button>
         </div>
 
