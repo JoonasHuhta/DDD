@@ -25,8 +25,6 @@ export class MetamanEngine {
   private lastTime: number = 0;
   private towerHeight: number = 1;
   
-  // Audio context for sound effects
-  private audioContext: AudioContext | null = null;
   private onIncomeUpdate?: (amount: number) => void;
   private onUsersUpdate?: (amount: number) => void;
   private onRegulatoryRiskUpdate?: (risk: number) => void;
@@ -81,12 +79,7 @@ export class MetamanEngine {
     this.campaignSystem = new CampaignSystem();
     this.basementView = new BasementView();
 
-    // Initialize Web Audio API
-    try {
-      this.audioContext = new AudioContext();
-    } catch (e) {
-      console.warn('Web Audio API not supported');
-    }
+    // Audio Context removed for mobile stability - use centralized useAudio instead
 
     // VAN SYSTEM COMPLETELY DISABLED - no initialization
     this.danVan = null;
@@ -144,7 +137,7 @@ export class MetamanEngine {
   }
 
   public update(): void {
-    const currentTime = Date.now();
+    const currentTime = performance.now();
     if (this.lastTime === 0) {
       this.lastTime = currentTime;
       return;
@@ -678,94 +671,27 @@ export class MetamanEngine {
   }
 
   private playZapSound(): void {
-    if (!this.audioContext) return;
-    
-    // Create a simple zap sound using Web Audio API
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-    
-    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
-    
-    gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
-    
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.1);
+    // Sound generation removed for mobile compatibility. Use useAudio.tsx instead.
   }
 
   private playCollectSound(): void {
-    if (!this.audioContext) return;
-    
-    // Create a simple ding sound
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-    
-    oscillator.frequency.setValueAtTime(1000, this.audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(1200, this.audioContext.currentTime + 0.05);
-    
-    gainNode.gain.setValueAtTime(0.2, this.audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
-    
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.2);
+    // Mobile stability: Sound generation removed.
+  }
+
+  private playLawsuitAlertSound(): void {
+    // Mobile stability: Sound generation removed.
+  }
+
+  private playSirens(): void {
+    // Mobile stability: Sound generation removed.
   }
 
   private playHornSound(): void {
-    if (!this.audioContext) return;
-    
-    // Create van horn sound - lower frequency, more honk-like
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-    
-    // Horn sound: starts low, goes slightly higher
-    oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime);
-    oscillator.frequency.setValueAtTime(280, this.audioContext.currentTime + 0.15);
-    oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime + 0.3);
-    
-    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime + 0.25);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.4);
-    
-    oscillator.start(this.audioContext.currentTime);
-    oscillator.stop(this.audioContext.currentTime + 0.4);
+    // Mobile stability: Sound generation removed.
   }
 
   private playCelebrationSound(): void {
-    if (!this.audioContext) return;
-    const now = this.audioContext.currentTime;
-    
-    const playNote = (freq: number, start: number, duration: number, type: OscillatorType = 'square') => {
-      const osc = this.audioContext!.createOscillator();
-      const gain = this.audioContext!.createGain();
-      osc.connect(gain);
-      gain.connect(this.audioContext!.destination);
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, start);
-      
-      // brash brassy attack
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.2, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
-      
-      osc.start(start);
-      osc.stop(start + duration);
-    };
-
-    // Fanfare: C5 -> E5 -> G5 -> C6 (Maj triad arpeggio)
-    playNote(523.25, now, 0.15);         // C5
-    playNote(659.25, now + 0.15, 0.15);  // E5
-    playNote(783.99, now + 0.3, 0.15);   // G5
-    playNote(1046.50, now + 0.45, 0.8, 'sawtooth'); // C6 - Sustained finish
+    // Mobile stability: Sound generation removed.
   }
 
   private renderCooldownIndicator(): void {

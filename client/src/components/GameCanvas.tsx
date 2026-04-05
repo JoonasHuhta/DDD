@@ -192,8 +192,20 @@ export default function GameCanvas() {
       const width = container.clientWidth;
       const height = container.clientHeight;
       
-      canvas.width = width;
-      canvas.height = height;
+      // DPI SCALING FOR HIGH-RES DEVICES
+      const hardwareConcurrency = navigator.hardwareConcurrency || 4;
+      const isLowEnd = hardwareConcurrency <= 4;
+      const scale = isLowEnd ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+      
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      
+      // Ensure CSS size remains the same
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      
+      ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+      ctx.scale(scale, scale);
       
       if (engineRef.current) {
         engineRef.current.resize(width, height);
