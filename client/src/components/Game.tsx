@@ -5,6 +5,7 @@ import CampaignPanel from "./CampaignPanel";
 import ContextualHelp from "./ContextualHelp";
 import GameTitle from "./GameTitle";
 import { useMetamanGame } from "../lib/stores/useMetamanGame";
+import { useShallow } from 'zustand/react/shallow';
 import { useAudio } from "../lib/stores/useAudio";
 import RandomLawsuitPopup from "./RandomLawsuitPopup";
 import { CharacterLogic } from "../lib/gameEngine/CharacterLogic";
@@ -31,7 +32,28 @@ export default function Game() {
     formatNumber,
     updateHeat,
     checkGameOver
-  } = useMetamanGame();
+  } = useMetamanGame(useShallow(state => ({
+    regulatoryRisk: state.regulatoryRisk,
+    campaignCooldowns: state.campaignCooldowns,
+    setSelectedCampaign: state.setSelectedCampaign,
+    updateCampaignCooldowns: state.updateCampaignCooldowns,
+    showCampaignPanel: state.showCampaignPanel,
+    toggleCampaignPanel: state.toggleCampaignPanel,
+    currentView: state.currentView,
+    setCurrentView: state.setCurrentView,
+    initializeGame: state.initializeGame,
+    campaignCharges: state.campaignCharges,
+    updatePassiveIncome: state.updatePassiveIncome,
+    applyPassiveIncome: state.applyPassiveIncome,
+    applyPassiveUserGeneration: state.applyPassiveUserGeneration,
+    showRandomLawsuit: state.showRandomLawsuit,
+    currentRandomLawsuit: state.currentRandomLawsuit,
+    resolveRandomLawsuit: state.resolveRandomLawsuit,
+    closeRandomLawsuit: state.closeRandomLawsuit,
+    formatNumber: state.formatNumber,
+    updateHeat: state.updateHeat,
+    checkGameOver: state.checkGameOver
+  })));
   const gameState = useMetamanGame(state => state.gameState);
   const playBackgroundMusic = useAudio(state => state.playBackgroundMusic);
   const pauseBackgroundMusic = useAudio(state => state.pauseBackgroundMusic);

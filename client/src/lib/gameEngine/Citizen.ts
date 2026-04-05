@@ -60,6 +60,41 @@ export class Citizen {
     this.setNewTarget();
   }
 
+  // ── OBJECT POOLING API ──────────────────────────────────────────────────
+  public reset(x: number, y: number): void {
+    this.x = x;
+    this.y = y;
+    this.targetX = x;
+    this.targetY = y;
+    this.isHooked = false;
+    this.skyscraperTarget = null;
+    this.pathfindingTimer = 0;
+    
+    // Reset Elite state
+    this.isElite = false;
+    this.eliteType = 'none';
+    this.resistance = 0;
+    this.maxResistance = 0;
+    this.lureAttempts = 0;
+    this.maxLureAttempts = 3;
+    this.eliteBehavior = 'normal';
+    this.eliteLifespanMs = 0;
+    this.eliteElapsedMs = 0;
+    this.isPosing = false;
+    this.posingTimer = 0;
+    this.lastLuredTime = 0;
+    this.isJetsetLanding = false;
+
+    // Reset visual and speeds
+    const speedTypes = [0.01, 0.025, 0.04, 0.06, 0.08];
+    this.speed = speedTypes[Math.floor(Math.random() * speedTypes.length)];
+    this.color = this.getRandomColor();
+    this.originalColor = this.color;
+    this.size = 4 + Math.random() * 4;
+    
+    this.setNewTarget();
+  }
+
   // ── ELITE API ─────────────────────────────────────────────────────────────
 
   /** Apply an EliteDefinition to turn this citizen into an elite. */

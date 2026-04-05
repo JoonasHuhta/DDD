@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useMetamanGame } from "../lib/stores/useMetamanGame";
+import { useShallow } from 'zustand/react/shallow';
 import { usePanelState } from "../hooks/usePanelState";
 import { MetamanEngine } from "../lib/gameEngine/MetamanEngine";
 import SpeechBubble from "./SpeechBubble";
@@ -11,8 +12,6 @@ export default function GameCanvas() {
   const lastInteractionTimeRef = useRef<number>(0);
   const { 
     gameState, 
-    income, 
-    users, 
     selectedCampaign,
     currentView,
     setCurrentView,
@@ -42,7 +41,38 @@ export default function GameCanvas() {
     lastStageCompleteTimestamp,
     darkWebPurchases,
     mansionPurchases
-  } = useMetamanGame();
+  } = useMetamanGame(useShallow(state => ({
+    gameState: state.gameState,
+    selectedCampaign: state.selectedCampaign,
+    currentView: state.currentView,
+    setCurrentView: state.setCurrentView,
+    incrementIncome: state.incrementIncome,
+    incrementUsers: state.incrementUsers,
+    decrementIncome: state.decrementIncome,
+    incrementDataInventory: state.incrementDataInventory,
+    incrementOrbsInventory: state.incrementOrbsInventory,
+    setRegulatoryRisk: state.setRegulatoryRisk,
+    regulatoryRisk: state.regulatoryRisk,
+    setCampaignCooldown: state.setCampaignCooldown,
+    handleManualClick: state.handleManualClick,
+    towerHeight: state.towerHeight,
+    campaignCharges: state.campaignCharges,
+    setCampaignCharges: state.setCampaignCharges,
+    showCampaignPanel: state.showCampaignPanel,
+    deliverLawsuit: state.deliverLawsuit,
+    triggerLawsuit: state.triggerLawsuit,
+    lawsuitState: state.lawsuitState,
+    rewardState: state.rewardState,
+    updateStats: state.updateStats,
+    blackMarketState: state.blackMarketState,
+    addVisualEffect: state.addVisualEffect,
+    updateLarryDistance: state.updateLarryDistance,
+    lastRewardTimestamp: state.lastRewardTimestamp,
+    lastUserLossTime: state.lastUserLossTime,
+    lastStageCompleteTimestamp: state.lastStageCompleteTimestamp,
+    darkWebPurchases: state.darkWebPurchases,
+    mansionPurchases: state.mansionPurchases
+  })));
   
   const panels = usePanelState();
 
@@ -89,7 +119,7 @@ export default function GameCanvas() {
       }
 
       // Only campaign system works - no manual income clicks
-      const success = engineRef.current.handleClick(x, y, selectedCampaign, income, campaignCharges);
+      const success = engineRef.current.handleClick(x, y, selectedCampaign, campaignCharges);
       
       // CAMPAIGN FLASH EFFECT: Trigger screen flash when campaigns are used
       if (success && selectedCampaign) {
@@ -136,7 +166,7 @@ export default function GameCanvas() {
       }
     } else if (currentView === 'basement') {
       // In basement, handle data orb clicks
-      const success = engineRef.current.handleClick(x, y, selectedCampaign, income, campaignCharges);
+      const success = engineRef.current.handleClick(x, y, selectedCampaign, campaignCharges);
       if (success && selectedCampaign) {
         // Track campaign usage for statistics in basement too
         updateStats('campaignsUsed', 1);
@@ -145,7 +175,7 @@ export default function GameCanvas() {
         console.log('Data orb click failed');
       }
     }
-  }, [selectedCampaign, income, currentView, handleManualClick, campaignCharges, showCampaignPanel, panels, lawsuitState.showLawsuitPanel, rewardState.showSuitcasePanel]);
+  }, [selectedCampaign, currentView, handleManualClick, campaignCharges, showCampaignPanel, panels, lawsuitState.showLawsuitPanel, rewardState.showSuitcasePanel]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

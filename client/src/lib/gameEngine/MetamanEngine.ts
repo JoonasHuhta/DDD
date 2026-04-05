@@ -16,6 +16,7 @@ export class MetamanEngine {
   private city: City;
   private metaman: Metaman;
   private citizens: Citizen[];
+  private citizenPool: Citizen[] = []; // Object Pool for GC optimization
   private dayNightCycle: DayNightCycle;
   private electricLure: ElectricLure;
   private campaignSystem: CampaignSystem;
@@ -125,13 +126,21 @@ export class MetamanEngine {
       const streetPositions = this.city.getStreetPositions();
       const randomStreet = streetPositions[Math.floor(Math.random() * streetPositions.length)];
       
-      const citizen = new Citizen(
+      const citizen = this.getPooledCitizen(
         randomStreet.x + Math.random() * 50,
-        randomStreet.y + Math.random() * 50,
-        this.city
+        randomStreet.y + Math.random() * 50
       );
       this.citizens.push(citizen);
     }
+  }
+
+  private getPooledCitizen(x: number, y: number): Citizen {
+    if (this.citizenPool.length > 0) {
+      const citizen = this.citizenPool.pop()!;
+      citizen.reset(x, y);
+      return citizen;
+    }
+    return new Citizen(x, y, this.city);
   }
 
   public update(): void {
@@ -227,7 +236,8 @@ export class MetamanEngine {
           this.onUsersUpdate(eliteUsers);
           this.userCount += eliteUsers;
         }
-        this.citizens.splice(index, 1);
+        const removed = this.citizens.splice(index, 1)[0];
+        if (removed) this.citizenPool.push(removed);
         return;
       }
       // ─────────────────────────────────────────────────────────────────────
@@ -259,17 +269,19 @@ export class MetamanEngine {
         this.userCount += finalBonus;
       }
       
-      this.citizens.splice(index, 1);
+      const removed = this.citizens.splice(index, 1)[0];
+      if (removed) this.citizenPool.push(removed);
     });
 
     // ── ELITE: Remove expired elites that timed out ───────────────────────
-    this.citizens = this.citizens.filter(c => {
+    for (let i = this.citizens.length - 1; i >= 0; i--) {
+      const c = this.citizens[i];
       if (c.isElite && c.isExpired() && !c.getHookedState()) {
         console.log(`[ELITE] ${c.eliteType} left the street (timed out).`);
-        return false;
+        const removed = this.citizens.splice(i, 1)[0];
+        if (removed) this.citizenPool.push(removed);
       }
-      return true;
-    });
+    }
 
     // ── ELITE: Periodic spawn check ───────────────────────────────────────
     this.eliteSpawnTimer += deltaTime;
@@ -335,11 +347,15 @@ export class MetamanEngine {
     }
     
     // CRITICAL: Clean up dead/off-screen citizens before spawning new ones
-    this.citizens = this.citizens.filter(citizen => {
-      const pos = citizen.getPosition();
-      return pos.x > -150 && pos.x < this.width + 150 && 
-             pos.y > -150 && pos.y < this.height + 150;
-    });
+    for (let i = this.citizens.length - 1; i >= 0; i--) {
+      const pos = this.citizens[i].getPosition();
+      const isVisible = pos.x > -150 && pos.x < this.width + 150 && 
+                        pos.y > -150 && pos.y < this.height + 150;
+      if (!isVisible) {
+        const removed = this.citizens.splice(i, 1)[0];
+        if (removed) this.citizenPool.push(removed);
+      }
+    }
     
     // WAVE SPAWNING: If the street is empty or nearly empty, trigger a refill
     if (this.citizens.length < 5 && this.currentView === 'city') {
@@ -358,20 +374,20 @@ export class MetamanEngine {
     if (Math.random() < dynamicSpawnRate && this.citizens.length < 40) { 
       const streetPositions = this.city.getStreetPositions();
       const randomStreet = streetPositions[Math.floor(Math.random() * streetPositions.length)];
-      const newCitizen = new Citizen(
+      const newCitizen = this.getPooledCitizen(
         randomStreet.x + Math.random() * 50,
-        randomStreet.y + Math.random() * 50,
-        this.city
+        randomStreet.y + Math.random() * 50
       );
       newCitizen.userCountFromEngine = this.userCount;
       this.citizens.push(newCitizen);
     }
     
-    // PERFORMANCE FIX: Enforce maximum citizen count
+    // PERFORMANCE FIX: Enforce maximum citizen count by returning extras to pool
     const citizenLimit = this.currentView === 'basement' ? 15 : 40; 
     
     if (this.citizens.length > citizenLimit) {
-      this.citizens = this.citizens.slice(0, citizenLimit);
+      const removed = this.citizens.splice(citizenLimit);
+      removed.forEach(c => this.citizenPool.push(c));
     }
     
     // TUTORIAL: Spawn Red NPC for lawsuit demonstration (trigger after 300 users reached)
@@ -432,7 +448,7 @@ export class MetamanEngine {
     this.activeBaits = baits;
   }
 
-  public handleClick(x: number, y: number, campaignId: string, income: number, campaignCharges: number = 5): boolean {
+  public handleClick(x: number, y: number, campaignId: string, campaignCharges: number = 5): boolean {
     if (this.currentView === 'basement') {
       // ENHANCED: Basement orb collection gives both data AND orbs
       const collectedOrb = this.basementView.handleClick(x, y);
@@ -569,10 +585,9 @@ export class MetamanEngine {
     if (streetPositions.length === 0) return;
     const pos = streetPositions[Math.floor(Math.random() * streetPositions.length)];
 
-    const elite = new Citizen(
+    const elite = this.getPooledCitizen(
       pos.x + (Math.random() - 0.5) * 80,
-      pos.y + (Math.random() - 0.5) * 30,
-      this.city
+      pos.y + (Math.random() - 0.5) * 30
     );
     elite.userCountFromEngine = this.userCount;
     elite.applyEliteDefinition(def);

@@ -1,4 +1,5 @@
 import { useMetamanGame } from "../lib/stores/useMetamanGame";
+import { useShallow } from 'zustand/react/shallow';
 import { useAudio } from "../lib/stores/useAudio";
 import { usePanelState } from "../hooks/usePanelState";
 import { motion, AnimatePresence } from "framer-motion";
@@ -94,7 +95,57 @@ export default function GameUI() {
     isGameOver,
     lastUserLossTime,
     currentAchievementShowcase
-  } = useMetamanGame();
+  } = useMetamanGame(useShallow(state => ({
+    income: state.income,
+    users: state.users,
+    gameState: state.gameState,
+    startGame: state.startGame,
+    showCampaignPanel: state.showCampaignPanel,
+    toggleCampaignPanel: state.toggleCampaignPanel,
+    currentView: state.currentView,
+    setCurrentView: state.setCurrentView,
+    dataInventory: state.dataInventory,
+    orbsInventory: state.orbsInventory,
+    sellAllData: state.sellAllData,
+    calculateDataOrbValue: state.calculateDataOrbValue,
+    totalIncomePerSecond: state.totalIncomePerSecond,
+    formatNumber: state.formatNumber,
+    clickCooldown: state.clickCooldown,
+    lastClickTime: state.lastClickTime,
+    saveGame: state.saveGame,
+    updateClickParticles: state.updateClickParticles,
+    clickParticles: state.clickParticles,
+    selectedCampaign: state.selectedCampaign,
+    setSelectedCampaign: state.setSelectedCampaign,
+    regulatoryRisk: state.regulatoryRisk,
+    campaignCooldowns: state.campaignCooldowns,
+    campaignCharges: state.campaignCharges,
+    lawsuitState: state.lawsuitState,
+    toggleLawsuitPanel: state.toggleLawsuitPanel,
+    acknowledgeLawsuit: state.acknowledgeLawsuit,
+    triggerLawsuit: state.triggerLawsuit,
+    rewardState: state.rewardState,
+    visualEffects: state.visualEffects,
+    achievementManager: state.achievementManager,
+    showAchievementShowcase: state.showAchievementShowcase,
+    closeAchievementShowcase: state.closeAchievementShowcase,
+    removeVisualEffect: state.removeVisualEffect,
+    toggleTrophyPanel: state.toggleTrophyPanel,
+    showTutorial: state.showTutorial,
+    setShowTutorial: state.setShowTutorial,
+    showDataMarket: state.showDataMarket,
+    setShowDataMarket: state.setShowDataMarket,
+    showEspionage: state.showEspionage,
+    setShowEspionage: state.setShowEspionage,
+    showServerDefense: state.showServerDefense,
+    setShowServerDefense: state.setShowServerDefense,
+    showSenateHearing: state.showSenateHearing,
+    setShowSenateHearing: state.setShowSenateHearing,
+    activeTipTarget: state.activeTipTarget,
+    isGameOver: state.isGameOver,
+    lastUserLossTime: state.lastUserLossTime,
+    currentAchievementShowcase: state.currentAchievementShowcase
+  })));
   const { isMuted, toggleMute } = useAudio();
   const responsive = useResponsiveUI();
   const panels = usePanelState();
