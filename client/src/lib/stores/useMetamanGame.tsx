@@ -1655,7 +1655,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // Trigger harsh legal sound
       try {
         const { useAudio } = require("./useAudio");
-        useAudio.getState().playLegal();
+        useAudio.getState().playAlert();
       } catch (e) {
         console.warn("Audio trigger failed:", e);
       }

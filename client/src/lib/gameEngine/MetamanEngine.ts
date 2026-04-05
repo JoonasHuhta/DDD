@@ -5,6 +5,7 @@ import { DayNightCycle } from "./DayNightCycle";
 import { ElectricLure } from "./ElectricLure";
 import { CampaignSystem, CAMPAIGNS } from "./CampaignSystem";
 import { BasementView } from "./BasementView";
+import { useAudio } from "../stores/useAudio";
 import { RedNpc } from "./RedNpc";
 import { ELITES, getSpawnableElites, pickWeightedElite } from "./EliteRegistry";
 import { useMetamanGame } from '../stores/useMetamanGame';
@@ -453,7 +454,7 @@ export class MetamanEngine {
         if (this.onDataInventoryUpdate) this.onDataInventoryUpdate(dataValue);
         if (this.onOrbsInventoryUpdate) this.onOrbsInventoryUpdate(orbsValue);
         
-        this.playCollectSound();
+        useAudio.getState().playOrbding(); // NEW: Basement orb sound
         console.log(`${collectedOrb.type.toUpperCase()} orb collected: +${dataValue} data, +${orbsValue} orbs`);
         return true;
       }
@@ -478,6 +479,8 @@ export class MetamanEngine {
       
       // Create electric lure effect with campaign color and radius
       this.electricLure.addLure(lureOrigin.x, lureOrigin.y, x, y, campaign.color, campaign.radius);
+      
+      this.playZapSound(); // NEW: Zap sound when casting campaign
       
       // Elite Scan Handling
       if (campaignId === 'elite_scan') {
@@ -671,19 +674,20 @@ export class MetamanEngine {
   }
 
   private playZapSound(): void {
-    // Sound generation removed for mobile compatibility. Use useAudio.tsx instead.
+    useAudio.getState().playZap();
   }
 
   private playCollectSound(): void {
-    // Mobile stability: Sound generation removed.
+    useAudio.getState().playCollect();
   }
 
   private playLawsuitAlertSound(): void {
-    // Mobile stability: Sound generation removed.
+    useAudio.getState().playAlert();
   }
 
   private playSirens(): void {
-    // Mobile stability: Sound generation removed.
+    // We can map sirens to alert for now or omit it if not supplied
+    useAudio.getState().playAlert();
   }
 
   private playHornSound(): void {

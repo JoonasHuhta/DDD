@@ -10,6 +10,10 @@ interface AudioState {
   legalSound: HTMLAudioElement | null;
   plopSound: HTMLAudioElement | null;
   upgradeSound: HTMLAudioElement | null;
+  zapSound: HTMLAudioElement | null;
+  alertSound: HTMLAudioElement | null;
+  collectSound: HTMLAudioElement | null;
+  orbdingSound: HTMLAudioElement | null;
   isMuted: boolean;
   isInitialized: boolean;
   isPrimed: boolean;
@@ -28,6 +32,10 @@ interface AudioState {
   playCash4: () => void;
   playPlop: () => void;
   playUpgrade: () => void;
+  playZap: () => void;
+  playAlert: () => void;
+  playCollect: () => void;
+  playOrbding: () => void;
   isTransitioning: boolean;
   setIsTransitioning: (v: boolean) => void;
 }
@@ -50,6 +58,12 @@ const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.mp3") : nu
 const plop = typeof Audio !== 'undefined' ? new Audio("/sounds/plop.mp3") : null;
 const upgrade = typeof Audio !== 'undefined' ? new Audio("/sounds/upgrade.mp3") : null;
 
+// New Sounds
+const zap = typeof Audio !== 'undefined' ? new Audio("/sounds/zap.mp3") : null;
+const alertSoundEffect = typeof Audio !== 'undefined' ? new Audio("/sounds/alert.mp3") : null;
+const collect = typeof Audio !== 'undefined' ? new Audio("/sounds/collect.mp3") : null;
+const orbding = typeof Audio !== 'undefined' ? new Audio("/sounds/orbding.mp3") : null;
+
 export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: musicSprite,
   hitSound: hit,
@@ -57,6 +71,10 @@ export const useAudio = create<AudioState>((set, get) => ({
   legalSound: legal,
   plopSound: plop,
   upgradeSound: upgrade,
+  zapSound: zap,
+  alertSound: alertSoundEffect,
+  collectSound: collect,
+  orbdingSound: orbding,
   isMuted: false,
   isInitialized: false,
   isPrimed: false,
@@ -261,6 +279,42 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (upgrade && !isMuted) {
       const soundClone = upgrade.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.6;
+      soundClone.play().catch(() => {});
+    }
+  },
+  
+  playZap: () => {
+    const { isMuted } = get();
+    if (zap && !isMuted) {
+      const soundClone = zap.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 0.4;
+      soundClone.play().catch(() => {});
+    }
+  },
+  
+  playAlert: () => {
+    const { isMuted } = get();
+    if (alertSoundEffect && !isMuted) {
+      const soundClone = alertSoundEffect.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 0.5;
+      soundClone.play().catch(() => {});
+    }
+  },
+  
+  playCollect: () => {
+    const { isMuted } = get();
+    if (collect && !isMuted) {
+      const soundClone = collect.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 1.0;
+      soundClone.play().catch(() => {});
+    }
+  },
+  
+  playOrbding: () => {
+    const { isMuted } = get();
+    if (orbding && !isMuted) {
+      const soundClone = orbding.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 1.0;
       soundClone.play().catch(() => {});
     }
   }
