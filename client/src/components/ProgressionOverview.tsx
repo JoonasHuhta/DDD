@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { getStageInfo, getStageProgress, getNextStage } from '../lib/utils/stageSystem';
-import { Trophy, ArrowRight, Info, Database, Zap, Building2, Flame } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Trophy, ArrowRight, Info, Database, Zap, Building2, Flame, Globe, Activity, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import AdaptivePanel from './AdaptivePanel';
+import { GlobalDominanceContent } from './GlobalDominanceContent';
 
 export default function ProgressionOverview({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'assets'>('overview');
+  
   const users = useMetamanGame(state => state.users);
   const heat = useMetamanGame(state => state.heat);
   const heatLevel = useMetamanGame(state => state.heatLevel);
@@ -16,144 +19,164 @@ export default function ProgressionOverview({ onClose }: { onClose: () => void }
   const nextStage = getNextStage(users);
 
   return (
-    <AdaptivePanel title="PROGRESSION DETAILS" onClose={onClose} position="center" icon={<Trophy className="w-5 h-5 text-yellow-400" />}>
-      <div className="space-y-6 pb-20 px-2 lg:px-4">
-        {/* Current Stage Hero */}
-        <div className="bg-black text-white p-6 rounded-3xl border-4 border-black shadow-[8px_8px_0_0_rgba(0,0,0,1)] relative overflow-hidden">
-          <div className="relative z-10">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none mb-1 text-yellow-400">
-              {stageInfo.name}
-            </h2>
-            <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-4">
-              STAGE {stageInfo.stage} ASSETS SECURED
-            </p>
-            <div className="p-3 bg-white/10 rounded-xl border border-white/20">
-              <p className="text-xs font-medium italic opacity-90 line-clamp-3">
-                "{stageInfo.description}"
-              </p>
-            </div>
-          </div>
-          <Trophy className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12" />
+    <AdaptivePanel 
+      title="Empire Command" 
+      icon={<Globe className="w-4 h-4 text-black/40" />}
+      onClose={onClose}
+      position="center"
+      size="full"
+      scrollable={false}
+      className="!bg-[#FFD700]" 
+    >
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* 2. COMPACT TAB SWITCHER */}
+        <div className="flex-shrink-0 flex bg-black/5 p-1 rounded-xl border-[3px] border-black mb-2 gap-1 max-w-sm mx-auto w-full">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-2 font-black uppercase text-[10px] transition-all rounded-lg ${
+              activeTab === 'overview' 
+                ? 'bg-black text-white shadow-[2px_2px_0_0_black]' 
+                : 'text-black hover:bg-black/10'
+            }`}
+          >
+            <Activity className="w-3 h-3" /> STATUS
+          </button>
+          <button 
+            onClick={() => setActiveTab('assets')}
+            className={`flex-1 py-1.5 px-3 flex items-center justify-center gap-2 font-black uppercase text-[10px] transition-all rounded-lg ${
+              activeTab === 'assets' 
+                ? 'bg-black text-white shadow-[2px_2px_0_0_black]' 
+                : 'text-black hover:bg-black/10'
+            }`}
+          >
+            <Globe className="w-3 h-3" /> GLOBAL
+          </button>
         </div>
 
-        {/* Unified Heat & Risk Status (Combined as requested) */}
-        <div className="p-5 bg-black text-white border-4 border-black rounded-3xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <div className={`p-2 rounded-xl ${heatLevel === 'normal' ? 'bg-green-500' : heatLevel === 'elevated' ? 'bg-yellow-500' : 'bg-red-500'} bg-opacity-20`}>
-                <Flame className={`w-5 h-5 ${heatLevel === 'normal' ? 'text-green-400' : heatLevel === 'elevated' ? 'text-yellow-400' : 'text-red-500'}`} />
-              </div>
-              <div>
-                <div className="text-[10px] font-black uppercase text-white/50">Regulatory Risk</div>
-                <div className={`text-lg font-black italic uppercase ${
-                  heatLevel === 'normal' ? 'text-green-400' : 
-                  heatLevel === 'elevated' ? 'text-yellow-400' : 
-                  'text-red-500 font-black'
-                }`}>
-                  {heat >= 90 ? '🚨 SHITSTORM IMMINENT' : heatLevel.toUpperCase()}
+        {/* CONTAINER FOR SCROLLABLE CONTENT */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative rounded-2xl border-4 border-black bg-black/5">
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' ? (
+              <motion.div 
+                key="overview"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                className="absolute inset-0 overflow-y-auto space-y-4 p-4 scrollbar-thin scrollbar-thumb-black/20 no-scrollbar"
+              >
+                {/* Compact Header */}
+                <div className="bg-black text-white p-5 rounded-2xl border-2 border-black flex items-center justify-between shadow-[6px_6px_0_0_black]">
+                  <div className="flex flex-col">
+                     <div className="flex items-center gap-2 text-yellow-400 mb-0.5">
+                      <Trophy className="w-4 h-4" />
+                      <span className="text-[8px] font-black uppercase tracking-widest italic">Dominance Stage</span>
+                    </div>
+                    <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight italic leading-none">
+                      {stageInfo.name}
+                    </h2>
+                  </div>
+                  <Database className="w-12 h-12 opacity-20 hidden sm:block" />
                 </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-black">{Math.floor(heat)}%</div>
-              <div className="text-[8px] font-bold text-white/40 uppercase">Exposure Index</div>
-            </div>
-          </div>
-          
-          <div className="h-3 bg-white/10 rounded-full border-2 border-white/20 overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${heat}%` }}
-              className={`h-full ${
-                heatLevel === 'normal' ? 'bg-green-400' : 
-                heatLevel === 'elevated' ? 'bg-yellow-400' : 
-                'bg-red-500 shadow-[0_0_10px_rgba(255,0,0,0.5)]'
-              }`}
-            />
-          </div>
-          <p className="mt-3 text-[10px] font-bold text-white/60 leading-tight">
-            {heatLevel === 'normal' ? 'OPERATING UNDER THE RADAR. MINIMAL REGULATORY OVERSIGHT.' :
-             heatLevel === 'elevated' ? 'ELEVATED SUSPICION. AUTHORITIES ARE MONITORING DATA TRAFFIC.' :
-             'CRITICAL RISK: REGULATORY ACTIONS AND SANCTIONS ARE LIKELY.'}
-          </p>
-        </div>
 
-        {/* Progress Tracker */}
-        <div className="p-5 bg-white border-4 border-black rounded-3xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          <div className="flex justify-between items-end mb-3">
-            <div>
-              <div className="text-[10px] font-black uppercase text-gray-500">Market Presence</div>
-              <div className="text-xl font-black">{formatNumber(Math.floor(users))} USERS</div>
-            </div>
-            {nextStage && (
-              <div className="text-right">
-                <div className="text-[8px] font-black uppercase text-gray-400">NExt Milestone</div>
-                <div className="text-xs font-black text-blue-600">{formatNumber(nextStage.userThreshold)}</div>
-              </div>
+                {/* Compact Progress */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <h3 className="text-[10px] font-black uppercase italic text-black/60">Expansion Progress</h3>
+                    <div className="text-right flex items-center gap-2">
+                      <span className="text-sm font-black text-black">{Math.floor(stageProgress * 100)}%</span>
+                    </div>
+                  </div>
+                  <div className="h-8 bg-black/10 rounded-xl border-4 border-black p-0.5 relative overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stageProgress * 100}%` }}
+                      className="h-full bg-black rounded-lg"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">
+                        {formatNumber(users)} / {nextStage ? formatNumber(nextStage.userThreshold) : 'MAX'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Side-by-Side Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_black]">
+                    <div className="flex items-center gap-2 mb-2 opacity-60">
+                      <Flame className="w-4 h-4" />
+                      <h4 className="text-[10px] font-black uppercase italic">Heat</h4>
+                    </div>
+                    <div className="text-2xl font-black text-black leading-none">{heat.toFixed(1)}%</div>
+                    <div className={`mt-2 text-[8px] font-black uppercase px-2 py-0.5 rounded-full w-fit ${
+                      heatLevel === 'emergency' ? 'bg-red-500 text-white animate-pulse' :
+                      heatLevel === 'critical' ? 'bg-orange-500 text-white' :
+                      heatLevel === 'elevated' ? 'bg-yellow-500 text-black' : 'bg-green-500 text-white'
+                    }`}>
+                      {heatLevel}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_black]">
+                  <div className="flex items-center gap-2 mb-2 opacity-60">
+                      <Database className="w-4 h-4" />
+                      <h4 className="text-[10px] font-black uppercase italic">Users</h4>
+                    </div>
+                    <div className="text-2xl font-black text-black leading-none">{formatNumber(users)}</div>
+                    <div className="mt-2 text-[8px] font-black uppercase text-black/60 italic">Integrated</div>
+                  </div>
+                </div>
+
+                {/* Live System Log */}
+                <div className="min-h-[100px] bg-black text-[#00ff00] p-4 rounded-2xl border-4 border-black font-mono text-[9px] relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,255,0,0.1)]">
+                  <div className="absolute top-0 right-0 p-2 opacity-20"><Activity className="w-4 h-4" /></div>
+                  <div className="space-y-1">
+                    <div className="flex gap-2">
+                      <span className="opacity-50">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="font-bold">SYSTEM_READY:</span> 
+                      <span>Establishing satellite handshake...</span>
+                    </div>
+                    <div className="flex gap-2 text-yellow-400">
+                      <span className="opacity-50">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="font-bold">DOMINANCE_SCAN:</span> 
+                      <span>Regional compliance at {Math.floor(stageProgress * 100)}%</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="opacity-50">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="font-bold">DATA_FLUX:</span> 
+                      <span>{formatNumber(users)} citizens currently integrated.</span>
+                    </div>
+                    <motion.div 
+                      animate={{ opacity: [1, 0.5, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="flex gap-2 text-red-500"
+                    >
+                      <span className="opacity-50">[{new Date().toLocaleTimeString()}]</span>
+                      <span className="font-bold">HEAT_MONITOR:</span> 
+                      <span>Current risk level: {heatLevel.toUpperCase()}</span>
+                    </motion.div>
+                  </div>
+                  <motion.div 
+                    animate={{ top: ['0%', '100%', '0%'] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    className="absolute left-0 right-0 h-[1px] bg-[#00ff00]/20 z-10"
+                  />
+                </div>
+
+                <div className="p-3 bg-black/5 rounded-2xl border-2 border-dashed border-black/10">
+                  <p className="text-[9px] font-bold text-black/40 leading-relaxed uppercase italic">
+                    &ldquo;{stageInfo.description}&rdquo; — Total regional control is the only acceptable outcome.
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="assets"
+                initial={{ opacity: 0, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }}
+                className="absolute inset-0 flex flex-col"
+              >
+                <GlobalDominanceContent />
+              </motion.div>
             )}
-          </div>
-          <div className="w-full bg-gray-100 border-2 border-black rounded-full h-4 overflow-hidden shadow-inner">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-1000"
-              style={{ width: `${stageProgress * 100}%` }}
-            />
-          </div>
-          {nextStage && (
-            <div className="mt-3 flex items-center gap-2 bg-blue-50 p-2 rounded-xl border-2 border-blue-200">
-              <ArrowRight className="w-4 h-4 text-blue-600" />
-              <div className="text-[10px] font-black uppercase text-blue-900 leading-tight">
-                Unlock: <span className="italic">{nextStage.name}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Resource Utility Guide */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-black uppercase italic px-1 flex items-center gap-2">
-            <Info className="w-4 h-4" /> Global Intelligence
-          </h3>
-          <div className="grid grid-cols-1 gap-3">
-            {/* Data Utility */}
-            <div className="p-4 bg-[#FF6B35]/10 border-2 border-[#FF6B35] rounded-2xl flex gap-4">
-              <Database className="w-8 h-8 text-[#FF6B35] shrink-0" />
-              <div>
-                <h4 className="text-xs font-black uppercase text-[#FF6B35]">Data Utility</h4>
-                <p className="text-[10px] font-bold opacity-80 uppercase leading-tight">
-                  Harvested from citizens. Sell at the <span className="text-[#FF6B35]">Market</span> for instant capital or refine into <span className="text-blue-600">Lab Gems</span> to boost permanent stats.
-                </p>
-              </div>
-            </div>
-
-            {/* Campaign Utility */}
-            <div className="p-4 bg-[#4ECDC4]/10 border-2 border-[#4ECDC4] rounded-2xl flex gap-4">
-              <Zap className="w-8 h-8 text-[#4ECDC4] shrink-0" />
-              <div>
-                <h4 className="text-xs font-black uppercase text-[#4ECDC4]">Lure Strategy</h4>
-                <p className="text-[10px] font-bold opacity-80 uppercase leading-tight">
-                  The primary fuel for growth. Campaigns convert raw influence into permanent user-base expansion.
-                </p>
-              </div>
-            </div>
-
-            {/* Empire Utility */}
-            <div className="p-4 bg-[#FFD700]/10 border-2 border-[#FFD700] rounded-2xl flex gap-4">
-              <Building2 className="w-8 h-8 text-[#FFD700] shrink-0" />
-              <div>
-                <h4 className="text-xs font-black uppercase text-[#FFBC00]">Infrastructure</h4>
-                <p className="text-[10px] font-bold opacity-80 uppercase leading-tight">
-                  Departments generate passive income. Higher revenue enables more aggressive luring campaigns.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stage Gating Tip */}
-        <div className="p-4 bg-gray-100 rounded-2xl border-4 border-black mt-4">
-          <p className="text-[9px] font-bold text-gray-600 uppercase italic tracking-tighter">
-            *PROGRESS THROUGH STAGES TO UNLOCK MORE POWERFUL DEPARTMENTS AND SINISTER TECHNOLOGY SLOTS.
-          </p>
+          </AnimatePresence>
         </div>
       </div>
     </AdaptivePanel>

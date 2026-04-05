@@ -8,6 +8,7 @@ export const NUMBER_SUFFIXES = [
 ];
 
 export function formatLargeNumber(num: number, precision: number = 3): string {
+  if (num === undefined || num === null || isNaN(num)) return '0';
   if (num === 0) return '0';
   if (num < 0) return '-' + formatLargeNumber(-num, precision);
   

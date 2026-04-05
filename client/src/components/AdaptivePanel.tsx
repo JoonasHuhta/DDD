@@ -10,6 +10,7 @@ interface AdaptivePanelProps {
   icon?: React.ReactNode;
   onClose?: () => void;
   position?: 'left' | 'right' | 'center';
+  size?: 'standard' | 'full';
   className?: string;
   scrollable?: boolean;
 }
@@ -20,6 +21,7 @@ export default function AdaptivePanel({
   icon,
   onClose,
   position = 'left',
+  size = 'standard',
   className = '',
   scrollable = true
 }: AdaptivePanelProps) {
@@ -40,11 +42,13 @@ export default function AdaptivePanel({
   
   const mobileSafeAreaStyle = responsive.isMobile ? { bottom: 'calc(8rem + var(--safe-bottom))' } : {};
   
+  const isFull = size === 'full';
+
   return (
     <div 
       className={`
-        absolute ${positionClasses[position]} z-50 
-        bg-[#FFD700] rounded-2xl border-4 border-black 
+        absolute ${isFull ? 'inset-0 sm:inset-4' : positionClasses[position]} z-[100] 
+        bg-[#FFD700] rounded-none sm:rounded-2xl border-4 border-black 
         shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
         pointer-events-auto
         flex flex-col
@@ -52,17 +56,17 @@ export default function AdaptivePanel({
       `}
       onClick={(e) => e.stopPropagation()}
       style={{ 
-        width: responsive.isMobile ? 'auto' : `${responsive.panelWidth}px`,
-        maxHeight: responsive.isMobile ? '70vh' : '75vh',
-        padding: responsive.containerPadding,
-        ...mobileSafeAreaStyle
+        width: isFull ? 'auto' : (responsive.isMobile ? 'auto' : `${responsive.panelWidth}px`),
+        maxHeight: isFull ? 'none' : (responsive.isMobile ? '70vh' : '75vh'),
+        padding: isFull ? (responsive.isMobile ? '12px' : '20px') : responsive.containerPadding,
+        ...(!isFull ? mobileSafeAreaStyle : {})
       }}
     >
       {/* Header - Fixed at top */}
-      <div className="flex-shrink-0 flex items-center justify-between mb-4 pb-2 border-b-4 border-black">
+      <div className={`flex-shrink-0 flex items-center justify-between ${isFull ? 'mb-2 pb-2' : 'mb-4 pb-2'} border-b-4 border-black`}>
         <div className="flex items-center gap-2">
           {icon && <span className="text-black">{icon}</span>}
-          <AdaptiveText size="lg" weight="black" color="text-black">
+          <AdaptiveText size={isFull ? "xl" : "lg"} weight="black" color="text-black">
             {title}
           </AdaptiveText>
         </div>
@@ -77,8 +81,8 @@ export default function AdaptivePanel({
             variant="ghost"
             size="sm"
             title={`Close ${title}`}
-            icon={<X className="w-4 h-4" />}
-            className="!p-2 hover:bg-gray-700"
+            icon={<X className="w-6 h-6 sm:w-4 sm:h-4 text-black" />}
+            className="!p-2 hover:bg-black/10 rounded-full"
           >
             {/* Empty children for close button */}
           </AdaptiveButton>
@@ -87,7 +91,7 @@ export default function AdaptivePanel({
       
       {/* Content - Scrollable area */}
       <div className={`
-        ${responsive.spacing} 
+        ${isFull ? 'mt-0' : responsive.spacing} 
         ${scrollable ? 'overflow-y-auto scrollable' : 'overflow-hidden'} 
         flex-1 min-h-0 scrollbar-thin scrollbar-thumb-black scrollbar-track-transparent pr-1
       `}>

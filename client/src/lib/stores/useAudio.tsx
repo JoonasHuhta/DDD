@@ -9,6 +9,7 @@ interface AudioState {
   successSound: HTMLAudioElement | null;
   legalSound: HTMLAudioElement | null;
   plopSound: HTMLAudioElement | null;
+  upgradeSound: HTMLAudioElement | null;
   isMuted: boolean;
   isInitialized: boolean;
   isPrimed: boolean;
@@ -26,6 +27,7 @@ interface AudioState {
   playLegal: () => void;
   playCash4: () => void;
   playPlop: () => void;
+  playUpgrade: () => void;
   isTransitioning: boolean;
   setIsTransitioning: (v: boolean) => void;
 }
@@ -46,6 +48,7 @@ const success = typeof Audio !== 'undefined' ? new Audio("/sounds/success.mp3") 
 const legal = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
 const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.mp3") : null;
 const plop = typeof Audio !== 'undefined' ? new Audio("/sounds/plop.mp3") : null;
+const upgrade = typeof Audio !== 'undefined' ? new Audio("/sounds/upgrade.mp3") : null;
 
 export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: musicSprite,
@@ -53,6 +56,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   successSound: success,
   legalSound: legal,
   plopSound: plop,
+  upgradeSound: upgrade,
   isMuted: false,
   isInitialized: false,
   isPrimed: false,
@@ -248,6 +252,15 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (plop && !isMuted) {
       const soundClone = plop.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.5;
+      soundClone.play().catch(() => {});
+    }
+  },
+  
+  playUpgrade: () => {
+    const { isMuted } = get();
+    if (upgrade && !isMuted) {
+      const soundClone = upgrade.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 0.6;
       soundClone.play().catch(() => {});
     }
   }

@@ -246,7 +246,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <AdaptivePanel title="EMPIRE" onClose={onClose} position="right" icon={<Building2 className="w-5 h-5" />}>
+    <AdaptivePanel title="TOWER HQ" onClose={onClose} position="right" icon={<Building2 className="w-5 h-5" />}>
       {/* Tab Switcher */}
       <div className="flex gap-1 mb-6">
         <button

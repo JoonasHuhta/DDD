@@ -996,13 +996,19 @@ export const useMetamanGame = create<MetamanGameStore>()(
     })),
 
     // ── GLOBAL DOMINANCE ACTIONS ─────────────────────────────────────────────
-    advanceCountryStage: (countryId: string) => set((state) => {
+    advanceCountryStage: (countryId: string) => {
+      const state = get();
       const country = state.globalDominance.countries[countryId];
-      if (!country || country.stage >= 5) return state;
+      if (!country || country.stage >= 5) return;
+      
+      const cost = Math.pow(10, country.stage + 3);
+      if (state.income < cost) return;
 
-      // Logic: Cost increases with stage
-      const cost = Math.pow(10, country.stage + 3); // Simple exponent for now
-      if (state.income < cost) return state;
+      // Audio Trigger
+      try {
+        const { useAudio } = require("./useAudio");
+        useAudio.getState().playUpgrade();
+      } catch (e) {}
 
       const newCountries = { ...state.globalDominance.countries };
       newCountries[countryId] = {
@@ -1010,29 +1016,38 @@ export const useMetamanGame = create<MetamanGameStore>()(
         stage: country.stage + 1
       };
 
-      return {
+      set({
         income: state.income - cost,
         globalDominance: {
           ...state.globalDominance,
           countries: newCountries
         }
-      };
-    }),
+      });
 
-    buyBuilding: (countryId, buildingId) => set((state) => {
+      get().addVisualEffect('purchase', window.innerWidth / 2, window.innerHeight / 2, 'medium', `STAGE ${country.stage + 1} REACHED`);
+    },
+
+    buyBuilding: (countryId: string, buildingId: string) => {
+      const state = get();
       const country = state.globalDominance.countries[countryId];
-      if (!country) return state;
+      if (!country) return;
 
       const currentLevel = country.buildings[buildingId] || 0;
-      if (currentLevel >= 5) return state;
+      if (currentLevel >= 5) return;
 
       const config = BUILDINGS_CONFIG[buildingId];
-      if (!config || (country.stage < (config.unlockStage || 0))) return state;
+      if (!config || (country.stage < (config.unlockStage || 0))) return;
 
       const cost = Math.floor(config.baseCost * Math.pow(1.5, currentLevel));
       const orbCost = config.orbCost ? Math.floor(config.orbCost * Math.pow(1.5, currentLevel)) : 0;
 
-      if (state.income < cost || state.orbsInventory < orbCost) return state;
+      if (state.income < cost || state.orbsInventory < orbCost) return;
+
+      // Audio Trigger
+      try {
+        const { useAudio } = require("./useAudio");
+        useAudio.getState().playUpgrade();
+      } catch (e) {}
 
       const nextCountries = { ...state.globalDominance.countries };
       nextCountries[countryId] = {
@@ -1043,15 +1058,15 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       };
 
-      return {
+      set({
         income: state.income - cost,
         orbsInventory: state.orbsInventory - orbCost,
         globalDominance: {
           ...state.globalDominance,
           countries: nextCountries
         }
-      };
-    }),
+      });
+    },
 
     unlockCountry: (countryId: string) => set((state) => {
       if (!state.globalDominance.countries[countryId]) return state;

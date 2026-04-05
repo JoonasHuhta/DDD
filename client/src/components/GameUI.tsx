@@ -38,7 +38,7 @@ import { ServerDefense } from "./minigames/ServerDefense";
 import SenateHearing from "./minigames/SenateHearing";
 import HeatMeter from "./HeatMeter";
 import CrisisManager from "./CrisisManager";
-import GlobalDominancePanel from "./GlobalDominancePanel";
+// import GlobalDominancePanel from "./GlobalDominancePanel";
 import GameOverScreen from "./GameOverScreen";
 // StyleShowcase removed - using original theme only
 
@@ -456,32 +456,7 @@ export default function GameUI() {
               </div>
             </motion.div>
 
-            {/* Global Dominance Globe - Only after 1000 users */}
-            {users >= 1000 && (
-              <motion.div 
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                whileHover={{ scale: 1.1 }}
-                onClick={() => togglePanel('globalDominance', panels.isPanelOpen('globalDominance'))}
-                className={`bg-[#FF6B35] px-3 py-1 rounded-xl border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)] cursor-pointer overflow-hidden relative group`}
-              >
-                <div className="flex items-center gap-1 text-white font-black">
-                  <Globe className={`w-5 h-5 ${panels.isPanelOpen('globalDominance') ? 'animate-spin' : 'group-hover:animate-spin-slow'}`} />
-                  <span className={`${responsive.fontSize}`}>3/15</span>
-                  <style dangerouslySetInnerHTML={{ __html: `
-                    @keyframes spin-slow {
-                      from { transform: rotate(0deg); }
-                      to { transform: rotate(360deg); }
-                    }
-                    .group-hover\\:animate-spin-slow {
-                      animation: spin-slow 8s linear infinite;
-                    }
-                  `}} />
-                </div>
-                {/* Attention pulse (Hardcoded for Phase 1 demo) */}
-                <div className="absolute inset-0 bg-white/20 animate-pulse pointer-events-none" />
-              </motion.div>
-            )}
+            {/* Global Dominance Globe - REMOVED per user request as it is now in ProgressionOverview */}
 
             {/* Click Cooldown Indicator - Stay in top row */}
             {clickCooldownPercent < 100 && (
@@ -738,7 +713,7 @@ export default function GameUI() {
 
       {panels.isPanelOpen('sinisterLab') && <SinisterLab onClose={() => panels.closePanel('sinisterLab')} />}
       
-      {panels.isPanelOpen('globalDominance') && <GlobalDominancePanel onClose={() => panels.closePanel('globalDominance')} />}
+      {/* {panels.isPanelOpen('globalDominance') && <GlobalDominancePanel onClose={() => panels.closePanel('globalDominance')} />} */}
       
       {panels.isPanelOpen('researchLab') && <ResearchLabPanel onClose={() => panels.closePanel('researchLab')} />}
       
