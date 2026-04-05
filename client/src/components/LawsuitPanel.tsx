@@ -67,7 +67,7 @@ export default function LawsuitPanel() {
     >
       {/* HIGH-STAKES LEGAL BRIEFCASE */}
       <div 
-        className="bg-[#FF0055] border-8 border-black rounded-[40px] p-4 sm:p-6 w-full max-w-[480px] relative transform md:rotate-1 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] mb-12 sm:mb-0 pointer-events-auto"
+        className="bg-[#FF0055] border-8 border-black rounded-[40px] p-3 sm:p-4 w-full max-w-[480px] relative transform md:rotate-1 shadow-[20px_20px_0px_0px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-200 flex flex-col max-h-[95dvh] mb-12 sm:mb-0 pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -78,18 +78,18 @@ export default function LawsuitPanel() {
         </div>
 
         {/* Warning Stripes Header */}
-        <div className="flex bg-black py-2 px-4 rounded-xl mb-4 items-center justify-center border-4 border-white shadow-[4px_4px_0_0_rgba(0,0,0,0.3)] shrink-0">
+        <div className="flex bg-black py-1.5 px-4 rounded-xl mb-2 items-center justify-center border-4 border-white shadow-[4px_4px_0_0_rgba(0,0,0,0.3)] shrink-0">
           <AlertTriangle className="w-5 h-5 text-[#FFCC00] mr-2 animate-pulse" />
-          <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-tight">Legal Emergency</h2>
+          <h2 className="text-lg font-black text-white italic tracking-tighter uppercase leading-tight">Legal Emergency</h2>
         </div>
 
         {/* Content Box - Fixed Height with Inner Scroll */}
         <div 
-          className="bg-white border-4 border-black p-4 sm:p-6 rounded-3xl relative z-10 shadow-inner flex flex-col h-full max-h-[400px] sm:max-h-[500px] overflow-hidden"
+          className="bg-white border-4 border-black p-3 sm:p-5 rounded-3xl relative z-10 shadow-inner flex flex-col h-auto overflow-hidden"
           style={{ touchAction: 'pan-y' }}
         >
           <div 
-            className="overflow-y-auto flex-1 custom-scrollbar pr-2 overscroll-contain"
+            className="overflow-y-auto flex-1 pr-1 overscroll-contain"
           >
             {outcome ? (
               <div className="flex flex-col items-center justify-center py-4 animate-in zoom-in-95 duration-300">
@@ -128,174 +128,160 @@ export default function LawsuitPanel() {
               </div>
             ) : (
               <div className="flex flex-col gap-0">
-                <div className="border-b-4 border-black pb-3 mb-4 flex justify-between items-start gap-2">
+                <div className="border-b-4 border-black pb-1.5 mb-2 flex justify-between items-start gap-2">
                   <div>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Docket: {lawsuitState.activeLawsuitId || "GEN-991"}</p>
-                    <h4 className="text-lg sm:text-xl font-black text-black uppercase tracking-tighter leading-tight">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-0.5">Docket: {lawsuitState.activeLawsuitId || "GEN-991"}</p>
+                    <h4 className="text-base sm:text-lg font-black text-black uppercase tracking-tighter leading-tight">
                       {lawsuitState.plaintiff}
                     </h4>
                   </div>
-                  <div className="shrink-0 pt-1">
-                    <span className="bg-black text-[#FFCC00] text-[8px] font-black px-2 py-1 rounded-md italic whitespace-nowrap">SENSITIVE CASE</span>
+                  <div className="shrink-0 pt-0.5">
+                    <span className="bg-black text-[#FFCC00] text-[7px] font-black px-1.5 py-0.5 rounded-md italic whitespace-nowrap uppercase">Sensitive Case</span>
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <p className="text-zinc-600 font-bold italic leading-snug text-sm border-l-4 border-[#FF0055] pl-4 py-1">
+                <div className="mb-2">
+                  <p className="text-zinc-600 font-bold italic leading-snug text-xs border-l-4 border-[#FF0055] pl-3 py-0.5">
                     "{lawsuitState.claim}"
                   </p>
                 </div>
 
-                {/* Larry's Dialogue Bubble */}
-                <div className="mb-6 relative animate-in slide-in-from-left duration-500">
-                  <div className="bg-zinc-900 border-4 border-black rounded-3xl p-4 shadow-[6px_6px_0_0_black] flex items-start gap-4">
-                    <div className="w-12 h-12 bg-[#dc2626] border-2 border-black rounded-full shrink-0 flex items-center justify-center relative overflow-hidden">
-                       {/* Mini Larry Icon Wrapper */}
-                       <div className="w-full h-full bg-[#dc2626] flex items-center justify-center">
-                          <Gavel className="w-6 h-6 text-white" />
-                       </div>
-                       <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent"></div>
+                {/* Larry's Dialogue Bubble (Compact Notification Style) */}
+                <div className="mb-3 relative animate-in slide-in-from-left duration-500">
+                  <div className="bg-zinc-900 border-4 border-black rounded-2xl p-2.5 shadow-[4px_4px_0_0_black] flex items-center gap-3">
+                    <div className="w-9 h-9 bg-[#dc2626] border-2 border-black rounded-full shrink-0 flex items-center justify-center relative overflow-hidden">
+                        <Gavel className="w-5 h-5 text-white relative z-10" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent"></div>
                     </div>
-                    <div>
-                      <span className="text-[8px] font-black text-[#FFCC00] uppercase tracking-widest block mb-1">Larry (Process Server)</span>
-                      <p className="text-white text-xs font-bold italic leading-tight">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[7px] font-black text-[#FFCC00] uppercase tracking-widest block leading-none mb-0.5">Larry (Process Server)</span>
+                      <p className="text-white text-[10.5px] font-bold italic leading-tight truncate">
                         "{lawsuitState.larryDialogue || "Sign here, Dan. It's official."}"
                       </p>
                     </div>
                   </div>
-                  {/* Speech bubble tail */}
-                  <div className="absolute -bottom-2 left-10 w-4 h-4 bg-zinc-900 border-r-4 border-b-4 border-black rotate-45"></div>
                 </div>
 
-                <div className="bg-[#00FFD1] h-1 w-full rounded-full opacity-10 mb-6"></div>
+                <div className="bg-black/10 h-0.5 w-full rounded-full mb-3"></div>
 
                 {!isExpanded ? (
-                  /* TIER 1: SIMPLE BUTTONS */
-                  <div className="flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300">
+                  /* TIER 1: COMPACT BUTTONS */
+                  <div className="flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-300">
                     <button
                       onClick={() => handleAction(settleLawsuit, 'settle')}
-                      className="group flex items-center justify-between bg-black p-5 rounded-3xl border-4 border-black hover:bg-zinc-900 transition-all active:scale-[0.98] shadow-[6px_6px_0_0_black]"
+                      className="group flex items-center justify-between bg-black p-3.5 rounded-[22px] border-4 border-black hover:bg-zinc-900 transition-all active:scale-[0.98] shadow-[4px_4px_0_0_black]"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="bg-[#00FFD1] p-2 rounded-xl shrink-0">
-                          <Shield className="w-6 h-6 text-black" />
+                      <div className="flex items-center gap-3">
+                        <div className="bg-[#00FFD1] p-1.5 rounded-lg shrink-0">
+                          <Shield className="w-5 h-5 text-black" />
                         </div>
                         <div className="text-left">
-                          <span className="text-[#00FFD1] font-black uppercase italic text-lg block leading-none">PAY FINE</span>
-                          <span className="text-zinc-500 font-bold text-[10px]">Instant settlement</span>
+                          <span className="text-[#00FFD1] font-black uppercase italic text-base block leading-none">PAY FINE</span>
+                          <span className="text-zinc-500 font-bold text-[9px] block mt-0.5">Instant settlement</span>
                         </div>
                       </div>
-                      <span className="text-[#00FFD1] font-mono font-black text-sm">-${formatNumber(lawsuitState.amount || 0)}</span>
+                      <span className="text-[#00FFD1] font-mono font-black text-xs">-${formatNumber(lawsuitState.amount || 0)}</span>
                     </button>
-
+                
                     <button
                       onClick={ignoreLawsuit}
-                      className="group flex items-center justify-between bg-white p-5 rounded-3xl border-4 border-black hover:bg-zinc-100 transition-all active:scale-[0.98] shadow-[6px_6px_0_0_black]"
+                      className="group flex items-center justify-between bg-white p-3.5 rounded-[22px] border-4 border-black hover:bg-zinc-100 transition-all active:scale-[0.98] shadow-[4px_4px_0_0_black]"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="bg-[#FF0055] p-2 rounded-xl shrink-0">
-                          <EyeOff className="w-6 h-6 text-white" />
+                      <div className="flex items-center gap-3">
+                        <div className="bg-[#f0134d] p-1.5 rounded-lg shrink-0">
+                          <EyeOff className="w-5 h-5 text-white" />
                         </div>
                         <div className="text-left">
-                          <span className="text-black font-black uppercase italic text-lg block leading-none">IGNORE</span>
-                          <span className="text-zinc-400 font-bold text-[10px]">Dangerous maneuver</span>
+                          <span className="text-black font-black uppercase italic text-base block leading-none">IGNORE</span>
+                          <span className="text-zinc-400 font-bold text-[9px] block mt-0.5">Dangerous maneuver</span>
                         </div>
                       </div>
-                      <span className="text-[#FF0055] font-black text-xs italic">HEAT+</span>
+                      <span className="text-[#f0134d] font-black text-[10px] italic">HEAT+</span>
                     </button>
-
+                
                     <button
                       onClick={() => setIsExpanded(true)}
-                      className="w-full bg-zinc-100 border-2 border-dashed border-zinc-400 hover:border-black hover:bg-zinc-200 text-zinc-500 hover:text-black font-black py-3 rounded-2xl transition-all uppercase italic text-xs tracking-widest flex items-center justify-center gap-2"
+                      className="w-full bg-zinc-50 border-2 border-dashed border-zinc-300 hover:border-black hover:bg-zinc-100 text-zinc-400 hover:text-black font-black py-2 rounded-xl transition-all uppercase italic text-[9px] tracking-widest flex items-center justify-center gap-2"
                     >
                       Deal With It <AlertTriangle className="w-3 h-3" />
                     </button>
                   </div>
                 ) : (
                   /* TIER 2: DEEP STRATEGY (Already existing grid, just wrapped) */
-                  <div className="flex flex-col gap-3 pb-4 animate-in slide-in-from-bottom-4 duration-300">
-                    <div className="flex justify-between items-center mb-1">
-                      <h5 className="text-[10px] font-black uppercase text-zinc-400 italic">Advanced Defense Systems</h5>
-                      <button onClick={() => setIsExpanded(false)} className="text-[9px] font-black uppercase text-[#FF0055] hover:underline">Back to basic</button>
+                  <div className="flex flex-col gap-2 pb-2 animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex justify-between items-center mb-0.5">
+                      <h5 className="text-[9px] font-black uppercase text-zinc-400 italic">Advanced Systems</h5>
+                      <button onClick={() => setIsExpanded(false)} className="text-[9px] font-black uppercase text-[#FF0055] hover:underline">Back</button>
                     </div>
                 
-                  {/* LARRY INTERACTION (Persistent Character) */}
-                  <div className="bg-zinc-900 p-4 rounded-2xl border-4 border-black relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Zap className="w-12 h-12 text-white" />
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[#FFCC00] font-black uppercase italic text-xs tracking-widest">Larry the Process Server</span>
-                      <span className="text-zinc-500 font-mono text-[10px]">Greed level: {lawsuitState.larryBribeCount}</span>
-                    </div>
-                    <button 
-                      onClick={() => handleAction(bribeLarry, 'bribe')}
-                      className="w-full bg-[#FFCC00] hover:bg-[#ffdb4d] text-black font-black py-2 rounded-xl border-2 border-black transform active:scale-95 transition-all flex items-center justify-center gap-1 text-[11px] sm:text-xs"
-                    >
-                      <Zap className="w-3 h-3 fill-black shrink-0" />
-                      BRIBE LARRY (${formatNumber(50000 * Math.pow(1.5, lawsuitState.larryBribeCount))})
-                    </button>
-                  </div>
-
-                  {/* EVASION TACTICS (3-TIER SYSTEM) */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => handleAction(() => evadeLawsuit('shredder'), 'evade')} className="flex flex-col items-center gap-1 bg-zinc-100 p-2 rounded-xl border-2 border-black hover:bg-zinc-200 transition-colors">
-                      <Shield className="w-4 h-4 text-zinc-400" />
-                      <span className="text-[8px] font-black uppercase">Shredder</span>
-                    </button>
-                    <button onClick={() => handleAction(() => evadeLawsuit('mixup'), 'evade')} className="flex flex-col items-center gap-1 bg-zinc-100 p-2 rounded-xl border-2 border-black hover:bg-zinc-200 transition-colors">
-                      <EyeOff className="w-4 h-4 text-zinc-600" />
-                      <span className="text-[8px] font-black uppercase">Mix-up</span>
-                    </button>
-                    <button onClick={() => handleAction(() => evadeLawsuit('bankruptcy'), 'evade')} className="flex flex-col items-center gap-1 bg-zinc-800 p-2 rounded-xl border-2 border-black hover:bg-zinc-700 transition-colors">
-                      <Lock className="w-4 h-4 text-[#9D4EDD]" />
-                      <span className="text-[8px] font-black uppercase text-white">Fake Bankrupt</span>
-                    </button>
-                  </div>
-
-                  {/* COURT CARDS (POKER SYSTEM) */}
-                  <div className="border-4 border-black p-4 rounded-3xl bg-zinc-50 relative">
-                    <div className="absolute -top-3 left-4 bg-black text-white px-3 py-1 rounded-full text-[8px] font-black italic uppercase tracking-widest">
-                        Choose Your Verdict
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                      <button onClick={() => handleAction(() => fightLawsuit('technical'), 'fight')} className="p-2 border-2 border-black rounded-xl bg-white hover:bg-[#00FFD1] text-[9px] font-black transition-colors uppercase italic shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                        Technical Error
-                      </button>
-                      <button onClick={() => handleAction(() => fightLawsuit('expert'), 'fight')} className="p-2 border-2 border-black rounded-xl bg-white hover:bg-[#FFCC00] text-[9px] font-black transition-colors uppercase italic shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                        Expert Witness
-                      </button>
-                      <button onClick={() => handleAction(() => fightLawsuit('media'), 'fight')} className="p-2 border-2 border-black rounded-xl bg-white hover:bg-[#FF0055] text-[9px] font-black transition-colors uppercase italic shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                        Media Blitz
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#00FFD1] h-1 w-full rounded-full opacity-20 my-1"></div>
-
-                  {/* CLASSIC SETTLE */}
-                  <button
-                    onClick={() => handleAction(settleLawsuit, 'settle')}
-                    className="group flex items-center justify-between bg-black p-3 rounded-2xl border-4 border-black hover:bg-zinc-900 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-[#00FFD1] p-1.5 rounded-lg shrink-0">
-                        <Shield className="w-4 h-4 text-black" />
+                    {/* LARRY INTERACTION */}
+                    <div className="bg-zinc-900 p-2.5 rounded-xl border-4 border-black relative overflow-hidden group">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[#FFCC00] font-black uppercase italic text-[10px] tracking-widest">Bribe Larry</span>
+                        <span className="text-zinc-500 font-mono text-[9px]">G: {lawsuitState.larryBribeCount}</span>
                       </div>
-                      <span className="text-[#00FFD1] font-black uppercase italic text-sm">Official Settlement</span>
+                      <button 
+                        onClick={() => handleAction(bribeLarry, 'bribe')}
+                        className="w-full bg-[#FFCC00] hover:bg-[#ffdb4d] text-black font-black py-1.5 rounded-lg border-2 border-black transform active:scale-95 transition-all flex items-center justify-center gap-1 text-[10px]"
+                      >
+                        <Zap className="w-3 h-3 fill-black shrink-0" />
+                        PAY ${formatNumber(50000 * Math.pow(1.5, lawsuitState.larryBribeCount))}
+                      </button>
                     </div>
-                    <span className="text-[#00FFD1]/60 font-mono text-xs">-${formatNumber(lawsuitState.amount || 0)}</span>
-                  </button>
 
-                  {/* SNOWBALL COUNTER */}
-                  <button
-                    onClick={ignoreLawsuit}
-                    className={`w-full py-2 border-2 border-dashed border-black rounded-xl font-black uppercase italic text-[10px] transition-all
-                      ${lawsuitState.ignoredCount >= 2 ? 'bg-[#FF0055] text-white animate-pulse' : 'text-zinc-400 hover:text-black'}
-                    `}
-                  >
-                    {lawsuitState.ignoredCount >= 2 ? "WARNING: CLASS ACTION IMMINENT" : `Throw in trash (IGNORE ${lawsuitState.ignoredCount}/3)`}
-                  </button>
+                    {/* EVASION TACTICS (3-TIER SYSTEM) */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button onClick={() => handleAction(() => evadeLawsuit('shredder'), 'evade')} className="flex flex-col items-center gap-0.5 bg-zinc-100 p-1.5 rounded-xl border-2 border-black hover:bg-zinc-200 transition-colors">
+                        <Shield className="w-3.5 h-3.5 text-zinc-400" />
+                        <span className="text-[7px] font-black uppercase">Shredder</span>
+                      </button>
+                      <button onClick={() => handleAction(() => evadeLawsuit('mixup'), 'evade')} className="flex flex-col items-center gap-0.5 bg-zinc-100 p-1.5 rounded-xl border-2 border-black hover:bg-zinc-200 transition-colors">
+                        <EyeOff className="w-3.5 h-3.5 text-zinc-600" />
+                        <span className="text-[7px] font-black uppercase">Mix-up</span>
+                      </button>
+                      <button onClick={() => handleAction(() => evadeLawsuit('bankruptcy'), 'evade')} className="flex flex-col items-center gap-0.5 bg-zinc-800 p-1.5 rounded-xl border-2 border-black hover:bg-zinc-700 transition-colors">
+                        <Lock className="w-3.5 h-3.5 text-[#9D4EDD]" />
+                        <span className="text-[7px] font-black uppercase text-white leading-none text-center">Fake Bankrupt</span>
+                      </button>
+                    </div>
+
+                    {/* COURT CARDS */}
+                    <div className="border-4 border-black p-2.5 pt-4 rounded-2xl bg-zinc-50 relative mt-1">
+                      <div className="absolute -top-2.5 left-3 bg-black text-white px-2 py-0.5 rounded-full text-[7px] font-black italic uppercase tracking-widest leading-none">
+                          Verdict
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button onClick={() => handleAction(() => fightLawsuit('technical'), 'fight')} className="p-1 px-0.5 border-2 border-black rounded-lg bg-white hover:bg-[#00FFD1] text-[8px] font-black transition-colors uppercase italic shadow-[1px_1px_0_0_rgba(0,0,0,1)] text-center leading-none">
+                          Tech Error
+                        </button>
+                        <button onClick={() => handleAction(() => fightLawsuit('expert'), 'fight')} className="p-1 px-0.5 border-2 border-black rounded-lg bg-white hover:bg-[#FFCC00] text-[8px] font-black transition-colors uppercase italic shadow-[1px_1px_0_0_rgba(0,0,0,1)] text-center leading-none">
+                          Expert
+                        </button>
+                        <button onClick={() => handleAction(() => fightLawsuit('media'), 'fight')} className="p-1 px-0.5 border-2 border-black rounded-lg bg-white hover:bg-[#FF0055] text-[8px] font-black transition-colors uppercase italic shadow-[1px_1px_0_0_rgba(0,0,0,1)] text-center leading-none">
+                          Media
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-black/10 h-0.5 w-full rounded-full my-1"></div>
+
+                    {/* CLASSIC SETTLE */}
+                    <button
+                      onClick={() => handleAction(settleLawsuit, 'settle')}
+                      className="group flex items-center justify-between bg-black p-2 px-3 rounded-xl border-2 border-black hover:bg-zinc-900 transition-all active:scale-[0.98]"
+                    >
+                      <span className="text-[#00FFD1] font-black uppercase italic text-[11px]">Official Settlement</span>
+                      <span className="text-[#00FFD1]/60 font-mono text-[9px]">-${formatNumber(lawsuitState.amount || 0)}</span>
+                    </button>
+                
+                    <button
+                      onClick={ignoreLawsuit}
+                      className={`w-full py-1.5 border-2 border-dashed border-black rounded-xl font-black uppercase italic text-[8px] transition-all
+                        ${lawsuitState.ignoredCount >= 2 ? 'bg-[#FF0055] text-white animate-pulse' : 'text-zinc-400 hover:text-black'}
+                      `}
+                    >
+                      {lawsuitState.ignoredCount >= 2 ? "CLASS ACTION IMMINENT" : `IGNORE (${lawsuitState.ignoredCount}/3)`}
+                    </button>
                   </div>
                 )}
               </div>

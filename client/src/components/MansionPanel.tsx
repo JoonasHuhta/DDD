@@ -466,12 +466,12 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-2">
+        <div className="flex flex-wrap gap-2 mb-4 justify-center">
           {(['luring', 'ops', 'decoration', 'clothing', 'lifestyle'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveMansionTab(tab)}
-              className={`flex-none px-3 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9px] whitespace-nowrap transition-all ${
+              className={`px-3 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9px] transition-all ${
                 activeMansionTab === tab ? 'bg-[#FFD700] translate-y-1' : 'bg-white shadow-[4px_4px_0_0_rgba(0,0,0,1)]'
               }`}
             >
