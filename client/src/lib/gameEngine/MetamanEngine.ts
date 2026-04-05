@@ -511,9 +511,6 @@ export class MetamanEngine {
         this.onCampaignChargesUpdate(campaignCharges - 1);
       }
       
-      // Play zap sound
-      this.playZapSound();
-      
       // Make Metaman react to clicks
       this.metaman.onClick();
       this.metaman.setPhoneEmoji('⚡', 600); // ⚡ on screen during luring

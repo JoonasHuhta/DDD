@@ -14,13 +14,13 @@ interface AudioState {
   alertSound: HTMLAudioElement | null;
   collectSound: HTMLAudioElement | null;
   orbdingSound: HTMLAudioElement | null;
-  isMuted: boolean;
+  isMusicMuted: boolean;
   isInitialized: boolean;
   isPrimed: boolean;
   
   initAudio: () => void;
   primeAudio: () => Promise<void>;
-  toggleMute: () => void;
+  toggleMusicMute: () => void;
   
   playBackgroundMusic: () => void;
   pauseBackgroundMusic: () => void;
@@ -59,7 +59,7 @@ const plop = typeof Audio !== 'undefined' ? new Audio("/sounds/plop.mp3") : null
 const upgrade = typeof Audio !== 'undefined' ? new Audio("/sounds/upgrade.mp3") : null;
 
 // New Sounds
-const zap = typeof Audio !== 'undefined' ? new Audio("/sounds/zap.mp3") : null;
+const zap = typeof Audio !== 'undefined' ? new Audio("/sounds/newzap.mp3") : null;
 const alertSoundEffect = typeof Audio !== 'undefined' ? new Audio("/sounds/alert.mp3") : null;
 const collect = typeof Audio !== 'undefined' ? new Audio("/sounds/collect.mp3") : null;
 const orbding = typeof Audio !== 'undefined' ? new Audio("/sounds/orbding.mp3") : null;
@@ -75,7 +75,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   alertSound: alertSoundEffect,
   collectSound: collect,
   orbdingSound: orbding,
-  isMuted: false,
+  isMusicMuted: false,
   isInitialized: false,
   isPrimed: false,
   isTransitioning: false,
@@ -87,8 +87,8 @@ export const useAudio = create<AudioState>((set, get) => ({
     // Recovery listeners for mobile WebView stalls
     musicSprite.addEventListener('stalled', () => {
       console.warn('[AUDIO]', 'STALLED', 'Attempting recovery...');
-      const { isMuted, isTransitioning, isPrimed } = get();
-      if (!isMuted && !isTransitioning && isPrimed) get().playBackgroundMusic();
+      const { isMusicMuted, isTransitioning, isPrimed } = get();
+      if (!isMusicMuted && !isTransitioning && isPrimed) get().playBackgroundMusic();
     });
 
     musicSprite.addEventListener('error', (e) => {
@@ -98,7 +98,6 @@ export const useAudio = create<AudioState>((set, get) => ({
     // Set initial src
     musicSprite.src = "/sounds/Forgo1.mp3";
     musicSprite.load();
-
     set({ isInitialized: true });
     console.log('[AUDIO]', 'INITIALIZED', 'Path: /sounds/Forgo1.mp3');
   },
@@ -112,14 +111,26 @@ export const useAudio = create<AudioState>((set, get) => ({
       // Play at near-zero volume to "unlock" the audio element
       const originalVolume = 0.3;
       musicSprite.volume = 0.001;
-      await musicSprite.play();
+      
+      // Mobile Robustness: Prime ALL elements concurrently
+      const primeTargets = [musicSprite, zap, collect, orbding, alertSoundEffect].filter(Boolean) as HTMLAudioElement[];
+      await Promise.all(primeTargets.map(async (el) => {
+        try {
+          el.muted = true; // Use muted play for priming to avoid audio pops
+          await el.play();
+          el.pause();
+          el.muted = false;
+        } catch (e) {
+          console.warn('[AUDIO]', 'PRIME_ITEM_FAIL', el.src, e);
+        }
+      }));
       
       // If successful, we are primed
       set({ isPrimed: true });
       console.log('[AUDIO]', 'PRIMING_SUCCESS');
       
       // Restore volume if not muted
-      if (get().isMuted) {
+      if (get().isMusicMuted) {
         musicSprite.pause();
       } else {
         musicSprite.volume = originalVolume;
@@ -129,11 +140,11 @@ export const useAudio = create<AudioState>((set, get) => ({
     }
   },
   
-  toggleMute: () => {
-    const { isMuted, playBackgroundMusic, isPrimed } = get();
-    const newMutedState = !isMuted;
+  toggleMusicMute: () => {
+    const { isMusicMuted, playBackgroundMusic, isPrimed } = get();
+    const newMutedState = !isMusicMuted;
     
-    set({ isMuted: newMutedState });
+    set({ isMusicMuted: newMutedState });
     
     if (musicSprite) {
       if (newMutedState) {
@@ -149,10 +160,10 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playBackgroundMusic: () => {
-    const { isMuted, isInitialized, isPrimed } = get();
+    const { isMusicMuted, isInitialized, isPrimed } = get();
     if (!isInitialized || !musicSprite) return;
     
-    if (!isMuted && musicSprite.paused && isPrimed) {
+    if (!isMusicMuted && musicSprite.paused && isPrimed) {
       playingPromise = musicSprite.play();
       playingPromise.then(() => {
         playingPromise = null;
@@ -176,14 +187,14 @@ export const useAudio = create<AudioState>((set, get) => ({
   setTrack: (trackName: string) => {
     if (!musicSprite) return;
     
-    const { currentTrack, setIsTransitioning, isMuted, isPrimed } = get();
+    const { currentTrack, setIsTransitioning, isMusicMuted, isPrimed } = get();
     if (currentTrack === trackName) return;
 
     console.log('[AUDIO]', 'SRC_CHANGE', trackName);
     setIsTransitioning(true);
     
     // Simple transition: Fade out -> Swap Src -> Play -> Fade in
-    if (!isMuted && isPrimed) {
+    if (!isMusicMuted && isPrimed) {
       if (lastFadeInterval) clearInterval(lastFadeInterval);
       
       let fadeStep = 0;
@@ -231,25 +242,22 @@ export const useAudio = create<AudioState>((set, get) => ({
   setIsTransitioning: (v: boolean) => set({ isTransitioning: v }),
   
   playHit: () => {
-    const { isMuted } = get();
-    if (hit && !isMuted) {
+    if (hit) {
       const soundClone = hit.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.3;
+      soundClone.volume = 1.0;
       soundClone.play().catch(() => {});
     }
   },
   
   playSuccess: () => {
-    const { isMuted } = get();
-    if (success && !isMuted) {
+    if (success) {
       success.currentTime = 0;
       success.play().catch(() => {});
     }
   },
   
   playLegal: () => {
-    const { isMuted } = get();
-    if (legal && !isMuted) {
+    if (legal) {
       const soundClone = legal.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.6;
       soundClone.play().catch(() => {});
@@ -257,8 +265,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playCash4: () => {
-    const { isMuted } = get();
-    if (cash4 && !isMuted) {
+    if (cash4) {
       const soundClone = cash4.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.8;
       soundClone.play().catch(() => {});
@@ -266,17 +273,15 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playPlop: () => {
-    const { isMuted } = get();
-    if (plop && !isMuted) {
+    if (plop) {
       const soundClone = plop.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.5;
+      soundClone.volume = 1.0;
       soundClone.play().catch(() => {});
     }
   },
   
   playUpgrade: () => {
-    const { isMuted } = get();
-    if (upgrade && !isMuted) {
+    if (upgrade) {
       const soundClone = upgrade.cloneNode() as HTMLAudioElement;
       soundClone.volume = 0.6;
       soundClone.play().catch(() => {});
@@ -284,26 +289,23 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playZap: () => {
-    const { isMuted } = get();
-    if (zap && !isMuted) {
-      const soundClone = zap.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.4;
-      soundClone.play().catch(() => {});
+    if (zap) {
+      zap.currentTime = 0;
+      zap.volume = 0.4;
+      zap.play().catch(() => {});
     }
   },
   
   playAlert: () => {
-    const { isMuted } = get();
-    if (alertSoundEffect && !isMuted) {
+    if (alertSoundEffect) {
       const soundClone = alertSoundEffect.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.5;
+      soundClone.volume = 1.0;
       soundClone.play().catch(() => {});
     }
   },
   
   playCollect: () => {
-    const { isMuted } = get();
-    if (collect && !isMuted) {
+    if (collect) {
       const soundClone = collect.cloneNode() as HTMLAudioElement;
       soundClone.volume = 1.0;
       soundClone.play().catch(() => {});
@@ -311,8 +313,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   
   playOrbding: () => {
-    const { isMuted } = get();
-    if (orbding && !isMuted) {
+    if (orbding) {
       const soundClone = orbding.cloneNode() as HTMLAudioElement;
       soundClone.volume = 1.0;
       soundClone.play().catch(() => {});

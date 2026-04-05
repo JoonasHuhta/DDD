@@ -146,7 +146,7 @@ export default function GameUI() {
     lastUserLossTime: state.lastUserLossTime,
     currentAchievementShowcase: state.currentAchievementShowcase
   })));
-  const { isMuted, toggleMute } = useAudio();
+  const { isMusicMuted, toggleMusicMute } = useAudio();
   const responsive = useResponsiveUI();
   const panels = usePanelState();
   
@@ -251,7 +251,7 @@ export default function GameUI() {
     const startAudioOnInteraction = async () => {
       console.log('[AUDIO]', 'INTERACTION_DETECTED - PRIMING');
       await primeAudio();
-      if (!isMuted && !isTransitioning) {
+      if (!isMusicMuted && !isTransitioning) {
         playBackgroundMusic();
       }
       // Remove listeners after first interaction attempt
@@ -268,7 +268,7 @@ export default function GameUI() {
         pauseBackgroundMusic();
       } else {
         console.log('[AUDIO]', 'APP_VISIBLE', 'Resuming music');
-        if (!isMuted) playBackgroundMusic();
+        if (!isMusicMuted) playBackgroundMusic();
       }
     };
     
@@ -295,14 +295,14 @@ export default function GameUI() {
     }
 
     const timer = setTimeout(() => {
-      if (!isMuted && !isTransitioning) {
+      if (!isMusicMuted && !isTransitioning) {
         console.log('[AUDIO]', 'AUTO_PLAY_SYNC', gameState);
         playBackgroundMusic();
       }
     }, 1500); // Higher delay for mobile stability
 
     return () => clearTimeout(timer);
-  }, [gameState, isMuted, isTransitioning, currentTrack, setTrack, playBackgroundMusic]);
+  }, [gameState, isMusicMuted, isTransitioning, currentTrack, setTrack, playBackgroundMusic]);
 
 
 

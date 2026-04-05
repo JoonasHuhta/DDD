@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Volume2, VolumeX, Save, Download, Upload, Trash2, Power, HelpCircle } from 'lucide-react';
+import { Settings, Music, VolumeX, Save, Download, Upload, Trash2, Power, HelpCircle } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { useAudio, MUSIC_TRACKS } from '../lib/stores/useAudio';
 import AdaptivePanel from './AdaptivePanel';
@@ -10,7 +10,7 @@ interface OptionsPanelProps {
 
 export default function OptionsPanel({ onClose }: OptionsPanelProps) {
   const { performHardReset, gameSettings, updateGameSettings } = useMetamanGame();
-  const { isMuted, toggleMute, currentTrack, setTrack } = useAudio();
+  const { isMusicMuted, toggleMusicMute, currentTrack, setTrack } = useAudio();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
 
@@ -33,16 +33,16 @@ export default function OptionsPanel({ onClose }: OptionsPanelProps) {
         <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              <span className="text-sm font-black text-black uppercase">Audio</span>
+              {isMusicMuted ? <VolumeX className="w-4 h-4" /> : <Music className="w-4 h-4" />}
+              <span className="text-sm font-black text-black uppercase">Music</span>
             </div>
             <button
-              onClick={toggleMute}
+              onClick={toggleMusicMute}
               className={`px-4 py-1 border-4 border-black rounded-xl font-black uppercase italic transition-all ${
-                isMuted ? 'bg-[#FF1744] text-white' : 'bg-[#4ECDC4] text-black'
+                isMusicMuted ? 'bg-[#FF1744] text-white' : 'bg-[#4ECDC4] text-black'
               }`}
             >
-              {isMuted ? 'MUTED' : 'ON'}
+              {isMusicMuted ? 'MUTED' : 'ON'}
             </button>
           </div>
 

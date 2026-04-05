@@ -47,6 +47,10 @@ export default function BootSequence({ onComplete }: BootSequenceProps) {
   return (
     <div 
       className="fixed inset-0 z-[9999] bg-[#87CEEB] flex items-center justify-center p-4 sm:p-8 overflow-hidden touch-none select-none"
+      style={{ 
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+        paddingTop: 'calc(1rem + env(safe-area-inset-top))' 
+      }}
       onClick={handleSkip}
     >
       <motion.div 
@@ -191,7 +195,8 @@ export default function BootSequence({ onComplete }: BootSequenceProps) {
             handleSkip();
             if (isReady) onComplete(); // If already ready, Skip acts as the final confirmation
           }}
-          className="fixed bottom-8 right-8 flex items-center gap-2 px-6 py-4 bg-black/80 backdrop-blur-xl rounded-2xl border-4 border-[#FFD700] text-[#FFD700] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#FFD700] hover:text-black transition-all z-[10001] group active:translate-y-1 active:shadow-none"
+          className="fixed right-8 flex items-center gap-2 px-6 py-4 bg-black/80 backdrop-blur-xl rounded-2xl border-4 border-[#FFD700] text-[#FFD700] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#FFD700] hover:text-black transition-all z-[10001] group active:translate-y-1 active:shadow-none"
+          style={{ bottom: 'calc(2rem + env(safe-area-inset-bottom))' }}
         >
           <span className="font-black uppercase tracking-widest text-sm">Skip</span>
           <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
