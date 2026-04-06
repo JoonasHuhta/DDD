@@ -33,6 +33,7 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showBriefing, setShowBriefing] = useState(false);
   const [particles, setParticles] = useState<{ id: number, x: number, y: number, tx: number, ty: number, color: string }[]>([]);
   const simulateSafeArea = useMetamanGame(state => state.gameSettings.simulateSafeArea);
   const lastMergeTimestamp = React.useRef<number>(0);
@@ -127,15 +128,42 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
         className="w-full max-w-md bg-[#112240] border-4 border-[#1E3A8A] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(30,58,138,0.5)] relative"
       >
         
+        {/* Briefing Modal */}
+        {showBriefing && (
+          <div className="absolute inset-0 z-[130] bg-[#0A192F] bg-opacity-98 flex flex-col items-center justify-center p-8 text-center font-mono">
+            <div className="max-w-xs border-2 border-blue-900 bg-black p-6 rounded-lg shadow-[0_0_30px_rgba(30,58,138,0.3)]">
+              <h3 className="text-blue-400 font-black mb-6 tracking-tighter text-sm uppercase">THE FORGE — OPERATIONAL BRIEFING</h3>
+              <div className="text-[11px] text-gray-300 space-y-4 leading-relaxed">
+                <p>Evidence doesn't disappear.<br/>It gets recontextualized.</p>
+                <p>Merge identical items to refine them. Higher tier = stronger output.</p>
+                <p>Finished product waits in the tray.<br/>It won't use itself.</p>
+                <p>The machine does not judge.<br/>That's your job.<br/>You're not doing it.</p>
+                <p className="text-blue-500 font-bold mt-4">— Management</p>
+              </div>
+              <button 
+                onClick={() => setShowBriefing(false)}
+                className="mt-8 w-full py-2 bg-blue-900 hover:bg-blue-800 text-[10px] font-black tracking-widest rounded border border-blue-400 text-blue-100 transition-colors"
+              >
+                UNDERSTOOD
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-[#1E3A8A] p-3 flex justify-between items-center border-b-4 border-black">
           <div className="flex items-center gap-2">
             <Anvil className="w-6 h-6 text-blue-300 animate-pulse" />
             <h2 className="text-xl font-black tracking-tighter italic uppercase text-white">THE FORGE</h2>
           </div>
-          <button onClick={onClose} className="hover:scale-110 transition-transform">
-            <XCircle className="w-8 h-8 text-red-500" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowBriefing(true)} className="hover:scale-110 transition-transform text-blue-300">
+              <Mail className="w-6 h-6" />
+            </button>
+            <button onClick={onClose} className="hover:scale-110 transition-transform">
+              <XCircle className="w-8 h-8 text-red-500" />
+            </button>
+          </div>
         </div>
 
         {/* Narrative Status Bar */}
