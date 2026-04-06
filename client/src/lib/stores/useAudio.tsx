@@ -3,17 +3,39 @@ import { create } from "zustand";
 // Removed infinitescroll.mp3 to save APK space as requested
 export const MUSIC_TRACKS = ['Forgo1.mp3', 'Forgo2.mp3', 'Forgo3.mp3', 'Forgo4.mp3', 'Forgo5.mp3'];
 
+// Web Audio API context - Singleton
+const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+const audioCtx = typeof AudioContextClass !== 'undefined' ? new AudioContextClass() : null;
+
+// Audio buffer cache
+const audioBuffers: Record<string, AudioBuffer> = {};
+
+// Background music remains HTMLAudioElement to avoid storing a huge decoded array in RAM
+const musicSprite = typeof Audio !== 'undefined' ? new Audio() : null;
+let playingPromise: Promise<void> | null = null;
+let lastFadeInterval: ReturnType<typeof setInterval> | null = null;
+
+if (musicSprite) {
+  musicSprite.volume = 0.3;
+  musicSprite.loop = true; 
+  musicSprite.preload = "auto";
+}
+
+// SFX list to preload
+const SFX_FILES = [
+  'hit.mp3',
+  'success.mp3',
+  'cash4.mp3',
+  'plop.mp3',
+  'upgrade.mp3',
+  'newzap.mp3',
+  'alert.mp3',
+  'collect.mp3',
+  'orbding.mp3'
+];
+
 interface AudioState {
   backgroundMusic: HTMLAudioElement | null;
-  hitSound: HTMLAudioElement | null;
-  successSound: HTMLAudioElement | null;
-  legalSound: HTMLAudioElement | null;
-  plopSound: HTMLAudioElement | null;
-  upgradeSound: HTMLAudioElement | null;
-  zapSound: HTMLAudioElement | null;
-  alertSound: HTMLAudioElement | null;
-  collectSound: HTMLAudioElement | null;
-  orbdingSound: HTMLAudioElement | null;
   isMusicMuted: boolean;
   isInitialized: boolean;
   isPrimed: boolean;
@@ -26,6 +48,8 @@ interface AudioState {
   pauseBackgroundMusic: () => void;
   setTrack: (trackName: string) => void;
   currentTrack: string;
+  
+  // SFX triggers
   playHit: () => void;
   playSuccess: () => void;
   playLegal: () => void;
@@ -36,45 +60,44 @@ interface AudioState {
   playAlert: () => void;
   playCollect: () => void;
   playOrbding: () => void;
+  
   isTransitioning: boolean;
   setIsTransitioning: (v: boolean) => void;
 }
 
-// Module-level singletons
-const musicSprite = typeof Audio !== 'undefined' ? new Audio() : null;
-let playingPromise: Promise<void> | null = null;
-let lastFadeInterval: ReturnType<typeof setInterval> | null = null;
-
-if (musicSprite) {
-  musicSprite.volume = 0.3;
-  musicSprite.loop = true; 
-  musicSprite.preload = "auto";
-}
-
-const hit = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
-const success = typeof Audio !== 'undefined' ? new Audio("/sounds/success.mp3") : null;
-const legal = typeof Audio !== 'undefined' ? new Audio("/sounds/hit.mp3") : null;
-const cash4 = typeof Audio !== 'undefined' ? new Audio("/sounds/cash4.mp3") : null;
-const plop = typeof Audio !== 'undefined' ? new Audio("/sounds/plop.mp3") : null;
-const upgrade = typeof Audio !== 'undefined' ? new Audio("/sounds/upgrade.mp3") : null;
-
-// New Sounds
-const zap = typeof Audio !== 'undefined' ? new Audio("/sounds/newzap.mp3") : null;
-const alertSoundEffect = typeof Audio !== 'undefined' ? new Audio("/sounds/alert.mp3") : null;
-const collect = typeof Audio !== 'undefined' ? new Audio("/sounds/collect.mp3") : null;
-const orbding = typeof Audio !== 'undefined' ? new Audio("/sounds/orbding.mp3") : null;
+// Web Audio API playback helper
+const playBuffer = (bufferName: string, vol: number = 1.0) => {
+  if (!audioCtx) return;
+  const buffer = audioBuffers[bufferName];
+  if (!buffer) {
+    console.warn(`[AUDIO] Buffer not loaded: ${bufferName}`);
+    return;
+  }
+  
+  try {
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = vol;
+    
+    source.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    // Explicit garbage collection as per user feedback
+    source.onended = () => {
+      source.disconnect();
+      gainNode.disconnect();
+    };
+    
+    source.start(0);
+  } catch (e) {
+    console.warn('[AUDIO] playBuffer failed:', e);
+  }
+};
 
 export const useAudio = create<AudioState>((set, get) => ({
   backgroundMusic: musicSprite,
-  hitSound: hit,
-  successSound: success,
-  legalSound: legal,
-  plopSound: plop,
-  upgradeSound: upgrade,
-  zapSound: zap,
-  alertSound: alertSoundEffect,
-  collectSound: collect,
-  orbdingSound: orbding,
   isMusicMuted: false,
   isInitialized: false,
   isPrimed: false,
@@ -82,50 +105,61 @@ export const useAudio = create<AudioState>((set, get) => ({
   currentTrack: "Forgo1.mp3",
   
   initAudio: () => {
-    if (get().isInitialized || !musicSprite) return;
+    if (get().isInitialized) return;
     
-    // Recovery listeners for mobile WebView stalls
-    musicSprite.addEventListener('stalled', () => {
-      console.warn('[AUDIO]', 'STALLED', 'Attempting recovery...');
-      const { isMusicMuted, isTransitioning, isPrimed } = get();
-      if (!isMusicMuted && !isTransitioning && isPrimed) get().playBackgroundMusic();
-    });
+    // 1. Preload SFX buffers asynchronously
+    if (audioCtx) {
+      SFX_FILES.forEach(async (file) => {
+        try {
+          const response = await fetch(`/sounds/${file}`);
+          const arrayBuffer = await response.arrayBuffer();
+          const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
+          audioBuffers[file] = decodedData;
+        } catch (err) {
+          console.warn(`[AUDIO] Failed to preload ${file}:`, err);
+        }
+      });
+    }
 
-    musicSprite.addEventListener('error', (e) => {
-      console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
-    });
+    // 2. Setup Background Music Recovery
+    if (musicSprite) {
+      musicSprite.addEventListener('stalled', () => {
+        console.warn('[AUDIO]', 'STALLED', 'Attempting recovery...');
+        const { isMusicMuted, isTransitioning, isPrimed } = get();
+        if (!isMusicMuted && !isTransitioning && isPrimed) get().playBackgroundMusic();
+      });
 
-    // Set initial src
-    musicSprite.src = "/sounds/Forgo1.mp3";
-    musicSprite.load();
+      musicSprite.addEventListener('error', (e) => {
+        console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
+      });
+
+      musicSprite.src = "/sounds/Forgo1.mp3";
+      musicSprite.load();
+    }
+    
     set({ isInitialized: true });
-    console.log('[AUDIO]', 'INITIALIZED', 'Path: /sounds/Forgo1.mp3');
+    console.log('[AUDIO]', 'INITIALIZED', 'Web Audio API ready');
   },
 
   primeAudio: async () => {
+    // SYNCHRONOUS RESUME for iOS compliance -> Must happen immediately in the event handler!
+    if (audioCtx && audioCtx.state === 'suspended') {
+      console.log('[AUDIO] Resuming AudioContext synchronously');
+      audioCtx.resume();
+    }
+
     const { isInitialized, isPrimed } = get();
     if (!isInitialized || isPrimed || !musicSprite) return;
 
     console.log('[AUDIO]', 'PRIMING_START');
     try {
-      // Play at near-zero volume to "unlock" the audio element
+      // Background music priming
       const originalVolume = 0.3;
-      musicSprite.volume = 0.001;
+      musicSprite.volume = 0.001; // Silent unlock
       
-      // Mobile Robustness: Prime ALL elements concurrently
-      const primeTargets = [musicSprite, zap, collect, orbding, alertSoundEffect].filter(Boolean) as HTMLAudioElement[];
-      await Promise.all(primeTargets.map(async (el) => {
-        try {
-          el.muted = true; // Use muted play for priming to avoid audio pops
-          await el.play();
-          el.pause();
-          el.muted = false;
-        } catch (e) {
-          console.warn('[AUDIO]', 'PRIME_ITEM_FAIL', el.src, e);
-        }
-      }));
+      await musicSprite.play();
+      musicSprite.pause();
       
-      // If successful, we are primed
       set({ isPrimed: true });
       console.log('[AUDIO]', 'PRIMING_SUCCESS');
       
@@ -241,82 +275,15 @@ export const useAudio = create<AudioState>((set, get) => ({
 
   setIsTransitioning: (v: boolean) => set({ isTransitioning: v }),
   
-  playHit: () => {
-    if (hit) {
-      const soundClone = hit.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 1.0;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playSuccess: () => {
-    if (success) {
-      success.currentTime = 0;
-      success.play().catch(() => {});
-    }
-  },
-  
-  playLegal: () => {
-    if (legal) {
-      const soundClone = legal.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.6;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playCash4: () => {
-    if (cash4) {
-      const soundClone = cash4.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.8;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playPlop: () => {
-    if (plop) {
-      const soundClone = plop.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 1.0;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playUpgrade: () => {
-    if (upgrade) {
-      const soundClone = upgrade.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 0.6;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playZap: () => {
-    if (zap) {
-      zap.currentTime = 0;
-      zap.volume = 0.4;
-      zap.play().catch(() => {});
-    }
-  },
-  
-  playAlert: () => {
-    if (alertSoundEffect) {
-      const soundClone = alertSoundEffect.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 1.0;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playCollect: () => {
-    if (collect) {
-      const soundClone = collect.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 1.0;
-      soundClone.play().catch(() => {});
-    }
-  },
-  
-  playOrbding: () => {
-    if (orbding) {
-      const soundClone = orbding.cloneNode() as HTMLAudioElement;
-      soundClone.volume = 1.0;
-      soundClone.play().catch(() => {});
-    }
-  }
+  // Note: 'legal' previously used hit.mp3, adjusting here
+  playHit: () => playBuffer('hit.mp3', 1.0),
+  playSuccess: () => playBuffer('success.mp3', 1.0),
+  playLegal: () => playBuffer('hit.mp3', 0.6),
+  playCash4: () => playBuffer('cash4.mp3', 0.8),
+  playPlop: () => playBuffer('plop.mp3', 1.0),
+  playUpgrade: () => playBuffer('upgrade.mp3', 0.6),
+  playZap: () => playBuffer('newzap.mp3', 0.4),
+  playAlert: () => playBuffer('alert.mp3', 1.0),
+  playCollect: () => playBuffer('collect.mp3', 1.0),
+  playOrbding: () => playBuffer('orbding.mp3', 1.0)
 }));

@@ -68,7 +68,10 @@ export interface GameSaveData {
     achievementQueue?: any[];
     totalPlayTime?: number;
     collectedElites?: string[];
-    darkWebPurchases?: string[];
+    darkWebPurchases: string[];
+    ironicBadges: string[];
+    forgeGrid?: (any | null)[];
+    forgeTray?: any[];
   };
   progression: {
     prestigeState: any;
@@ -195,7 +198,10 @@ export class SaveSystem {
         achievementQueue: gameData.achievementQueue || [],
         totalPlayTime: gameData.totalPlayTime || 0,
         collectedElites: gameData.collectedElites || [],
-        darkWebPurchases: gameData.darkWebPurchases || []
+        darkWebPurchases: gameData.darkWebPurchases || [],
+        ironicBadges: gameData.ironicBadges || [],
+        forgeGrid: gameData.forgeGrid || Array(20).fill(null),
+        forgeTray: gameData.forgeTray || []
       },
       progression: {
         prestigeState: gameData.prestigeState || {},

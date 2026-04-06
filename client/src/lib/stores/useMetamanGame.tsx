@@ -26,6 +26,14 @@ export interface ActiveBuff {
   expiresAt: number | null; // ms timestamp or null for permanent
 }
 
+export type ForgeItemType = 'email' | 'data' | 'doc' | 'proof';
+
+export interface ForgeItem {
+  id: string;
+  type: ForgeItemType;
+  level: number;
+}
+
 interface ClickParticle {
   id: string;
   x: number;
@@ -36,6 +44,19 @@ interface ClickParticle {
 
 interface MetamanGameStore {
   gameState: MetamanGameState;
+  ironicBadges: string[];
+  hasNewIronicBadge: boolean;
+  unlockIronicBadge: (id: string) => void;
+  clearNewIronicBadge: () => void;
+  showForgeSandbox: boolean;
+  setShowForgeSandbox: (show: boolean) => void;
+  forgeGrid: (ForgeItem | null)[];
+  forgeTray: ForgeItem[];
+  forgeLastMergePos: { x: number; y: number; timestamp: number } | null;
+  addToForge: (type: ForgeItemType) => void;
+  mergeForgeItems: (idxA: number, idxB: number) => void;
+  claimForgeReward: (trayIdx: number) => void;
+  clearForgeMergePos: () => void;
   income: number;
   users: number;
   selectedCampaign: string;
@@ -517,7 +538,7 @@ interface MetamanGameStore {
       gettingStarted: boolean; // $1k: +5% income
       millionaire: boolean;   // $1M: +10% income
       billionaire: boolean;   // $1B: +15% income
-      trillionaire: boolean;  // $1T: +25% prestige points
+      trillionaire: boolean;   // $1T: +25% prestige points
       clicktastic: boolean;   // 1k clicks: +10% click power
       clickMaster: boolean;   // 100k clicks: +25% click power
       speedDemon: boolean;    // $1M < 10m: +20% income
@@ -666,6 +687,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       activeCharacter: null,
       activeDialogueNode: null,
       gameState: "menu",
+      ironicBadges: [],
+      hasNewIronicBadge: false,
+      showForgeSandbox: false,
       income: 0, 
       users: 0,
       selectedCampaign: "social_feed",
@@ -1656,10 +1680,18 @@ export const useMetamanGame = create<MetamanGameStore>()(
       try {
         const { useAudio } = require("./useAudio");
         useAudio.getState().playAlert();
-      } catch (e) {
-        console.warn("Audio trigger failed:", e);
+      } catch (error) {
+        console.error("Failed to collect reward:", error);
       }
     },
+    
+    unlockIronicBadge: (id: string) => set((state) => {
+      if (state.ironicBadges.includes(id)) return state;
+      return { ironicBadges: [...state.ironicBadges, id], hasNewIronicBadge: true };
+    }),
+    
+    clearNewIronicBadge: () => set({ hasNewIronicBadge: false }),
+
     toggleLawsuitPanel: () => {
       const state = get();
       // If we are closing the panel, deduct the amount (settle the lawsuit)
@@ -2336,6 +2368,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         totalPlayTime: saveData.gameState.totalPlayTime || (saveData.statistics?.totalPlayTime || 0),
         collectedElites: saveData.gameState.collectedElites || [],
         darkWebPurchases: saveData.gameState.darkWebPurchases || [],
+        forgeGrid: saveData.gameState.forgeGrid || Array(20).fill(null),
+        forgeTray: saveData.gameState.forgeTray || [],
         gameState: "playing" // Switch to playing when loaded
       });
 
@@ -2411,6 +2445,11 @@ export const useMetamanGame = create<MetamanGameStore>()(
       
       // Apply heat increase via modifyHeat to account for lawyers
       get().modifyHeat(heatIncrease, 'data');
+      
+      // Add to Forge (Data Sales create Email/Data items)
+      if (Math.random() < 0.4) {
+        get().addToForge(Math.random() < 0.5 ? 'email' : 'data');
+      }
     },
 
     sellAllData: () => {
@@ -2589,7 +2628,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
 
       // Visual feedback
       if (finalCost > 0) {
-        get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'high', `-$${get().formatNumber(finalCost)}`, 'red');
+        get().addVisualEffect('money', window.innerWidth / 2, window.innerWidth / 2, 'high', `-$${get().formatNumber(finalCost)}`, 'red');
       }
       get().addReward({
         type: 'special',
@@ -2675,10 +2714,139 @@ export const useMetamanGame = create<MetamanGameStore>()(
     setShowServerDefense: (show) => set({ showServerDefense: show }),
     triggerServerDefense: () => set({ showServerDefense: true }),
     setShowSenateHearing: (show) => set({ showSenateHearing: show }),
+    setShowForgeSandbox: (show) => set({ showForgeSandbox: show }),
+    
+    forgeGrid: (() => {
+      const g = Array(20).fill(null);
+      // Seed 4 initial items for new players/testing
+      const types: ForgeItemType[] = ['email', 'data', 'doc', 'proof'];
+      for (let i = 0; i < 4; i++) {
+        g[i] = { id: `initial_${i}`, type: types[i], level: 0 };
+      }
+      return g;
+    })(),
+    forgeTray: [],
+    forgeLastMergePos: null,
+
+    addToForge: (type: ForgeItemType) => {
+      console.log("🛠 FORGE: Adding item", type);
+      set((state) => {
+        const emptyIdx = state.forgeGrid.findIndex(cell => cell === null);
+        if (emptyIdx === -1) {
+          console.warn("🛠 FORGE: Grid full!");
+          return state;
+        }
+
+        const newGrid = [...state.forgeGrid];
+        newGrid[emptyIdx] = {
+          id: Math.random().toString(36).substr(2, 9),
+          type,
+          level: 0
+        };
+
+        return { forgeGrid: newGrid };
+      });
+    },
+
+    mergeForgeItems: (idxA: number, idxB: number) => {
+      const state = get();
+      const itemA = state.forgeGrid[idxA];
+      const itemB = state.forgeGrid[idxB];
+
+      console.log("🛠 FORGE: Merge attempt", idxA, idxB, itemA?.type, itemB?.type);
+      if (!itemA || !itemB || idxA === idxB) return;
+      if (itemA.type !== itemB.type || itemA.level !== itemB.level) {
+        // Swap
+        set((s) => {
+          const newGrid = [...s.forgeGrid];
+          newGrid[idxA] = itemB;
+          newGrid[idxB] = itemA;
+          return { forgeGrid: newGrid };
+        });
+        return;
+      }
+
+      // MERGE SUCCESS
+      const newLevel = itemA.level + 1;
+      console.log("🛠 FORGE: MERGE SUCCESS! New Level:", newLevel);
+      
+      set((s) => {
+        const newGrid = [...s.forgeGrid];
+        newGrid[idxA] = null;
+        
+        if (newLevel === 3) {
+          console.log("🛠 FORGE: Output Tray entry!");
+          // Move to tray
+          newGrid[idxB] = null;
+          const trayItem = { ...itemA, id: Math.random().toString(36).substr(2, 9), level: 3 };
+          return { 
+            forgeGrid: newGrid, 
+            forgeTray: [...s.forgeTray.slice(-4), trayItem],
+            forgeLastMergePos: { x: idxB % 4, y: Math.floor(idxB / 4), timestamp: Date.now() } 
+          };
+        } else {
+          newGrid[idxB] = { ...itemA, id: Math.random().toString(36).substr(2, 9), level: newLevel };
+          return { forgeGrid: newGrid };
+        }
+      });
+
+      get().addVisualEffect('purchase' as any, window.innerWidth / 2, window.innerHeight / 2, 'low', 'FORGE MERGE!');
+    },
+
+    claimForgeReward: (trayIdx: number) => {
+      const state = get();
+      const item = state.forgeTray[trayIdx];
+      if (!item) return;
+
+      // Handle rewards based on type
+      switch (item.type) {
+        case 'email': // Weaponized Narrative
+          set((s) => ({
+            blackMarketState: {
+              ...s.blackMarketState,
+              regulatoryHeat: Math.max(0, s.blackMarketState.regulatoryHeat - 15)
+            }
+          }));
+          get().triggerCrisisSpeech("Narrative Managed. Context removed. Heat reduced.");
+          break;
+        case 'data': // Algorithmic Precision
+          get().addBuff({ id: 'forge_data_boost', type: 'income', multiplier: 2.0, expiresAt: Date.now() + 60000 });
+          get().triggerCrisisSpeech("Algorithms optimized. Profits incoming.");
+          break;
+        case 'doc': // Legal Loophole
+          set((s) => ({
+            blackMarketState: {
+              ...s.blackMarketState,
+              influencePoints: (s.blackMarketState.influencePoints || 0) + 25,
+              regulatoryHeat: Math.max(0, s.blackMarketState.regulatoryHeat - 5)
+            }
+          }));
+          get().triggerCrisisSpeech("Legal loophole identified. Friends in high places.");
+          break;
+        case 'proof': // Deepfake Alibi
+          set((s) => ({
+            blackMarketState: {
+              ...s.blackMarketState,
+              regulatoryHeat: Math.max(0, s.blackMarketState.regulatoryHeat - 40)
+            }
+          }));
+          get().triggerCrisisSpeech("Deepfake successful. You were never there.");
+          break;
+      }
+
+      set((s) => ({
+        forgeTray: s.forgeTray.filter((_, i) => i !== trayIdx)
+      }));
+
+      get().addVisualEffect('achievement' as any, window.innerWidth / 2, window.innerHeight / 2, 'medium', 'REWARD CLAIMED');
+    },
+
+    clearForgeMergePos: () => set({ forgeLastMergePos: null }),
+
     applyGemUserGeneration: () => get().updatePassiveUserGeneration(),
 
     setRegulatoryRisk: (risk: number) => set({ regulatoryRisk: Math.max(0, Math.min(100, risk)) }),
-    
+
     setCampaignCooldown: (campaignId: string, cooldown: number) => {
       set((state) => {
         const newCooldowns = new Map(state.campaignCooldowns);
@@ -3033,6 +3201,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
     forceRestoreAllButtons: () => {
       set((prevState) => ({ 
         currentAchievementShowcase: null,
+        hasNewIronicBadge: false,
+        showForgeSandbox: false,
         showCampaignPanel: false,
         showDepartments: false,
         showProgression: false,

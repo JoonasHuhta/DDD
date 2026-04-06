@@ -123,7 +123,7 @@ export class CharacterLogic {
 
     // Trigger Walsh if Heat is very high and we are established (Stage 3+)
     const stage = getStage(state.users);
-    if (stage >= 3 && state.blackMarketState.regulatoryHeat > 85 && !state.characters.walsh.flags.includes('met_walsh')) {
+    if (stage >= 3 && state.regulatoryRisk > 85 && !state.characters.walsh.flags.includes('met_walsh')) {
       return 'walsh_intro_1';
     }
 

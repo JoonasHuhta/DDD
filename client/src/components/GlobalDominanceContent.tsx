@@ -239,7 +239,7 @@ export function GlobalDominanceContent() {
           <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none origin-top-left scale-[0.75]">
              <div className="flex gap-1.5 mb-1">
                 <div className="bg-[#FFD700] px-2 py-0.5 rounded-lg border-2 border-black text-black font-black text-[12px] shadow-[2px_2px_0_0_black]">$ {Math.floor(income / 1000)}K</div>
-                <div className="bg-[#FF6B35] px-2 py-0.5 rounded-lg border-2 border-black text-white font-black text-[12px] shadow-[2px_2px_0_0_black] flex items-center gap-1"><Zap className="w-3 h-3" /> {orbsInventory}</div>
+                <div className="bg-[#FF6B35] px-2 py-0.5 rounded-lg border-2 border-black text-white font-black text-[12px] shadow-[2px_2px_0_0_black] flex items-center gap-1"><Zap className="w-3 h-3" /> {Math.floor(orbsInventory)}</div>
              </div>
              
              <div className="bg-black/80 px-2 py-1.5 rounded-xl border-2 border-white/10 backdrop-blur-sm">

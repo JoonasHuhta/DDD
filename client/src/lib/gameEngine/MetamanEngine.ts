@@ -480,7 +480,7 @@ export class MetamanEngine {
       // Create electric lure effect with campaign color and radius
       this.electricLure.addLure(lureOrigin.x, lureOrigin.y, x, y, campaign.color, campaign.radius);
       
-      this.playZapSound(); // NEW: Zap sound when casting campaign
+      useAudio.getState().playZap(); // DIRECT CALL: Satisfies strict mobile user interaction policy
       
       // Elite Scan Handling
       if (campaignId === 'elite_scan') {

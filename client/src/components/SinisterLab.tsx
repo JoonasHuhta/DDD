@@ -150,7 +150,7 @@ export default function SinisterLab({ onClose }: SinisterLabProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
             <div className="text-[10px] font-black text-gray-500 uppercase">Data Orbs</div>
-            <div className="text-2xl font-black text-black">{dataInventory}</div>
+            <div className="text-2xl font-black text-black">{Math.floor(dataInventory)}</div>
           </div>
           <div className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
             <div className="text-[10px] font-black text-gray-500 uppercase">Discoveries</div>

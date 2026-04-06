@@ -5,6 +5,7 @@ import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
 import { StatisticsContent } from './StatisticsPanel';
 import { ELITES } from '../lib/gameEngine/EliteRegistry';
+import { IronicBadgeTab } from './IronicBadges';
 
 interface MansionUpgrade {
   id: string;
@@ -50,11 +51,13 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     exportSave,
     importSave,
     decrementIncome,
-    collectedElites
+    collectedElites,
+    hasNewIronicBadge
   } = useMetamanGame();
 
   const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'bonuses' | 'stats' | 'trophies'>('mansion');
   const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops'>('luring');
+  const [activeTrophyTab, setActiveTrophyTab] = useState<'badges' | 'elites'>('badges');
 
   const isUpgradePurchased = (id: string) => mansionPurchases.includes(id);
 
@@ -568,8 +571,39 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     // ELITES is now imported at the top
     
     return (
-      <div className="space-y-6 pb-10">
-        <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-200 border-4 border-black rounded-2xl shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
+      <div className="space-y-4">
+        {/* Sub-tabs for Trophies */}
+        <div className="flex bg-gray-200 p-1 rounded-xl border-4 border-black mb-4">
+          <button
+            onClick={() => setActiveTrophyTab('badges')}
+            className={`flex-1 py-3 px-4 font-black text-sm uppercase rounded-lg transition-all relative ${
+              activeTrophyTab === 'badges' 
+                ? 'bg-black text-white shadow-[0_4px_0_0_#333]' 
+                : 'text-gray-500 hover:text-black hover:bg-gray-300'
+            }`}
+          >
+            Corporate Badges
+            {hasNewIronicBadge && (
+              <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_#ef4444]" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTrophyTab('elites')}
+            className={`flex-1 py-3 px-4 font-black text-sm uppercase rounded-lg transition-all ${
+              activeTrophyTab === 'elites' 
+                ? 'bg-black text-white shadow-[0_4px_0_0_#333]' 
+                : 'text-gray-500 hover:text-black hover:bg-gray-300'
+            }`}
+          >
+            Elite Collection
+          </button>
+        </div>
+
+        {activeTrophyTab === 'badges' && <IronicBadgeTab />}
+        
+        {activeTrophyTab === 'elites' && (
+          <div className="space-y-6 pb-10">
+            <div className="p-4 bg-gradient-to-r from-yellow-100 to-amber-200 border-4 border-black rounded-2xl shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white border-4 border-black rounded-full flex items-center justify-center text-4xl shadow-[2px_2px_0_0_black]">
               🏆
@@ -637,6 +671,8 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
             );
           })}
         </div>
+      </div>
+      )}
       </div>
     );
   };

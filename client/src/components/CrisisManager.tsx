@@ -95,11 +95,18 @@ export default function CrisisManager() {
     const hasCapture = useMetamanGame.getState().researchState.completed.includes('psychological_capture');
     const userLoss = hasCapture ? 0 : baseUserLoss;
 
+    const addToForge = useMetamanGame.getState().addToForge;
+    
     useMetamanGame.setState(state => ({
       users: Math.max(0, state.users - userLoss),
       income: Math.max(0, state.income - moneyLoss),
       lastUserLossTime: Date.now() // Trigger HUD shake
     }));
+
+    // Add item to Forge (Shitstorm creates Evidence/Proof)
+    if (Math.random() < 0.7) {
+      addToForge(Math.random() < 0.5 ? 'doc' : 'proof');
+    }
 
     // Floating effects
     addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `-${formatNumber(moneyLoss)}`, 'red');

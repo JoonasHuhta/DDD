@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAudio } from "../lib/stores/useAudio";
 import { usePanelState } from "../hooks/usePanelState";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX, DollarSign, Users, Settings, Building, Database, ShoppingCart, Building2, TrendingUp, Clock, Trophy, Bot, BarChart3, Zap, Briefcase, Gift, Scale, Home, LineChart, Lock, XCircle, Globe } from "lucide-react";
+import { Volume2, VolumeX, DollarSign, Users, Settings, Building, Database, ShoppingCart, Building2, TrendingUp, Clock, Trophy, Bot, BarChart3, Zap, Briefcase, Gift, Scale, Home, LineChart, Lock, XCircle, Globe, Anvil } from "lucide-react";
 import DepartmentPanel from "./DepartmentPanel";
 import CampaignPanel from "./CampaignPanel";
 import ProgressionPanel from "./ProgressionPanel";
@@ -39,8 +39,10 @@ import { ServerDefense } from "./minigames/ServerDefense";
 import SenateHearing from "./minigames/SenateHearing";
 import HeatMeter from "./HeatMeter";
 import CrisisManager from "./CrisisManager";
+import { IronicBadgeTracker } from "./IronicBadges";
 // import GlobalDominancePanel from "./GlobalDominancePanel";
 import GameOverScreen from "./GameOverScreen";
+import { ForgeSandbox } from "./minigames/ForgeSandbox";
 // StyleShowcase removed - using original theme only
 
 
@@ -94,7 +96,10 @@ export default function GameUI() {
     activeTipTarget,
     isGameOver,
     lastUserLossTime,
-    currentAchievementShowcase
+    currentAchievementShowcase,
+    hasNewIronicBadge,
+    showForgeSandbox,
+    setShowForgeSandbox
   } = useMetamanGame(useShallow(state => ({
     income: state.income,
     users: state.users,
@@ -144,7 +149,10 @@ export default function GameUI() {
     activeTipTarget: state.activeTipTarget,
     isGameOver: state.isGameOver,
     lastUserLossTime: state.lastUserLossTime,
-    currentAchievementShowcase: state.currentAchievementShowcase
+    currentAchievementShowcase: state.currentAchievementShowcase,
+    hasNewIronicBadge: state.hasNewIronicBadge,
+    showForgeSandbox: state.showForgeSandbox,
+    setShowForgeSandbox: state.setShowForgeSandbox
   })));
   const { isMusicMuted, toggleMusicMute } = useAudio();
   const responsive = useResponsiveUI();
@@ -161,10 +169,11 @@ export default function GameUI() {
     if (showDataMarket) setShowDataMarket(false);
     if (showEspionage) setShowEspionage(false);
     if (showServerDefense) setShowServerDefense(false);
+    if (showForgeSandbox) setShowForgeSandbox(false);
   };
 
   const isAnyPanelOpen = () => {
-    return panels.isAnyPanelOpen() || showCampaignPanel || lawsuitState.showLawsuitPanel || rewardState.showSuitcasePanel || showEspionage || showServerDefense;
+    return panels.isAnyPanelOpen() || showCampaignPanel || lawsuitState.showLawsuitPanel || rewardState.showSuitcasePanel || showEspionage || showServerDefense || showForgeSandbox;
   };
 
   const openPanel = (panelName: string) => {
@@ -536,7 +545,7 @@ export default function GameUI() {
               >
                 <div className="flex items-center gap-1 text-white font-black">
                   <Database className={responsive.isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-                  <span className={`${responsive.fontSize}`}>{dataInventory}</span>
+                  <span className={`${responsive.fontSize}`}>{Math.floor(dataInventory)}</span>
                   <span className="text-xs uppercase ml-1">data</span>
                 </div>
               </motion.div>
@@ -549,7 +558,7 @@ export default function GameUI() {
               >
                 <div className="flex items-center gap-1 text-white font-black">
                   <span className="text-lg">◈</span>
-                  <span className={`${responsive.fontSize}`}>{orbsInventory || 0}</span>
+                  <span className={`${responsive.fontSize}`}>{Math.floor(orbsInventory || 0)}</span>
                   <span className="text-xs uppercase ml-1">orbs</span>
                 </div>
               </motion.div>
@@ -629,9 +638,10 @@ export default function GameUI() {
             {/* 5. Mansion (Stats + Shop) */}
             <AdaptiveButton
               onClick={() => togglePanel('mansion', panels.isPanelOpen('mansion'))}
-              variant={panels.isPanelOpen('mansion') ? 'secondary' : 'ghost'}
+              variant={panels.isPanelOpen('mansion') ? 'secondary' : (hasNewIronicBadge ? 'success' : 'ghost')}
               title="Mansion"
               icon={<Home className={responsive.iconSize} />}
+              animate={hasNewIronicBadge ? 'comic-pulse' : 'none'}
             />
 
           </div>
@@ -644,18 +654,18 @@ export default function GameUI() {
         } pointer-events-auto z-20 flex flex-col gap-2`}>
           <div className={`bg-black bg-opacity-75 rounded-lg border border-gray-600 p-1`}>
             <div className={`flex flex-col gap-1`}>
-            {/* Exit Basement Button */}
+            {/* FORGE Button */}
             <button
               onClick={() => {
-                closeAllPanels();
-                setCurrentView('city');
+                if (isAnyPanelOpen()) closeAllPanels();
+                setShowForgeSandbox(true);
               }}
-              className={`bg-[#FF1744] hover:bg-[#e6002f] ${responsive.buttonSize} flex items-center justify-center rounded-lg border-4 border-black transition-colors relative shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none mb-4`}
-              title="Return to City View"
+              className={`bg-[#1E3A8A] hover:bg-[#1e40af] ${responsive.buttonSize} flex items-center justify-center rounded-lg border-4 border-black transition-colors relative shadow-[4px_4px_0_0_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none mb-4`}
+              title="Access THE FORGE to weaponize evidence"
             >
-              <XCircle className={`${responsive.iconSize} text-white`} />
+              <Anvil className={`${responsive.iconSize} text-blue-200`} />
               <span className="absolute -top-3 -right-3 bg-white text-black text-[10px] px-1 font-black uppercase italic border-2 border-black rounded shadow-[2px_2px_0_0_rgba(0,0,0,1)] transform rotate-3">
-                EXIT
+                FORGE
               </span>
             </button>
 
@@ -833,9 +843,15 @@ export default function GameUI() {
 
       {/* SCANDAL SYSTEM - Crisis Manager */}
       <CrisisManager />
-      {/* Game Over Screen */}
+      
+      <IronicBadgeTracker />
+
+      {/* Global UI Overlays */}
       <AnimatePresence>
         {isGameOver && <GameOverScreen />}
+        {showForgeSandbox && (
+          <ForgeSandbox onClose={() => setShowForgeSandbox(false)} />
+        )}
       </AnimatePresence>
     </div>
   );
