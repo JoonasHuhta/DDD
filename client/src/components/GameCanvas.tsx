@@ -40,7 +40,11 @@ export default function GameCanvas() {
     lastUserLossTime,
     lastStageCompleteTimestamp,
     darkWebPurchases,
-    mansionPurchases
+    mansionPurchases,
+    startDetoxEvent,
+    endDetoxEvent,
+    incrementOfflineCitizens,
+    decrementOfflineCitizens,
   } = useMetamanGame(useShallow(state => ({
     gameState: state.gameState,
     selectedCampaign: state.selectedCampaign,
@@ -71,7 +75,11 @@ export default function GameCanvas() {
     lastUserLossTime: state.lastUserLossTime,
     lastStageCompleteTimestamp: state.lastStageCompleteTimestamp,
     darkWebPurchases: state.darkWebPurchases,
-    mansionPurchases: state.mansionPurchases
+    mansionPurchases: state.mansionPurchases,
+    startDetoxEvent: state.startDetoxEvent,
+    endDetoxEvent: state.endDetoxEvent,
+    incrementOfflineCitizens: state.incrementOfflineCitizens,
+    decrementOfflineCitizens: state.decrementOfflineCitizens,
   })));
   
   const panels = usePanelState();
@@ -125,6 +133,8 @@ export default function GameCanvas() {
       if (success && selectedCampaign) {
         // Track campaign usage for statistics
         updateStats('campaignsUsed', 1);
+        // Track for Detox Guy spawn trigger
+        engineRef.current.notifyCampaignUsed?.();
         
         import('../lib/gameEngine/CampaignSystem').then(({ CAMPAIGNS }) => {
           const campaign = CAMPAIGNS.find(c => c.id === selectedCampaign);
@@ -251,6 +261,23 @@ export default function GameCanvas() {
           updateLarryDistance,
           incrementOrbsInventory,
           addVisualEffect
+        );
+
+        // Register DetoxGuy callbacks
+        engineRef.current.setDetoxCallbacks?.(
+          (phase, efficiency) => {
+            if (phase === 'whisper') {
+              useMetamanGame.getState().startDetoxEvent();
+            } else if (phase === null) {
+              useMetamanGame.getState().endDetoxEvent();
+            } else {
+              useMetamanGame.setState(state => ({
+                detoxState: { ...state.detoxState, phase: phase as any }
+              }));
+            }
+          },
+          () => useMetamanGame.getState().incrementOfflineCitizens(),
+          () => useMetamanGame.getState().decrementOfflineCitizens()
         );
       }
     };

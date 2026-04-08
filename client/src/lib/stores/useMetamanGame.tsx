@@ -599,6 +599,23 @@ interface MetamanGameStore {
   modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive') => void;   // +/- heat, clamped 0–100
   updateHeat: () => void;               // called every tick, applies passive decay (-2/s)
 
+  // ── DETOX GUY SYSTEM ────────────────────────────────────────────────────────────────
+  detoxState: {
+    isActive: boolean;
+    phase: 'whisper' | 'pull' | 'vortex' | 'silence' | 'idle';
+    offlineCitizenCount: number;
+    totalDetoxEvents: number;
+    detoxRecoveryUnlocked: boolean; // Stage 6+ passive
+    lastAppearanceTime: number;
+    campaignEfficiencyModifier: number; // 0.25–1.0
+    relapseWindowActive: boolean;
+  };
+  updateDetoxEfficiency: (modifier: number) => void;
+  startDetoxEvent: () => void;
+  endDetoxEvent: () => void;
+  incrementOfflineCitizens: () => void;
+  decrementOfflineCitizens: () => void;
+
   // ── DIALOGUE HISTORY ───────────────────────────────────────────────────────
   // Persists across prestige. Written by boss encounters, read by Platform Collapse.
   dialogHistory: {
@@ -871,6 +888,70 @@ export const useMetamanGame = create<MetamanGameStore>()(
     // ── HEAT SYSTEM ────────────────────────────────────────────────────────────
     heat: 0,
     heatLevel: 'normal' as const,
+
+    // ── DETOX GUY SYSTEM ─────────────────────────────────────────────────────
+    detoxState: {
+      isActive: false,
+      phase: 'idle' as const,
+      offlineCitizenCount: 0,
+      totalDetoxEvents: 0,
+      detoxRecoveryUnlocked: false,
+      lastAppearanceTime: 0,
+      campaignEfficiencyModifier: 1.0,
+      relapseWindowActive: false,
+    },
+
+    updateDetoxEfficiency: (modifier: number) => {
+      set(state => ({
+        detoxState: { ...state.detoxState, campaignEfficiencyModifier: modifier }
+      }));
+    },
+
+    startDetoxEvent: () => {
+      set(state => ({
+        detoxState: {
+          ...state.detoxState,
+          isActive: true,
+          phase: 'whisper' as const,
+          totalDetoxEvents: state.detoxState.totalDetoxEvents + 1,
+          lastAppearanceTime: Date.now(),
+          offlineCitizenCount: 0,
+          relapseWindowActive: false,
+        }
+      }));
+    },
+
+    endDetoxEvent: () => {
+      const stage = getStage(get().users);
+      set(state => ({
+        detoxState: {
+          ...state.detoxState,
+          isActive: false,
+          phase: 'idle' as const,
+          campaignEfficiencyModifier: 1.0,
+          relapseWindowActive: state.detoxState.offlineCitizenCount > 0,
+          detoxRecoveryUnlocked: stage >= 6,
+        }
+      }));
+    },
+
+    incrementOfflineCitizens: () => {
+      set(state => ({
+        detoxState: {
+          ...state.detoxState,
+          offlineCitizenCount: state.detoxState.offlineCitizenCount + 1
+        }
+      }));
+    },
+
+    decrementOfflineCitizens: () => {
+      set(state => ({
+        detoxState: {
+          ...state.detoxState,
+          offlineCitizenCount: Math.max(0, state.detoxState.offlineCitizenCount - 1)
+        }
+      }));
+    },
 
     modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive') => {
       set((state) => {

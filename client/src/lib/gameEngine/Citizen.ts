@@ -1,5 +1,6 @@
 import { City } from "./City";
 import { ELITES, EliteDefinition } from "./EliteRegistry";
+import { OFFLINE_TOOLTIPS } from "./DetoxGuy";
 
 export class Citizen {
   private x: number;
@@ -45,6 +46,15 @@ export class Citizen {
   public jetsetY: number = 0;            // Current Y during landing animation
   private jetsetLandedY: number = 0;
 
+  // ── OFFLINE STATE (Detox Guy) ────────────────────────────────────────────────
+  public isOffline: boolean = false;
+  public tooltipIndex: number = 0;
+  /** Enhanced lure sensitivity after returning online (Notification Relapse) */
+  public lureMultiplier: number = 1.0;
+  private relapseTimer: number = 0;
+  /** Slow pull toward DetoxGuy when in aura */
+  private pullTarget: { x: number; y: number } | null = null;
+
   constructor(x: number, y: number, city: City) {
     this.x = x;
     this.y = y;
@@ -84,6 +94,10 @@ export class Citizen {
     this.posingTimer = 0;
     this.lastLuredTime = 0;
     this.isJetsetLanding = false;
+    this.isOffline = false;
+    this.lureMultiplier = 1.0;
+    this.relapseTimer = 0;
+    this.pullTarget = null;
 
     // Reset visual and speeds
     const speedTypes = [0.01, 0.025, 0.04, 0.06, 0.08];
@@ -131,6 +145,7 @@ export class Citizen {
    * Returns false if lure attempt failed (max attempts exceeded).
    */
   public applyLure(deltaSeconds: number): 'capturing' | 'captured' | 'failed' {
+    if (this.isOffline) return 'failed'; // Offline citizens ignore all lures
     if (!this.isElite) return 'captured'; // Non-elite: instant capture
     if (this.isHooked) return 'capturing';
 
@@ -160,6 +175,44 @@ export class Citizen {
       this.setNewTarget(); // Panic and change direction
     }
   }
+
+  // ── OFFLINE API ─────────────────────────────────────────────────────────────
+
+  /** Called by MetamanEngine when this citizen enters the Detox Guy's aura. */
+  public goOffline(pullX: number, pullY: number): void {
+    if (this.isOffline || this.isHooked) return; // Already offline or being lured
+    this.isOffline = true;
+    this.isHooked = false;
+    this.lureMultiplier = 1.0;
+    this.relapseTimer = 0;
+    this.pullTarget = { x: pullX, y: pullY }; // Walk toward Detox Guy
+    this.tooltipIndex = Math.floor(Math.random() * OFFLINE_TOOLTIPS.length);
+    // Visually: will be drawn as gray silhouette in render()
+  }
+
+  /** Called when the citizen has reached the Detox Guy, or returns from offline. */
+  public goOnline(): void {
+    if (!this.isOffline) return;
+    this.isOffline = false;
+    this.pullTarget = null;
+    // Notification Relapse: 30% enhanced lure sensitivity for 60s
+    this.lureMultiplier = 1.3;
+    this.relapseTimer = 60_000;
+    // Restore color
+    this.color = this.originalColor;
+    this.setNewTarget(); // Resume wandering
+  }
+
+  /** Set a pull direction (Detox Guy moved). */
+  public setPullTarget(x: number, y: number): void {
+    if (this.isOffline) this.pullTarget = { x, y };
+  }
+
+  public getOfflineTooltip(): string {
+    return OFFLINE_TOOLTIPS[this.tooltipIndex % OFFLINE_TOOLTIPS.length];
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   /** Returns true if this elite has overstayed and should despawn. */
   public isExpired(): boolean {
@@ -308,6 +361,32 @@ export class Citizen {
   }
 
   public update(deltaTime: number): void {
+    // ── RELAPSE TIMER ────────────────────────────────────────────────────────
+    if (this.relapseTimer > 0) {
+      this.relapseTimer -= deltaTime;
+      if (this.relapseTimer <= 0) {
+        this.lureMultiplier = 1.0; // Relapse window expired
+      }
+    }
+
+    // ── OFFLINE: Pull toward Detox Guy ──────────────────────────────────────
+    if (this.isOffline && this.pullTarget) {
+      const dx = this.pullTarget.x - this.x;
+      const dy = this.pullTarget.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 3) {
+        const pullSpeed = 0.06 * deltaTime; // Slow, meditative walk
+        this.x += (dx / dist) * pullSpeed;
+        this.y += (dy / dist) * pullSpeed;
+      }
+      // Stay within canvas
+      this.x = Math.max(10, Math.min(this.city.width - 10, this.x));
+      this.y = Math.max(200, Math.min(this.city.height - 10, this.y));
+      return; // Skip normal pathfinding
+    }
+
+    if (this.isOffline) return; // Static gray silhouette (no pull target)
+
     // ── ELITE: track lifespan and posing state ──────────────────────────────
     if (this.isElite && !this.isHooked) {
       this.eliteElapsedMs += deltaTime;
@@ -461,6 +540,28 @@ export class Citizen {
     const headSize = this.size * 1.5;
     const bodyWidth = this.size;
     const bodyHeight = this.size * 1.2;
+
+    // ── OFFLINE SILHOUETTE ───────────────────────────────────────────────────
+    if (this.isOffline) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      // Gray silhouette body
+      ctx.fillStyle = '#9e9e9e';
+      ctx.fillRect(this.x - bodyWidth/2, this.y, bodyWidth, bodyHeight);
+      // Gray silhouette head
+      ctx.beginPath();
+      ctx.arc(this.x, this.y - headSize/4, headSize/2, 0, Math.PI * 2);
+      ctx.fill();
+      // Tiny book icon – "this user is living their life"
+      ctx.globalAlpha = 0.6;
+      ctx.font = `${Math.floor(headSize)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📖', this.x, this.y - headSize * 0.5);
+      ctx.restore();
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     
     // Outer thick black outline for the whole character
     ctx.strokeStyle = '#000000';

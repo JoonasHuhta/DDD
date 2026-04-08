@@ -9,6 +9,7 @@ import { useAudio } from "../stores/useAudio";
 import { RedNpc } from "./RedNpc";
 import { ELITES, getSpawnableElites, pickWeightedElite } from "./EliteRegistry";
 import { useMetamanGame } from '../stores/useMetamanGame';
+import { DetoxGuy, DetoxPhase } from "./DetoxGuy";
 
 export class MetamanEngine {
   private ctx: CanvasRenderingContext2D;
@@ -55,6 +56,20 @@ export class MetamanEngine {
   private lastEmptyStreetTime: number = 0;
   private readonly WAVE_SPAWN_THRESHOLD = 800; // 0.8 seconds of empty street triggers a wave
   private clouds: { x: number; y: number; scale: number; speed: number }[] = [];
+
+  // ── DETOX GUY SYSTEM ────────────────────────────────────────────────────────────────
+  private detoxGuy: DetoxGuy | null = null;
+  /** First appearance: 90s. Subsequent: 3 min cooldown */
+  private detoxCooldownTimer: number = 90_000;
+  /** Throttle spawn-probability check to once per second */
+  private detoxSpawnCheckTimer: number = 0;
+  /** Tracks consecutive campaign uses for spam trigger */
+  private campaignSpamCounter: number = 0;
+  private campaignSpamTimer: number = 0;
+  private detoxPhase: DetoxPhase | null = null;
+  private onDetoxPhaseChange?: (phase: DetoxPhase | null, efficiency: number) => void;
+  private onCitizenOffline?: () => void;
+  private onCitizenOnline?: () => void;
 
   // ── ELITE SYSTEM ──────────────────────────────────────────────────────
   private eliteSpawnTimer: number = 0;
@@ -309,6 +324,106 @@ export class MetamanEngine {
       }
     }
 
+    // ── DETOX GUY UPDATE ────────────────────────────────────────────────────────────
+    if (this.detoxGuy) {
+      const result = this.detoxGuy.update(deltaTime);
+
+      // Phase change events (only fires when phase actually changes)
+      if (result.phaseChanged) {
+        this.detoxPhase = result.phase;
+        // Update store efficiency ONLY on phase change, not every frame
+        useMetamanGame.getState().updateDetoxEfficiency(result.campaignEfficiency);
+        if (this.onDetoxPhaseChange) {
+          this.onDetoxPhaseChange(result.phase, result.campaignEfficiency);
+        }
+        // Dan reacts on phone screen + speech bubble
+        switch (result.phase) {
+          case 'pull':
+            this.metaman.setPhoneEmoji('😰', 6000);
+            this.showDetoxSpeechBubble('pull');
+            break;
+          case 'vortex':
+            this.metaman.setPhoneEmoji('😮', 6000);
+            this.showDetoxSpeechBubble('vortex');
+            break;
+          case 'silence':
+            this.metaman.setPhoneEmoji('🤔', 4000);
+            this.showDetoxSpeechBubble('silence');
+            break;
+        }
+      }
+
+      // Citizens: go offline based on phase urgency
+      const aura = this.detoxGuy.getAffectedArea();
+      this.citizens.forEach(citizen => {
+        const pos = citizen.getPosition();
+        const inAura = this.detoxGuy!.isInAura(pos.x, pos.y);
+
+        if (inAura && !citizen.isOffline && !citizen.isElite) {
+          if (result.phase === 'vortex') {
+            // Vortex: citizens are pulled in IMMEDIATELY – the threat is real
+            citizen.goOffline(aura.x, aura.y);
+            if (this.onCitizenOffline) this.onCitizenOffline();
+          } else if (result.phase === 'pull') {
+            // Pull: 50% chance per second (checked once/frame but dt-weighted)
+            const chance = 0.5 * (deltaTime / 1000);
+            if (Math.random() < chance) {
+              citizen.goOffline(aura.x, aura.y);
+              if (this.onCitizenOffline) this.onCitizenOffline();
+            }
+          } else if (result.phase === 'whisper') {
+            // Whisper: very gentle, 3% chance per second
+            const chance = 0.03 * (deltaTime / 1000);
+            if (Math.random() < chance) {
+              citizen.goOffline(aura.x, aura.y);
+              if (this.onCitizenOffline) this.onCitizenOffline();
+            }
+          }
+        }
+
+        // Keep offline citizens walking toward TDG even as he moves
+        if (citizen.isOffline) {
+          citizen.setPullTarget(aura.x, aura.y);
+        }
+      });
+
+      if (result.isFinished) {
+        this.scheduleOfflineCitizenReturn();
+        this.detoxGuy = null;
+        this.detoxPhase = null;
+        this.detoxCooldownTimer = 3 * 60 * 1000; // 3 min cooldown after first
+        useMetamanGame.getState().updateDetoxEfficiency(1.0); // Restore efficiency
+        if (this.onDetoxPhaseChange) this.onDetoxPhaseChange(null, 1.0);
+        this.metaman.setPhoneEmoji('😏', 5000);
+        console.log('[DetoxGuy] Left the field.');
+      }
+    } else {
+      // Cooldown ticks down every frame
+      this.detoxCooldownTimer -= deltaTime;
+
+      // Campaign spam tracking
+      this.campaignSpamTimer += deltaTime;
+      if (this.campaignSpamTimer > 5000) {
+        this.campaignSpamTimer = 0;
+        this.campaignSpamCounter = 0;
+      }
+
+      // Spawn check: throttled to once per second (not every frame)
+      this.detoxSpawnCheckTimer += deltaTime;
+      if (this.detoxSpawnCheckTimer >= 1000) {
+        this.detoxSpawnCheckTimer = 0;
+        if (this.detoxCooldownTimer <= 0 && this.currentView === 'city') {
+          const risk = useMetamanGame.getState().heat;
+          const stage = Math.max(1, Math.floor(Math.log10(Math.max(10, this.userCount))));
+          const spawnChance = this.calculateDetoxSpawnChance(risk, stage);
+          if (Math.random() < spawnChance) {
+            this.spawnDetoxGuy();
+          }
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     // Update Dan's van animation with parking logic
     if (this.danVan && this.danVan.animating) {
       const speed = 3; // Slightly faster for better visual feedback
@@ -415,6 +530,11 @@ export class MetamanEngine {
       // Render Red NPC if active
       if (this.redNpc) {
         this.redNpc.render(this.ctx);
+      }
+
+      // Render Detox Guy AFTER citizens, BEFORE Metaman
+      if (this.detoxGuy) {
+        this.detoxGuy.render(this.ctx);
       }
 
       // Render day/night overlay before Metaman
@@ -933,4 +1053,144 @@ export class MetamanEngine {
   public getHeight(): number {
     return this.height;
   }
+
+  // ── DETOX GUY PUBLIC API ──────────────────────────────────────────────────
+
+  /** Register callbacks for DetoxGuy lifecycle events. */
+  public setDetoxCallbacks(
+    onPhaseChange: (phase: DetoxPhase | null, efficiency: number) => void,
+    onCitizenOffline: () => void,
+    onCitizenOnline: () => void
+  ): void {
+    this.onDetoxPhaseChange = onPhaseChange;
+    this.onCitizenOffline = onCitizenOffline;
+    this.onCitizenOnline = onCitizenOnline;
+  }
+
+  /** Force-spawn for debug / testing. */
+  public spawnDetoxGuyDebug(): void {
+    this.spawnDetoxGuy();
+  }
+
+  public isDetoxActive(): boolean {
+    return this.detoxGuy !== null;
+  }
+
+  public getDetoxPhase(): DetoxPhase | null {
+    return this.detoxPhase;
+  }
+
+  /** Track campaign usage for spam detection (called from handleClick). */
+  public notifyCampaignUsed(): void {
+    this.campaignSpamCounter++;
+    this.campaignSpamTimer = 0;
+  }
+
+  // ── DETOX GUY PRIVATE METHODS ─────────────────────────────────────────────
+
+  private spawnDetoxGuy(): void {
+    if (this.detoxGuy) return;
+    // DO NOT spawn during a Shitstorm – too much happening at once
+    const state = useMetamanGame.getState();
+    if (state.lawsuitState?.isCrisisActive) {
+      console.log('[DetoxGuy] Spawn blocked: Shitstorm in progress.');
+      return;
+    }
+    this.detoxGuy = new DetoxGuy(this.width, this.height);
+    this.detoxPhase = 'whisper';
+    // Notify store
+    state.startDetoxEvent();
+    if (this.onDetoxPhaseChange) {
+      this.onDetoxPhaseChange('whisper', 0.75);
+    }
+    // Dan reacts
+    this.metaman.setPhoneEmoji('😤', 4000);
+    // Show existing speech bubble with Dan's reaction
+    this.showDetoxSpeechBubble('whisper');
+    console.log('[DetoxGuy] Spawned.');
+  }
+
+  /**
+   * Returns spawn probability per second check.
+   * NOTE: This is called once per second (throttled), so values ARE per-second probabilities.
+   */
+  private calculateDetoxSpawnChance(heat: number, stage: number): number {
+    // Base probability per check (called once per second after cooldown expires)
+    // After 90s cooldown, 5% per second = first check already fairly likely
+    let chancePerCheck = 0.05; // 5% base – always has a chance once cooldown is up
+
+    if (heat > 80)       chancePerCheck = 0.35;
+    else if (heat > 60)  chancePerCheck = 0.20;
+    else if (heat > 40)  chancePerCheck = 0.12;
+    else if (heat > 20)  chancePerCheck = 0.08;
+
+    // Campaign spam bonus (spamming invites The Detox Guy)
+    if (this.campaignSpamCounter >= 5) chancePerCheck += 0.30;
+    else if (this.campaignSpamCounter >= 3) chancePerCheck += 0.15;
+
+    // Stage bonus
+    if (stage >= 7) chancePerCheck *= 2.0;
+    else if (stage >= 5) chancePerCheck *= 1.5;
+
+    return Math.min(0.95, chancePerCheck); // Cap at 95% to keep some randomness
+  }
+
+  /**
+   * Staggered return of offline citizens after DetoxGuy leaves.
+   * Citizens trickle back over 10–20 seconds with Notification Relapse bonus.
+   */
+  private scheduleOfflineCitizenReturn(): void {
+    const offlineCitizens = this.citizens.filter(c => c.isOffline);
+    console.log(`[DetoxGuy] Scheduling return of ${offlineCitizens.length} offline citizens.`);
+
+    offlineCitizens.forEach((citizen, i) => {
+      const delay = 10_000 + Math.random() * 10_000 + i * 500;
+      setTimeout(() => {
+        if (citizen.isOffline) {
+          citizen.goOnline();
+          if (this.onCitizenOnline) this.onCitizenOnline();
+        }
+      }, delay);
+    });
+  }
+
+  /**
+   * Shows Dan's reaction through the EXISTING SpeechBubble system.
+   * Bypasses the 15s cooldown since TDG events are rare and important.
+   */
+  private showDetoxSpeechBubble(phase: DetoxPhase | 'whisper'): void {
+    const LINES: Record<string, string[]> = {
+      whisper: [
+        "Oh no. Not this guy.",
+        "He's back. Or maybe he never left.",
+      ],
+      pull: [
+        "They'll be back. Nobody actually does dopamine detox.",
+        "This is fine. They're just taking a break.",
+      ],
+      vortex: [
+        "He has no algorithm. Why is it WORKING?",
+        "I've spent billions on this platform and he's winning with vibes.",
+      ],
+      silence: [
+        "He left. Not because we stopped him.",
+        "Gone. He'll be back. Or he won't. That's the terrifying part.",
+      ],
+    };
+
+    const lines = LINES[phase] || [];
+    if (lines.length === 0) return;
+    const msg = lines[Math.floor(Math.random() * lines.length)];
+
+    // Directly set speech bubble state, bypassing cooldown check
+    useMetamanGame.setState(state => ({
+      speechBubbleState: {
+        ...state.speechBubbleState,
+        isVisible: true,
+        message: msg,
+        lastTriggerTime: Date.now(),
+      }
+    }));
+  }
 }
+

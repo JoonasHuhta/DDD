@@ -4,6 +4,7 @@ import GameUI from "./GameUI";
 import CampaignPanel from "./CampaignPanel";
 import ContextualHelp from "./ContextualHelp";
 import GameTitle from "./GameTitle";
+import DetoxOverlay from "./DetoxOverlay";
 import { useMetamanGame } from "../lib/stores/useMetamanGame";
 import { useShallow } from 'zustand/react/shallow';
 import { useAudio } from "../lib/stores/useAudio";
@@ -57,7 +58,7 @@ export default function Game() {
   const gameState = useMetamanGame(state => state.gameState);
   const playBackgroundMusic = useAudio(state => state.playBackgroundMusic);
   const pauseBackgroundMusic = useAudio(state => state.pauseBackgroundMusic);
-  const isMuted = useAudio(state => state.isMuted);
+  const isMusicMuted = useAudio(state => state.isMusicMuted);
 
   useEffect(() => {
     initializeGame();
@@ -169,6 +170,7 @@ export default function Game() {
         />
       )}
       {gameState === 'playing' && <ContextualHelp />}
+      {gameState === 'playing' && <DetoxOverlay />}
     </div>
   );
 }

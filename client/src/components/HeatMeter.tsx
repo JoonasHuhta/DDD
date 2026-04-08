@@ -60,8 +60,8 @@ export default function HeatMeter({ onClick }: { onClick?: () => void }) {
           heatLevel === 'critical'  ? 'text-orange-400' :
           heatLevel === 'elevated'  ? 'text-yellow-400' : 'text-green-400'
         }`}>
-          {lawsuitState.isCrisisActive ? '🚨 SHITSTORM' : 
-           lawsuitState.isCrisisWarning ? '⚠️ CRITICAL' : 
+          {lawsuitState.isCrisisActive ? '🚨 SHITSTORM' :
+           lawsuitState.isCrisisWarning ? '⚠️ CRITICAL' :
            heatLabels[heatLevel]}
         </span>
       </div>
