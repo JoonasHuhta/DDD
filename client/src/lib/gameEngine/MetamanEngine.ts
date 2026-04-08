@@ -1161,20 +1161,20 @@ export class MetamanEngine {
   private showDetoxSpeechBubble(phase: DetoxPhase | 'whisper'): void {
     const LINES: Record<string, string[]> = {
       whisper: [
-        "Oh no. Not this guy.",
-        "He's back. Or maybe he never left.",
+        "Oh no. The Detox Guy is here.",
+        "Not the Detox Guy. Not now.",
       ],
       pull: [
-        "They'll be back. Nobody actually does dopamine detox.",
-        "This is fine. They're just taking a break.",
+        "The Detox Guy. Of course. Nobody actually does detox for more than a week.",
+        "The Detox Guy is stealing my users. This is fine. They'll be back.",
       ],
       vortex: [
-        "He has no algorithm. Why is it WORKING?",
-        "I've spent billions on this platform and he's winning with vibes.",
+        "The Detox Guy has no algorithm. Why is it WORKING?!",
+        "I've spent billions on this platform and the Detox Guy is winning with vibes.",
       ],
       silence: [
-        "He left. Not because we stopped him.",
-        "Gone. He'll be back. Or he won't. That's the terrifying part.",
+        "The Detox Guy left. Not because we stopped him.",
+        "The Detox Guy is gone. He'll be back. Or he won't. That's the terrifying part.",
       ],
     };
 
