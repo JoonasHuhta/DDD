@@ -111,10 +111,12 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (audioCtx) {
       SFX_FILES.forEach(async (file) => {
         try {
+          console.log(`[ITCH] Preloading SFX: sounds/${file}`);
           const response = await fetch(`sounds/${file}`);
           const arrayBuffer = await response.arrayBuffer();
           const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
           audioBuffers[file] = decodedData;
+          console.log(`[ITCH] SFX Loaded: ${file}`);
         } catch (err) {
           console.warn(`[AUDIO] Failed to preload ${file}:`, err);
         }
@@ -133,6 +135,7 @@ export const useAudio = create<AudioState>((set, get) => ({
         console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
       });
 
+      console.log(`[ITCH] Initializing Background Music: sounds/Forgo1.mp3`);
       musicSprite.src = "sounds/Forgo1.mp3";
       musicSprite.load();
     }
@@ -144,8 +147,10 @@ export const useAudio = create<AudioState>((set, get) => ({
   primeAudio: async () => {
     // SYNCHRONOUS RESUME for iOS compliance -> Must happen immediately in the event handler!
     if (audioCtx && audioCtx.state === 'suspended') {
-      console.log('[AUDIO] Resuming AudioContext synchronously');
+      console.log('[ITCH] Resuming AudioContext (suspended -> running)');
       audioCtx.resume();
+    } else {
+      console.log('[ITCH] AudioContext state:', audioCtx?.state || 'null/undefined');
     }
 
     const { isInitialized, isPrimed } = get();
@@ -240,6 +245,7 @@ export const useAudio = create<AudioState>((set, get) => ({
         if (fadeStep >= 10) {
           if (lastFadeInterval) clearInterval(lastFadeInterval);
           
+          console.log(`[ITCH] Switching track to: sounds/${trackName}`);
           musicSprite.src = `sounds/${trackName}`;
           musicSprite.load();
           set({ currentTrack: trackName });
