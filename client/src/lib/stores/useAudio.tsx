@@ -141,41 +141,55 @@ export const useAudio = create<AudioState>((set, get) => ({
     }
     
     set({ isInitialized: true });
-    console.log('[AUDIO]', 'INITIALIZED', 'Web Audio API ready');
+    console.log('[ITCH] Audio system initialized');
   },
 
   primeAudio: async () => {
-    // SYNCHRONOUS RESUME for iOS compliance -> Must happen immediately in the event handler!
-    if (audioCtx && audioCtx.state === 'suspended') {
-      console.log('[ITCH] Resuming AudioContext (suspended -> running)');
-      audioCtx.resume();
-    } else {
-      console.log('[ITCH] AudioContext state:', audioCtx?.state || 'null/undefined');
+    // 1. SYNC RESUME - This MUST happen in the direct interaction loop
+    if (audioCtx) {
+      console.log('[ITCH] Prime: Attempting to resume AudioContext. State before:', audioCtx.state);
+      audioCtx.resume().then(() => {
+        console.log('[ITCH] Prime: AudioContext resumed. State now:', audioCtx.state);
+      });
     }
 
     const { isInitialized, isPrimed } = get();
-    if (!isInitialized || isPrimed || !musicSprite) return;
+    if (!isInitialized || isPrimed || !musicSprite) {
+      console.log('[ITCH] Prime: Skipping (init:', isInitialized, 'primed:', isPrimed, 'sprite:', !!musicSprite, ')');
+      return;
+    }
 
-    console.log('[AUDIO]', 'PRIMING_START');
+    console.log('[ITCH] Prime: Priming audio engine with dummy sound...');
     try {
-      // Background music priming
+      // 2. Dummy sound unlock trick
+      const dummy = new Audio();
+      // 1 second base64 silent mp3
+      dummy.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+      dummy.play().then(() => {
+        console.log('[ITCH] Prime: Dummy sound played successfully');
+        dummy.pause();
+      }).catch(e => {
+        console.warn('[ITCH] Prime: Dummy sound failed:', e.message);
+      });
+
+      // 3. Background music priming
       const originalVolume = 0.3;
-      musicSprite.volume = 0.001; // Silent unlock
+      musicSprite.volume = 0.001; 
       
-      await musicSprite.play();
-      musicSprite.pause();
-      
-      set({ isPrimed: true });
-      console.log('[AUDIO]', 'PRIMING_SUCCESS');
-      
-      // Restore volume if not muted
-      if (get().isMusicMuted) {
-        musicSprite.pause();
-      } else {
-        musicSprite.volume = originalVolume;
+      const p = musicSprite.play();
+      if (p) {
+        p.then(() => {
+          console.log('[ITCH] Prime: musicSprite primed');
+          musicSprite.pause();
+          set({ isPrimed: true });
+          musicSprite.volume = originalVolume;
+        }).catch(err => {
+          console.warn('[ITCH] Prime: musicSprite priming failed:', err.message);
+          set({ isPrimed: true }); // Still mark as primed to allow future attempts
+        });
       }
     } catch (error) {
-      console.warn('[AUDIO]', 'PRIMING_FAIL', error);
+      console.warn('[ITCH] Prime: Fatal exception:', error);
     }
   },
   
@@ -203,12 +217,14 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (!isInitialized || !musicSprite) return;
     
     if (!isMusicMuted && musicSprite.paused && isPrimed) {
+      console.log('[ITCH] Triggering Background Music: play()');
       playingPromise = musicSprite.play();
       playingPromise.then(() => {
         playingPromise = null;
+        console.log('[ITCH] Background music STARTED');
       }).catch(error => {
         playingPromise = null;
-        console.warn("[AUDIO] Play error:", error);
+        console.warn("[ITCH] Background music FAILED:", error.message);
       });
     }
   },

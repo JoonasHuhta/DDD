@@ -27,12 +27,16 @@ function App() {
     document.title = `${gameConfig.name} - ${gameConfig.description}`;
   }, [initAudio, gameConfig.name, gameConfig.description]);
 
-  const handleStartGame = async () => {
+  const handleStartGame = () => {
     try {
+      console.log("[ITCH] handleStartGame: Entry (User Click)");
       // 1. Prime the audio (unlocks the element on mobile)
-      await primeAudio();
-      // 2. Start the music immediately
+      // We don't await here to keep the execution synchronous with the click
+      primeAudio();
+      
+      // 2. Start the music immediately in the same tick
       playBackgroundMusic();
+      
       // 3. Enter the game
       setHasAcceptedTerms(true);
     } catch (error) {
