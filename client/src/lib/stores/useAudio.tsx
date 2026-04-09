@@ -111,7 +111,7 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (audioCtx) {
       SFX_FILES.forEach(async (file) => {
         try {
-          const audioUrl = `./sounds/${file}`;
+          const audioUrl = `${file}`;
           console.log(`[ITCH] Preloading SFX: ${audioUrl}`);
           const response = await fetch(audioUrl);
           const arrayBuffer = await response.arrayBuffer();
@@ -136,8 +136,8 @@ export const useAudio = create<AudioState>((set, get) => ({
         console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
       });
 
-      console.log(`[ITCH] Initializing Background Music: ./sounds/Forgo1.mp3`);
-      musicSprite.src = "./sounds/Forgo1.mp3";
+      console.log(`[ITCH] Initializing Background Music: Forgo1.mp3`);
+      musicSprite.src = "Forgo1.mp3";
       musicSprite.load();
     }
     
@@ -262,8 +262,8 @@ export const useAudio = create<AudioState>((set, get) => ({
         if (fadeStep >= 10) {
           if (lastFadeInterval) clearInterval(lastFadeInterval);
           
-          console.log(`[ITCH] Switching track to: ./sounds/${trackName}`);
-          musicSprite.src = `./sounds/${trackName}`;
+          console.log(`[ITCH] Switching track to: ${trackName}`);
+          musicSprite.src = `${trackName}`;
           musicSprite.load();
           set({ currentTrack: trackName });
           
@@ -289,7 +289,7 @@ export const useAudio = create<AudioState>((set, get) => ({
         }
       }, 50);
     } else {
-      musicSprite.src = `./sounds/${trackName}`;
+      musicSprite.src = `${trackName}`;
       musicSprite.load();
       set({ currentTrack: trackName });
       setIsTransitioning(false);
