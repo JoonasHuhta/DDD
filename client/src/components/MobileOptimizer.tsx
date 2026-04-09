@@ -23,6 +23,15 @@ export const MobileOptimizer: React.FC<MobileOptimizerProps> = ({ children }) =>
 
   // Lock orientation to portrait and hide system UI
   const enforcePortraitMode = useCallback(() => {
+    // Only run this on native mobile (APK/Capacitor)
+    // Itch.io runs on https, APKs usually run on capacitor://, http://localhost, or file://
+    const isNative = window.location.protocol !== 'https:' && window.location.protocol !== 'http:';
+    
+    if (!isNative) {
+      console.log('[ITCH] MobileOptimizer: Browser environment detected. Skipping orientation/fullscreen lock.');
+      return;
+    }
+
     // Lock screen orientation to portrait
     try {
       if ('screen' in window && screen && 'orientation' in screen && screen.orientation) {

@@ -111,8 +111,9 @@ export const useAudio = create<AudioState>((set, get) => ({
     if (audioCtx) {
       SFX_FILES.forEach(async (file) => {
         try {
-          console.log(`[ITCH] Preloading SFX: ./sounds/${file}`);
-          const response = await fetch(`./sounds/${file}`);
+          const audioUrl = `./sounds/${file}`;
+          console.log(`[ITCH] Preloading SFX: ${audioUrl}`);
+          const response = await fetch(audioUrl);
           const arrayBuffer = await response.arrayBuffer();
           const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
           audioBuffers[file] = decodedData;
