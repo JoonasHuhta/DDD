@@ -543,8 +543,21 @@ export class Citizen {
 
     // ── OFFLINE SILHOUETTE ───────────────────────────────────────────────────
     if (this.isOffline) {
+      let alpha = 0.55;
+      if (this.pullTarget) {
+        const dx = this.pullTarget.x - this.x;
+        const dy = this.pullTarget.y - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Fade out as they get close to Detox Guy (within 40px)
+        if (dist < 40) {
+          alpha = 0.55 * Math.max(0, (dist - 5) / 35);
+        }
+      }
+      
+      if (alpha <= 0.01) return;
+
       ctx.save();
-      ctx.globalAlpha = 0.55;
+      ctx.globalAlpha = alpha;
       // Gray silhouette body
       ctx.fillStyle = '#9e9e9e';
       ctx.fillRect(this.x - bodyWidth/2, this.y, bodyWidth, bodyHeight);

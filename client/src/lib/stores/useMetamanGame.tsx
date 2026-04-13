@@ -52,10 +52,19 @@ interface MetamanGameStore {
   setShowForgeSandbox: (show: boolean) => void;
   forgeGrid: (ForgeItem | null)[];
   forgeTray: ForgeItem[];
+  forgeArtifacts: string[];
+  autoMergerUnlocked: boolean;
+  autoMergerActive: boolean;
   forgeLastMergePos: { x: number; y: number; timestamp: number } | null;
   addToForge: (type: ForgeItemType) => void;
   mergeForgeItems: (idxA: number, idxB: number) => void;
   claimForgeReward: (trayIdx: number) => void;
+  crossMergeForgeTray: (idxA: number, idxB: number) => void;
+  mergeUltimateArtifact: () => void;
+  buyAutoMerger: () => boolean;
+  toggleAutoMerger: () => void;
+  runAutoMerger: () => void;
+  injectDataToForge: () => boolean;
   clearForgeMergePos: () => void;
   income: number;
   users: number;
@@ -482,8 +491,24 @@ interface MetamanGameStore {
     userMultiplier: number;
     incomeMultiplier: number;
   };
+  getForgeBonuses: () => {
+    incomeMultiplier: number;
+    campaignMultiplier: number;
+    heatDamping: number;
+    passiveUserMultiplier: number;
+    clickPowerMultiplier: number;
+    lawsuitDefense: number;
+    goldenGlobalMultiplier: number;
+  };
+  getMansionBonuses: () => {
+    passiveUpsMultiplier: number;
+    incomeMultiplier: number;
+    campaignMultiplier: number;
+    clickPowerMultiplier: number;
+    heatDamping: number;
+    prestigeMultiplier: number;
+  };
   applyGemUserGeneration: () => void;
-  updateMarketPrices: () => void;
   
   // Legal Actions
   buyLawyer: (lawyerId: string) => boolean;
@@ -941,9 +966,11 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }));
     },
 
-    modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive') => {
+    modifyHeat: (delta: number, source?: 'click' | 'data' | 'passive' | 'campaign') => {
       set((state) => {
         const legalBonuses = get().getLegalBonuses();
+        const mansionBonuses = get().getMansionBonuses();
+        const forgeBonuses = get().getForgeBonuses();
         let finalDelta = delta;
 
         // Apply Ethics Theater growth reduction if heat is increasing
@@ -966,6 +993,12 @@ export const useMetamanGame = create<MetamanGameStore>()(
         // Apply Global Ghost bonus (e.g. -30% heat generation)
         if (finalDelta > 0 && legalBonuses.globalGeneration > 0) {
            finalDelta *= (1 - legalBonuses.globalGeneration);
+        }
+
+        // Apply Mansion Immunity/Damping
+        if (finalDelta > 0 && (mansionBonuses.heatDamping > 0 || forgeBonuses.heatDamping > 0)) {
+          const totalDamp = Math.min(1, mansionBonuses.heatDamping + forgeBonuses.heatDamping);
+          finalDelta -= finalDelta * totalDamp; 
         }
 
         // Apply specific source bonuses
@@ -2033,6 +2066,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       });
 
+      // Mansion Bonuses
+      const mansionBonuses = state.getMansionBonuses();
+      multiplier *= (1 + mansionBonuses.incomeMultiplier);
+
+      const forgeBonuses = state.getForgeBonuses();
+      multiplier *= (1 + forgeBonuses.incomeMultiplier);
+      multiplier *= forgeBonuses.goldenGlobalMultiplier;
+
       const globalStageBonus = Object.values(state.globalDominance.countries).reduce((sum, c) => sum + (c.stage || 0), 0) * 0.01;
       return multiplier * (1 + globalStageBonus);
     },
@@ -2052,6 +2093,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
       if (state.researchState.completed.includes('micro_targeting')) {
         multiplier *= 1.2;
       }
+      
+      // Mansion Campaign Bonuses
+      const mansionBonuses = state.getMansionBonuses();
+      multiplier *= (1 + mansionBonuses.campaignMultiplier);
+
+      const forgeBonuses = state.getForgeBonuses();
+      multiplier *= (1 + forgeBonuses.campaignMultiplier);
+      multiplier *= forgeBonuses.goldenGlobalMultiplier;
 
       const globalStageBonus = Object.values(state.globalDominance.countries).reduce((sum, c) => sum + (c.stage || 0), 0) * 0.01;
       return multiplier * (1 + globalStageBonus);
@@ -2078,6 +2127,14 @@ export const useMetamanGame = create<MetamanGameStore>()(
           multiplier *= buff.multiplier;
         }
       });
+      
+      // Mansion bonuses
+      const mansionBonuses = state.getMansionBonuses();
+      multiplier *= (1 + mansionBonuses.clickPowerMultiplier);
+      
+      const forgeBonuses = state.getForgeBonuses();
+      multiplier *= (1 + forgeBonuses.clickPowerMultiplier);
+      multiplier *= forgeBonuses.goldenGlobalMultiplier;
       
       return multiplier;
     },
@@ -2794,6 +2851,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       return g;
     })(),
     forgeTray: [],
+    forgeArtifacts: [],
+    autoMergerUnlocked: false,
+    autoMergerActive: false,
     forgeLastMergePos: null,
 
     addToForge: (type: ForgeItemType) => {
@@ -2910,6 +2970,118 @@ export const useMetamanGame = create<MetamanGameStore>()(
     },
 
     clearForgeMergePos: () => set({ forgeLastMergePos: null }),
+
+    crossMergeForgeTray: (idxA: number, idxB: number) => {
+      const state = get();
+      const a = state.forgeTray[idxA];
+      const b = state.forgeTray[idxB];
+      if (!a || !b) return;
+
+      type RecipeMap = {
+        [key: string]: { id: string; name: string; color: string };
+      };
+      const comboKey = [a.type, b.type].sort().join('+');
+      
+      const recipes: RecipeMap = {
+        'data+email':  { id: 'blackmail_file', name: 'The Blackmail File', color: 'bg-red-900' },
+        'doc+email':   { id: 'smear_campaign', name: 'The Smear Campaign', color: 'bg-purple-900' },
+        'email+proof': { id: 'insider_leak', name: 'The Insider Leak', color: 'bg-yellow-900' },
+        'data+doc':    { id: 'demographic_profile', name: 'The Demographic Profile', color: 'bg-blue-900' },
+        'data+proof':  { id: 'smoking_gun', name: 'The Smoking Gun', color: 'bg-orange-900' },
+        'doc+proof':   { id: 'legal_manifesto', name: 'The Legal Manifesto', color: 'bg-gray-800' },
+      };
+
+      const result = recipes[comboKey];
+      if (!result) return; 
+
+      set((s) => {
+        const newTray = [...s.forgeTray];
+        newTray.splice(Math.max(idxA, idxB), 1);
+        newTray.splice(Math.min(idxA, idxB), 1);
+        const newArtifacts = s.forgeArtifacts.includes(result.id) ? s.forgeArtifacts : [...s.forgeArtifacts, result.id];
+        return {
+          forgeTray: newTray,
+          forgeArtifacts: newArtifacts
+        };
+      });
+      get().addVisualEffect('purchase' as any, window.innerWidth / 2, window.innerHeight / 2, 'high', `ARTIFACT FORGED: ${result.name}`);
+    },
+
+    mergeUltimateArtifact: () => {
+      const state = get();
+      const requiredTypes = ['email', 'data', 'doc', 'proof'];
+      
+      let foundAll = true;
+      let trayCopy = [...state.forgeTray];
+      let indicesToRemove: number[] = [];
+      
+      for (const t of requiredTypes) {
+        const idx = trayCopy.findIndex((item, i) => item.type === t && !indicesToRemove.includes(i));
+        if (idx === -1) {
+          foundAll = false;
+          break;
+        }
+        indicesToRemove.push(idx);
+      }
+      
+      if (!foundAll) return;
+      
+      set((s) => {
+        const newTray = s.forgeTray.filter((_, i) => !indicesToRemove.includes(i));
+        const newArtifacts = s.forgeArtifacts.includes('golden_algorithm') ? s.forgeArtifacts : [...s.forgeArtifacts, 'golden_algorithm'];
+        return {
+          forgeTray: newTray,
+          forgeArtifacts: newArtifacts
+        };
+      });
+      get().addVisualEffect('achievement' as any, window.innerWidth / 2, window.innerHeight / 2, 'extreme', 'THE GOLDEN ALGORITHM FORGED');
+    },
+
+    buyAutoMerger: () => {
+      const state = get();
+      if (!state.autoMergerUnlocked && state.orbsInventory >= 50) {
+        state.incrementOrbsInventory(-50);
+        set({ autoMergerUnlocked: true, autoMergerActive: true });
+        return true;
+      }
+      return false;
+    },
+
+    toggleAutoMerger: () => {
+      set((s) => ({ autoMergerActive: !s.autoMergerActive }));
+    },
+
+    runAutoMerger: () => {
+      const state = get();
+      if (!state.autoMergerActive || !state.autoMergerUnlocked) return;
+      
+      const grid = state.forgeGrid;
+      for (let i = 0; i < grid.length; i++) {
+        if (!grid[i]) continue;
+        const itemA = grid[i]!;
+        if (itemA.level >= 3) continue;
+        
+        for (let j = i + 1; j < grid.length; j++) {
+          if (!grid[j]) continue;
+          const itemB = grid[j]!;
+          if (itemA.type === itemB.type && itemA.level === itemB.level) {
+            state.mergeForgeItems(i, j);
+            return; 
+          }
+        }
+      }
+    },
+
+    injectDataToForge: () => {
+      const state = get();
+      if (state.orbsInventory >= 5) {
+        state.incrementOrbsInventory(-5);
+        const types: ForgeItemType[] = ['email', 'data', 'doc', 'proof'];
+        state.addToForge(types[Math.floor(Math.random() * types.length)]);
+        return true;
+      }
+      return false;
+    },
 
     applyGemUserGeneration: () => get().updatePassiveUserGeneration(),
 
@@ -3273,7 +3445,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
         showTrophyPanel: false,
         showOfflinePopup: false
       }));
-      get().clearAllVisualEffects();
     },
 
     addInfluencePoints: (amount: number) => {
@@ -3327,7 +3498,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }
 
       const gemBonuses = get().getGemBonuses();
-      const boostedUsersGenerated = totalBaseUserGen * (diff / 1000) * (1 + (gemBonuses.userGeneration / 100));
+      const mansionBonuses = get().getMansionBonuses();
+      const forgeBonuses = get().getForgeBonuses();
+      
+      let passiveUpsMultiplier = 1 + (gemBonuses.userGeneration / 100) + mansionBonuses.passiveUpsMultiplier + forgeBonuses.passiveUserMultiplier;
+      passiveUpsMultiplier *= forgeBonuses.goldenGlobalMultiplier;
+      
+      const boostedUsersGenerated = totalBaseUserGen * (diff / 1000) * passiveUpsMultiplier;
       
       if (boostedUsersGenerated > 0) {
         get().incrementUsers(boostedUsersGenerated);
@@ -3413,6 +3590,78 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       });
       return bonuses;
+    },
+
+    getForgeBonuses: () => {
+      const state = get();
+      const artifacts = state.forgeArtifacts || [];
+      return {
+        incomeMultiplier: artifacts.includes('blackmail_file') ? 0.25 : 0,
+        campaignMultiplier: artifacts.includes('smear_campaign') ? 0.40 : 0,
+        heatDamping: artifacts.includes('insider_leak') ? 0.15 : 0,
+        passiveUserMultiplier: artifacts.includes('demographic_profile') ? 0.35 : 0,
+        clickPowerMultiplier: artifacts.includes('smoking_gun') ? 0.50 : 0,
+        lawsuitDefense: artifacts.includes('legal_manifesto') ? 0.50 : 0,
+        goldenGlobalMultiplier: artifacts.includes('golden_algorithm') ? 2.0 : 1.0
+      };
+    },
+
+    getMansionBonuses: () => {
+      const state = get();
+      const m = state.mansionPurchases;
+      
+      let passiveUps = 0;
+      let incomeMult = 0;
+      let campaignMult = 0;
+      let clickPower = 0;
+      let heatDamping = 0;
+      let prestigeMult = 0;
+      
+      // The "All Bonuses" multipliers from endgame assets
+      let allBonuses = 0;
+      if (m.includes('diamond_chandelier')) allBonuses += 0.10;
+      if (m.includes('space_station')) allBonuses += 0.20;
+      if (m.includes('mars_colony')) allBonuses += 0.50;
+
+      // Passive UPS
+      if (m.includes('charm_aura')) passiveUps += 0.15;
+      if (m.includes('scroll_magnet')) passiveUps += 0.25;
+      if (m.includes('hype_hoodie')) passiveUps += 0.05;
+      if (m.includes('ego_island')) passiveUps += 0.10;
+      if (m.includes('doomscroll_yacht')) passiveUps += 0.20;
+      if (m.includes('personal_rocket')) passiveUps += 0.15;
+      if (m.includes('save_rainforest')) passiveUps += 0.02;
+      if (m.includes('museum')) passiveUps += 0.10;
+      
+      // Income 
+      if (m.includes('golden_chains')) incomeMult += 0.08;
+      if (m.includes('billionaire_sub')) incomeMult += 0.05;
+      if (m.includes('buy_platform')) incomeMult += 0.25;
+      if (m.includes('wellness_retreat')) incomeMult += 0.05;
+      if (m.includes('university')) incomeMult += 0.15;
+      
+      // Campaign
+      if (m.includes('viral_amplifier')) campaignMult += 0.30;
+      if (m.includes('ev_startup')) campaignMult += 0.10;
+      
+      // Click Power
+      if (m.includes('neon_sign')) clickPower += 0.03;
+      
+      // Prestige
+      if (m.includes('golden_desk')) prestigeMult += 0.05;
+      
+      // Heat Damping
+      if (m.includes('media_empire')) heatDamping += 0.50;
+      if (m.includes('advisor_walsh')) heatDamping += 1.0; // 100% immune
+      
+      return {
+        passiveUpsMultiplier: passiveUps + allBonuses,
+        incomeMultiplier: incomeMult + allBonuses,
+        campaignMultiplier: campaignMult + allBonuses,
+        clickPowerMultiplier: clickPower + allBonuses,
+        prestigeMultiplier: prestigeMult + allBonuses, // Actually we won't apply allBonuses to HeatDamping, otherwise it breaks immunity
+        heatDamping: heatDamping 
+      };
     },
 
     checkDanVisitTrigger: () => {

@@ -4,7 +4,6 @@ import path, { dirname } from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { fileURLToPath } from "url";
 import glsl from "vite-plugin-glsl";
-import { viteSingleFile } from "vite-plugin-singlefile";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,9 +13,7 @@ export default defineConfig({
     react(),
     runtimeErrorOverlay(),
     glsl(), // Add GLSL shader support
-    viteSingleFile(), // Bundle everything into index.html
   ],
-  base: "./",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
@@ -27,17 +24,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
-    target: "es2015",
-    modulePreload: false,
-    cssCodeSplit: false,
-    assetsInlineLimit: 100000000,
-    chunkSizeWarningLimit: 100000000,
-    rollupOptions: {
-      output: {
-        format: "iife",
-        inlineDynamicImports: true,
-      },
-    },
   },
   // Add support for large models and audio files
   assetsInclude: ["**/*.gltf", "**/*.glb", "**/*.mp3", "**/*.ogg", "**/*.wav"],

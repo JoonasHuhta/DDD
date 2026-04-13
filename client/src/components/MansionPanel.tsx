@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Home, Star, Zap, Users, Shirt, Sparkles, DollarSign, Crown, Eye, Bot, BarChart3, TrendingUp, Clock, Download, Upload, Target } from 'lucide-react';
+import { X, Home, Star, Zap, Users, Shirt, Sparkles, DollarSign, Crown, Eye, Bot, BarChart3, TrendingUp, Clock, Download, Upload, Target, Palmtree, Anchor, Ship, CarFront, Rocket, Globe, Satellite, TreePine, Heart, Tv, Building2, GraduationCap, ShieldAlert } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
@@ -13,7 +13,7 @@ interface MansionUpgrade {
   description: string;
   price: number;
   currency: 'orbs' | 'diamonds' | 'money';
-  category: 'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops';
+  category: 'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops' | 'ego' | 'political';
   effect: string;
   bonus: number;
   icon: React.ReactNode;
@@ -56,7 +56,7 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
   } = useMetamanGame();
 
   const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'bonuses' | 'stats' | 'trophies'>('mansion');
-  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops'>('luring');
+  const [activeMansionTab, setActiveMansionTab] = useState<'luring' | 'decoration' | 'clothing' | 'lifestyle' | 'ops' | 'ego' | 'political'>('luring');
   const [activeTrophyTab, setActiveTrophyTab] = useState<'badges' | 'elites'>('badges');
 
   const isUpgradePurchased = (id: string) => mansionPurchases.includes(id);
@@ -414,6 +414,176 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
       bonus: 0,
       icon: <Crown className="w-5 h-5" />,
       purchased: isUpgradePurchased('platform_reinstatement')
+    },
+    // ── EGO & LEGACY (8) ────────────────────────────────────────────────────────
+    {
+      id: 'ego_island',
+      name: 'Dan\'s Ego Island',
+      description: '"New Danistan". Tax evasion haven.',
+      price: 10000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+10% Passive UPS',
+      bonus: 10,
+      icon: <Palmtree className="w-5 h-5" />,
+      purchased: isUpgradePurchased('ego_island')
+    },
+    {
+      id: 'billionaire_sub',
+      name: 'Billionaire Sub',
+      description: 'For "marine research". Used once.',
+      price: 50000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+5% Income Multiplier',
+      bonus: 5,
+      icon: <Anchor className="w-5 h-5" />,
+      purchased: isUpgradePurchased('billionaire_sub')
+    },
+    {
+      id: 'doomscroll_yacht',
+      name: 'Doomscroll Yacht',
+      description: 'Staff forced to scroll Dan-app 24/7.',
+      price: 50000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+20% Passive UPS',
+      bonus: 20,
+      icon: <Ship className="w-5 h-5" />,
+      purchased: isUpgradePurchased('doomscroll_yacht')
+    },
+    {
+      id: 'ev_startup',
+      name: 'EV Startup',
+      description: 'Greenwashing PR. ROI: Excellent.',
+      price: 100000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+10% Campaign yields',
+      bonus: 10,
+      icon: <CarFront className="w-5 h-5" />,
+      purchased: isUpgradePurchased('ev_startup')
+    },
+    {
+      id: 'personal_rocket',
+      name: 'Personal Rocket',
+      description: '"To inspire humanity". Humanity: "...ok?"',
+      price: 200000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+15% Passive UPS',
+      bonus: 15,
+      icon: <Rocket className="w-5 h-5" />,
+      purchased: isUpgradePurchased('personal_rocket')
+    },
+    {
+      id: 'buy_platform',
+      name: 'Social Network',
+      description: 'Buy a platform. Make it worse. Call it better.',
+      price: 500000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+25% Income Multiplier',
+      bonus: 25,
+      icon: <Globe className="w-5 h-5" />,
+      purchased: isUpgradePurchased('buy_platform')
+    },
+    {
+      id: 'space_station',
+      name: 'Space Station',
+      description: '"Backup for humanity". Capacity: 12.',
+      price: 1000000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+20% All Bonuses',
+      bonus: 20,
+      icon: <Satellite className="w-5 h-5" />,
+      purchased: isUpgradePurchased('space_station')
+    },
+    {
+      id: 'mars_colony',
+      name: 'Mars Colony',
+      description: 'First resident: Dan. Second: Larry.',
+      price: 10000000000,
+      currency: 'money',
+      category: 'ego',
+      effect: '+50% All Bonuses',
+      bonus: 50,
+      icon: <Rocket className="w-5 h-5 text-red-500" />,
+      purchased: isUpgradePurchased('mars_colony')
+    },
+    // ── POLITICAL & MEDIA (6) ───────────────────────────────────────────────────
+    {
+      id: 'save_rainforest',
+      name: 'Save a Rainforest',
+      description: '"Net zero deforestation". Proprietary math.',
+      price: 1000000,
+      currency: 'money',
+      category: 'political',
+      effect: '+2% Passive UPS',
+      bonus: 2,
+      icon: <TreePine className="w-5 h-5" />,
+      purchased: isUpgradePurchased('save_rainforest')
+    },
+    {
+      id: 'wellness_retreat',
+      name: 'Wellness App',
+      description: 'Collect mindfulness data. Sell to insurance.',
+      price: 20000000,
+      currency: 'money',
+      category: 'political',
+      effect: '+5% Income Multiplier',
+      bonus: 5,
+      icon: <Heart className="w-5 h-5" />,
+      purchased: isUpgradePurchased('wellness_retreat')
+    },
+    {
+      id: 'media_empire',
+      name: 'Media Empire',
+      description: 'Buy the news. Say you are the hero.',
+      price: 50000000,
+      currency: 'money',
+      category: 'political',
+      effect: 'Heat gain -50%',
+      bonus: 50,
+      icon: <Tv className="w-5 h-5" />,
+      purchased: isUpgradePurchased('media_empire')
+    },
+    {
+      id: 'museum',
+      name: 'The Legacy Project',
+      description: 'Dan Corp Museum. Net cost: $0 (Tax write-off).',
+      price: 100000000,
+      currency: 'money',
+      category: 'political',
+      effect: '+10% Passive UPS',
+      bonus: 10,
+      icon: <Building2 className="w-5 h-5" />,
+      purchased: isUpgradePurchased('museum')
+    },
+    {
+      id: 'university',
+      name: 'The University',
+      description: 'Dan Corp University. "Ethical Data Science".',
+      price: 500000000,
+      currency: 'money',
+      category: 'political',
+      effect: '+15% Income Multiplier',
+      bonus: 15,
+      icon: <GraduationCap className="w-5 h-5" />,
+      purchased: isUpgradePurchased('university')
+    },
+    {
+      id: 'advisor_walsh',
+      name: 'Strategic Advisor',
+      description: 'Walsh. All lawsuits disappear. Forever.',
+      price: 50000000000,
+      currency: 'money',
+      category: 'political',
+      effect: 'Immune to Lawsuits',
+      bonus: 100,
+      icon: <ShieldAlert className="w-5 h-5 text-red-500" />,
+      purchased: isUpgradePurchased('advisor_walsh')
     }
   ];
 
@@ -536,6 +706,20 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
       ...(activeMansion.includes('hype_hoodie')        ? [{ label: 'User generation',  value: '+5%',  source: 'Hype Hoodie',   color: 'bg-green-100' }] : []),
       ...(activeMansion.includes('golden_chains')      ? [{ label: 'Income mult.',     value: '+8%',  source: 'Golden Chains', color: 'bg-amber-100' }] : []),
       ...(activeMansion.includes('golden_desk')        ? [{ label: 'Prestige pts',     value: '+5%',  source: 'Golden Desk',   color: 'bg-orange-100' }] : []),
+      ...(activeMansion.includes('ego_island')         ? [{ label: 'Passive UPS',      value: '+10%', source: 'Dan\'s Ego Island', color: 'bg-yellow-100' }] : []),
+      ...(activeMansion.includes('billionaire_sub')    ? [{ label: 'Income mult.',     value: '+5%',  source: 'Billionaire Sub', color: 'bg-amber-100' }] : []),
+      ...(activeMansion.includes('doomscroll_yacht')   ? [{ label: 'Passive UPS',      value: '+20%', source: 'Doomscroll Yacht', color: 'bg-yellow-100' }] : []),
+      ...(activeMansion.includes('ev_startup')         ? [{ label: 'Campaign yields',  value: '+10%', source: 'EV Startup', color: 'bg-yellow-100' }] : []),
+      ...(activeMansion.includes('personal_rocket')    ? [{ label: 'Passive UPS',      value: '+15%', source: 'Personal Rocket', color: 'bg-yellow-100' }] : []),
+      ...(activeMansion.includes('buy_platform')       ? [{ label: 'Income mult.',     value: '+25%', source: 'Social Network', color: 'bg-amber-100' }] : []),
+      ...(activeMansion.includes('space_station')      ? [{ label: 'All bonuses',      value: '+20%', source: 'Space Station', color: 'bg-purple-100' }] : []),
+      ...(activeMansion.includes('mars_colony')        ? [{ label: 'All bonuses',      value: '+50%', source: 'Mars Colony', color: 'bg-purple-100' }] : []),
+      ...(activeMansion.includes('save_rainforest')    ? [{ label: 'Passive UPS',      value: '+2%',  source: 'Rainforest', color: 'bg-green-100' }] : []),
+      ...(activeMansion.includes('wellness_retreat')   ? [{ label: 'Income mult.',     value: '+5%',  source: 'Wellness App', color: 'bg-amber-100' }] : []),
+      ...(activeMansion.includes('media_empire')       ? [{ label: 'Heat Gen',         value: '-50%', source: 'Media Empire', color: 'bg-red-100' }] : []),
+      ...(activeMansion.includes('museum')             ? [{ label: 'Passive UPS',      value: '+10%', source: 'Museum', color: 'bg-yellow-100' }] : []),
+      ...(activeMansion.includes('university')         ? [{ label: 'Income mult.',     value: '+15%', source: 'University', color: 'bg-amber-100' }] : []),
+      ...(activeMansion.includes('advisor_walsh')      ? [{ label: 'Heat Gen',         value: '-100%', source: 'Walsh', color: 'bg-red-100' }] : []),
     ];
 
     return (

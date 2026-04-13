@@ -133,6 +133,11 @@ export default function Game() {
       
       checkGameOver();          // Check for loss conditions
       
+      // Auto-Merger
+      if (state.runAutoMerger) {
+        state.runAutoMerger();
+      }
+      
       // Update session total play time
       const currentTime = state.totalPlayTime || 0;
       state.setPlayTime(currentTime + 1000);

@@ -40,6 +40,7 @@ export default function CrisisManager() {
     threats: [] as PoopThreat[],
     spawnTimer: 0,
     hitCountThisFrame: 0,
+    lastTime: 0,
   });
 
   // DOM POOL LAYER
@@ -276,7 +277,7 @@ export default function CrisisManager() {
 
       {/* Breaking News Banner (Phase 2) */}
       <AnimatePresence>
-        {isCrisisActive && threats.length > 0 && (
+        {isCrisisActive && (
           <motion.div
             initial={{ y: -100 }}
             animate={{ y: 0 }}

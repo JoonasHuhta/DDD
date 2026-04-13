@@ -28,10 +28,22 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
     claimForgeReward, 
     addToForge,
     forgeLastMergePos,
-    clearForgeMergePos
+    clearForgeMergePos,
+    crossMergeForgeTray,
+    mergeUltimateArtifact,
+    injectDataToForge,
+    buyAutoMerger,
+    toggleAutoMerger,
+    runAutoMerger,
+    autoMergerUnlocked,
+    autoMergerActive,
+    forgeArtifacts,
+    orbsInventory
   } = useMetamanGame();
   
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [selectedTrayIdx, setSelectedTrayIdx] = useState<number | null>(null);
+  const [showArtifacts, setShowArtifacts] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
   const [particles, setParticles] = useState<{ id: number, x: number, y: number, tx: number, ty: number, color: string }[]>([]);
@@ -101,9 +113,30 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
     }, 200);
   };
 
-  const addRandomTestItem = () => {
-    const types: ForgeItemType[] = ['email', 'data', 'doc', 'proof'];
-    addToForge(types[Math.floor(Math.random() * types.length)]);
+  const handleTrayClick = (idx: number) => {
+    if (selectedTrayIdx === null) {
+      setSelectedTrayIdx(idx);
+    } else if (selectedTrayIdx === idx) {
+      // Claim if clicked again
+      claimForgeReward(idx);
+      setSelectedTrayIdx(null);
+    } else {
+      // Cross merge
+      const itemA = outputTray[selectedTrayIdx];
+      const itemB = outputTray[idx];
+      if (itemA.type !== itemB.type) {
+        crossMergeForgeTray(selectedTrayIdx, idx);
+      }
+      setSelectedTrayIdx(null);
+    }
+  };
+
+  const handleInjectData = () => {
+    if (orbsInventory < 5) return;
+    if (injectDataToForge()) {
+      setIsProcessing(true);
+      setTimeout(() => setIsProcessing(false), 200);
+    }
   };
 
   const getRewardDescription = (type: ForgeItemType) => {
@@ -167,12 +200,34 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
         </div>
 
         {/* Narrative Status Bar */}
-        <div className="bg-black py-1 px-3 flex justify-between items-center text-[10px] uppercase font-bold text-blue-400">
-          <div className="flex items-center gap-1">
-            <Hammer className="w-3 h-3" />
-            CONVEYOR ACTIVE
+        <div className="bg-black py-1 px-3 flex justify-between items-center text-[10px] uppercase font-bold border-b border-blue-900">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 text-blue-400">
+              <Hammer className="w-3 h-3" />
+              CONVEYOR ACTIVE
+            </div>
+            
+            {/* Auto-Merger Module */}
+            <div className="flex items-center border-l pl-4 border-gray-700">
+               {!autoMergerUnlocked ? (
+                 <button 
+                  onClick={() => buyAutoMerger()} 
+                  disabled={orbsInventory < 50}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded border ${orbsInventory >= 50 ? 'bg-amber-600 hover:bg-amber-500 border-amber-300 text-white' : 'bg-gray-800 text-gray-500 border-gray-700'}`}
+                 >
+                   AUTO-MERGE (50 ORBS)
+                 </button>
+               ) : (
+                 <button
+                  onClick={() => toggleAutoMerger()}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded border font-black ${autoMergerActive ? 'bg-green-600 border-green-300 text-white' : 'bg-red-900 border-red-500 text-gray-300'}`}
+                 >
+                   {autoMergerActive ? 'AUTO: ON' : 'AUTO: OFF'}
+                 </button>
+               )}
+            </div>
           </div>
-          <div className="animate-pulse">WAITING FOR INPUT...</div>
+          <div className="text-blue-400 animate-pulse">WAITING FOR INPUT...</div>
         </div>
 
         {/* Grid Area */}
@@ -244,18 +299,30 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
         <div className="p-4 bg-[#112240] border-t-4 border-black border-dashed">
           <div className="flex justify-between items-end mb-4">
             <div className="flex flex-col">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Manual Input</span>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 flex justify-between items-center">
+                Manual Input
+                <span className="text-yellow-400">{orbsInventory} ORBS</span>
+              </span>
               <button 
-                onClick={addRandomTestItem}
-                className="bg-green-600 hover:bg-green-500 px-4 py-2 rounded-lg border-b-4 border-green-800 font-bold active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2"
+                onClick={handleInjectData}
+                disabled={orbsInventory < 5}
+                className={`px-4 py-2 rounded-lg border-b-4 font-bold active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2 ${orbsInventory >= 5 ? 'bg-green-600 hover:bg-green-500 border-green-800' : 'bg-gray-700 text-gray-500 border-gray-900'}`}
               >
-                <Zap className="w-4 h-4" /> INJECT DATA
+                <Zap className="w-4 h-4" /> INJECT (5 ORBS)
               </button>
             </div>
 
             <div className="text-right">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Output Tray</span>
-              <div className="bg-black bg-opacity-50 border-2 border-gray-700 rounded h-12 w-48 flex items-center justify-center gap-1 overflow-x-auto overflow-y-hidden p-1 custom-scrollbar">
+              <div className="bg-black bg-opacity-50 border-2 border-gray-700 rounded h-12 w-48 flex items-center justify-center gap-1 overflow-x-auto overflow-y-hidden p-1 custom-scrollbar relative">
+                
+                {/* Check for Golden Merge */}
+                {outputTray.length >= 4 && new Set(outputTray.map(t => t.type)).size === 4 && (
+                  <button onClick={() => mergeUltimateArtifact()} className="absolute z-10 inset-1 bg-yellow-500 text-black font-black text-[10px] border border-white animate-pulse rounded flex items-center justify-center text-center">
+                    MERGE THE GOLDEN ALGORITHM
+                  </button>
+                )}
+
                 {outputTray.length === 0 ? (
                     <span className="text-[8px] italic text-gray-600 uppercase">EMPTY</span>
                 ) : (
@@ -264,12 +331,12 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
                           key={t.id}
                           whileHover={{ scale: 1.1, filter: 'brightness(1.5)' }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => claimForgeReward(ii)}
-                          className={`relative w-8 h-8 flex items-center justify-center rounded border-2 border-dashed group ${t.type === 'email' ? 'border-blue-400' : t.type === 'data' ? 'border-yellow-400' : t.type === 'doc' ? 'border-red-400' : 'border-purple-400'}`}
+                          onClick={() => handleTrayClick(ii)}
+                          className={`relative w-8 h-8 flex flex-shrink-0 items-center justify-center rounded border-2 group ${t.type === 'email' ? 'border-blue-400' : t.type === 'data' ? 'border-yellow-400' : t.type === 'doc' ? 'border-red-400' : 'border-purple-400'} ${selectedTrayIdx === ii ? 'ring-4 ring-white animate-pulse' : 'border-dashed'}`}
                         >
-                          <span className="text-xl select-none animate-bounce">{ITEMS_CONFIG[t.type].levels[t.level]}</span>
+                          <span className="text-xl select-none">{ITEMS_CONFIG[t.type].levels[t.level]}</span>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black text-white text-[6px] p-1 rounded whitespace-nowrap z-50 border border-gray-500">
-                            {getRewardDescription(t.type)}
+                            {getRewardDescription(t.type)} (x2 to Cross-Merge)
                           </div>
                         </motion.button>
                     ))
@@ -278,16 +345,53 @@ export const ForgeSandbox: React.FC<ForgeSandboxProps> = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="bg-black p-2 rounded border border-blue-900 flex items-start gap-2">
-            <Settings2 className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-            <p className="text-[9px] text-gray-400 font-mono leading-tight">
-              ADMIN NOTES: Merge identical evidence into Level 3 "History Revised" results. Level 3 items grant specific strategic artifacts. PROTOTYPE V0.1
-            </p>
+          <div className="bg-black p-2 rounded border border-blue-900 flex justify-between items-start gap-2">
+            <div className="flex gap-2">
+              <Settings2 className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <p className="text-[9px] text-gray-400 font-mono leading-tight">
+                ADMIN NOTES: Merge identical max-level items to cross-link evidence into Permanent Strategic Artifacts.
+              </p>
+            </div>
+            {forgeArtifacts.length > 0 && (
+               <button onClick={() => setShowArtifacts(true)} className="px-2 py-1 bg-blue-900 border border-blue-400 text-[10px] font-bold text-blue-100 rounded hover:bg-blue-800 whitespace-nowrap">
+                 ARTIFACTS ({forgeArtifacts.length})
+               </button>
+            )}
           </div>
         </div>
       </div>
 
-      <p className="mt-4 text-[10px] text-blue-500 font-black uppercase tracking-widest opacity-50">
+      {showArtifacts && (
+        <div className="absolute inset-0 z-[200] bg-black bg-opacity-90 flex flex-col p-8 items-center justify-center backdrop-blur-sm">
+           <div className="w-full max-w-sm border-2 border-blue-400 bg-[#0A192F] p-4 rounded shadow-[0_0_50px_rgba(30,58,138,1)] flex flex-col max-h-[80vh]">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-black text-amber-400 italic">THE TRUTH REVISED</h2>
+                <button onClick={() => setShowArtifacts(false)}><XCircle className="w-6 h-6 text-red-500"/></button>
+              </div>
+              <div className="overflow-y-auto custom-scrollbar flex flex-col gap-2">
+                 {forgeArtifacts.map(id => {
+                   let name = "Unknown", effect = "Unknown effect";
+                   if(id === 'blackmail_file') { name = "The Blackmail File"; effect = "+25% Global Income"; }
+                   if(id === 'smear_campaign') { name = "The Smear Campaign"; effect = "+40% Campaign Yields"; }
+                   if(id === 'insider_leak') { name = "The Insider Leak"; effect = "-15% Heat Accumulation"; }
+                   if(id === 'demographic_profile') { name = "The Demographic Profile"; effect = "+35% Passive Growth"; }
+                   if(id === 'smoking_gun') { name = "The Smoking Gun"; effect = "+50% Click Power"; }
+                   if(id === 'legal_manifesto') { name = "The Legal Manifesto"; effect = "Lawsuits deal -50% damage"; }
+                   if(id === 'golden_algorithm') { name = "The Golden Algorithm"; effect = "2x EVERYTHING (God Mode)"; }
+                   
+                   return (
+                     <div key={id} className="bg-black border border-gray-700 p-2 rounded flex justify-between items-center">
+                       <span className="font-bold text-xs text-white">{name}</span>
+                       <span className="text-[10px] text-green-400">{effect}</span>
+                     </div>
+                   );
+                 })}
+              </div>
+           </div>
+        </div>
+      )}
+
+      <p className="mt-4 text-[10px] text-blue-500 font-black uppercase tracking-widest opacity-50 z-10 relative">
         "Context is everything. We have removed the context."
       </p>
     </div>
