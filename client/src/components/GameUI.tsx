@@ -77,11 +77,9 @@ export default function GameUI() {
     acknowledgeLawsuit,
     triggerLawsuit,
     rewardState,
-    visualEffects,
     achievementManager,
     showAchievementShowcase,
     closeAchievementShowcase,
-    removeVisualEffect,
     toggleTrophyPanel,
     showTutorial,
     setShowTutorial,
@@ -798,10 +796,7 @@ export default function GameUI() {
       
       {/* Visual Effects and Achievement Popup Only */}
       <ErrorBoundary fallback={null}>
-        <VisualEffects 
-          effects={visualEffects} 
-          onEffectComplete={removeVisualEffect} 
-        />
+        <VisualEffects />
       </ErrorBoundary>
       
       {/* Achievement Popup (Removed, achievements go to Suitcase) */}

@@ -1,199 +1,160 @@
-import React, { useEffect, useMemo } from 'react';
-import { DollarSign, Users, Shield, Zap, Box } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
 
-interface Effect {
-  id: number;
-  type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis' | 'confetti';
-  x: number;
-  y: number;
-  duration: number;
-  intensity: 'low' | 'medium' | 'high' | 'extreme';
-  color?: string;
-  value?: string | number;
-}
+const MAX_EFFECTS = 30;
 
-interface VisualEffectsProps {
-  effects: Effect[];
-  onEffectComplete: (id: number) => void;
-}
+const ICONS = {
+  money: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+  users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+  shield: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+  zap: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`
+};
 
-// Optimization: Memoize individual effects to prevent re-renders
-const VisualEffectItem = React.memo(({ effect, onComplete }: { effect: Effect, onComplete: (id: number) => void }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => onComplete(effect.id), effect.duration);
-    return () => clearTimeout(timer);
-  }, [effect, onComplete]);
-
-  const baseClasses = "absolute pointer-events-none transform -translate-x-1/2 -translate-y-1/2 will-change-transform";
+const getHTMLForEffect = (detail: any) => {
+  const { type, value, color, intensity } = detail;
   
-  // Custom fast bounce and fade out animation
-  const effectStyle = { 
-    left: effect.x, 
-    top: effect.y,
-    animation: `fastBounce 0.4s ease-in-out infinite alternate, fadeOutEffect ${effect.duration}ms ease-out forwards`
-  };
-
-  const renderParticles = (count: number, color: string) => {
-    return (
-      <div className="absolute inset-0">
-        {[...Array(count)].map((_, i) => (
-          <div
-            key={i}
-            className={`absolute rounded-full animate-ping ${color}`}
-            style={{
-              width: '4px',
-              height: '4px',
-              left: `${Math.random() * 40 - 20}px`, // Corrected 'h.random()' to 'Math.random()'
-              top: `${Math.random() * 40 - 20}px`,
-              animationDelay: `${Math.random() * 0.5}s`,
-              animationDuration: `${0.4 + Math.random() * 0.4}s`
-            }}
-          />
-        ))}
+  if (type === 'money') {
+    const isLoss = color === 'red' || (typeof value === 'string' && value.startsWith('-'));
+    const colorClass = color === 'red' ? 'text-red-500' : 'text-green-400';
+    const borderColor = color === 'red' ? 'border-red-500/40' : 'border-green-500/40';
+    const glowColor = color === 'red' ? 'shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_15px_rgba(34,197,94,0.4)]';
+    
+    return `
+      <div class="flex items-center gap-1 bg-black/95 border ${borderColor} rounded-full px-3 py-1 scale-75 md:scale-100 ${glowColor}">
+        <div class="${colorClass}">${ICONS.money}</div>
+        <span class="text-xs md:text-sm font-black whitespace-nowrap font-mono ${colorClass}">${value || '+'}</span>
       </div>
-    );
-  };
-
-  switch (effect.type) {
-    case 'money':
-      const isLoss = effect.color === 'red' || (typeof effect.value === 'string' && effect.value.startsWith('-'));
-      const colorClass = effect.color === 'red' ? 'text-red-500' : 'text-green-400';
-      const borderColor = effect.color === 'red' ? 'border-red-500/40' : 'border-green-500/40';
-      const glowColor = effect.color === 'red' ? 'shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_15px_rgba(34,197,94,0.4)]';
-
-      return (
-        <div className={baseClasses} style={effectStyle}>
-          <div className={`flex items-center gap-1 bg-black/95 border ${borderColor} rounded-full px-3 py-1 scale-75 md:scale-100 ${glowColor}`}>
-            <DollarSign className={`w-3 h-3 md:w-4 h-4 ${colorClass}`} />
-            <span className={`text-xs md:text-sm font-black whitespace-nowrap font-mono ${colorClass}`}>{effect.value || '+'}</span>
-          </div>
-          {renderParticles(effect.intensity === 'extreme' ? 8 : 4, isLoss ? 'bg-red-500' : 'bg-yellow-400')}
-        </div>
-      );
-
-    case 'users':
-      return (
-        <div className={baseClasses} style={effectStyle}>
-          <div className={`flex items-center gap-1 bg-black/95 border ${effect.color === 'red' ? 'border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.4)]'} rounded-full px-3 py-1 scale-75 md:scale-100`}>
-            <Users className={`w-3 h-3 md:w-4 h-4 ${effect.color === 'red' ? 'text-red-500' : 'text-blue-400'}`} />
-            <span className={`text-xs md:text-sm font-black whitespace-nowrap font-mono ${effect.color === 'red' ? 'text-red-500' : 'text-blue-400'}`}>{effect.value || '+USERS'}</span>
-          </div>
-          {renderParticles(5, effect.color === 'red' ? 'bg-red-500' : 'bg-blue-400')}
-        </div>
-      );
-
-    case 'purchase':
-      return (
-        <div className={baseClasses} style={effectStyle}>
-          <div className="relative">
-            <Zap className="w-8 h-8 animate-ping text-purple-400" />
-            {renderParticles(10, 'bg-purple-400')}
-          </div>
-        </div>
-      );
-
-    case 'achievement':
-      return (
-        <div className={baseClasses} style={{...effectStyle, animation: `achievementEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards`}}>
-          <div className="relative">
-            <div className="w-12 h-12 bg-yellow-400/20 border-2 border-yellow-400 rounded-lg animate-spin rotate-45 flex items-center justify-center">
-               <Shield className="w-6 h-6 text-yellow-400 -rotate-45" />
-            </div>
-            <div className="absolute inset-x-0 -top-8 text-center">
-              <span className="text-[10px] font-black uppercase tracking-widest bg-yellow-400 text-black px-2 py-0.5 whitespace-nowrap shadow-[0_0_10px_rgba(250,204,21,0.5)]">
-                ASSET SECURED
-              </span>
-            </div>
-            {renderParticles(15, 'bg-yellow-400')}
-          </div>
-        </div>
-      );
-
-    case 'crisis': // Added new 'crisis' effect type
-      return (
-        <div className={baseClasses} style={{...effectStyle, animation: `crisisPulse 1s ease-in-out infinite alternate`}}>
-          <div className="relative p-4 bg-red-800/80 border-2 border-red-500 rounded-lg shadow-xl text-center">
-            <div className="text-white font-black text-3xl uppercase whitespace-nowrap animate-pulse">
-              🚨 PR DISASTER! 🚨 SCANDALS! 🚨 DEFEND THE HQ! 🚨 STOCK PRICES PLUMMETING! 🚨
-            </div>
-            {renderParticles(effect.intensity === 'extreme' ? 20 : 10, 'bg-red-500')}
-          </div>
-        </div>
-      );
-
-    case 'confetti':
-      const confettiColors = ['bg-yellow-400', 'bg-blue-400', 'bg-red-500', 'bg-green-400', 'bg-purple-500', 'bg-pink-500'];
-      return (
-        <div className={baseClasses} style={effectStyle}>
-          <div className="relative">
-            {[...Array(16)].map((_, i) => {
-              const randomColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
-              const angle = (Math.PI * 2 * i) / 16 + (Math.random() * 0.5);
-              const distance = 20 + Math.random() * 40;
-              const delay = Math.random() * 0.2;
-              return (
-                <div
-                  key={i}
-                  className={`absolute w-1.5 h-1.5 ${randomColor} rounded-sm shadow-sm`}
-                  style={{
-                    animation: `confettiPop 0.8s cubic-bezier(0.1, 0.8, 0.4, 1.0) ${delay}s forwards`,
-                    '--tx': `${Math.cos(angle) * distance}px`,
-                    '--ty': `${Math.sin(angle) * distance}px`,
-                    '--rot': `${Math.random() * 360}deg`
-                  } as any}
-                />
-              );
-            })}
-          </div>
-        </div>
-      );
-
-    default:
-      return null;
+    `;
   }
-});
+  
+  if (type === 'users') {
+    const isLoss = color === 'red';
+    const colorClass = isLoss ? 'text-red-500' : 'text-blue-400';
+    const borderColor = isLoss ? 'border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.4)]';
+    
+    return `
+      <div class="flex items-center gap-1 bg-black/95 border ${borderColor} rounded-full px-3 py-1 scale-75 md:scale-100">
+        <div class="${colorClass}">${ICONS.users}</div>
+        <span class="text-xs md:text-sm font-black whitespace-nowrap font-mono ${colorClass}">${value || '+USERS'}</span>
+      </div>
+    `;
+  }
 
-VisualEffectItem.displayName = 'VisualEffectItem';
+  if (type === 'achievement') {
+    return `
+      <div class="relative">
+        <div class="w-12 h-12 bg-yellow-400/20 border-2 border-yellow-400 rounded-lg animate-spin rotate-45 flex items-center justify-center">
+           <div class="text-yellow-400 -rotate-45">${ICONS.shield}</div>
+        </div>
+        <div class="absolute inset-x-0 -top-8 text-center">
+          <span class="text-[10px] font-black uppercase tracking-widest bg-yellow-400 text-black px-2 py-0.5 whitespace-nowrap shadow-[0_0_10px_rgba(250,204,21,0.5)]">
+            ASSET SECURED
+          </span>
+        </div>
+      </div>
+    `;
+  }
 
-const VisualEffects = ({ effects, onEffectComplete }: VisualEffectsProps) => {
-  const visibleEffects = useMemo(() => effects.slice(-15), [effects]); // Limit slightly more for performance
+  if (type === 'crisis') {
+    return `
+      <div class="relative p-4 bg-red-800/80 border-2 border-red-500 rounded-lg shadow-xl text-center">
+        <div class="text-white font-black text-3xl uppercase whitespace-nowrap animate-pulse">
+          🚨 PR DISASTER! 🚨 SCANDALS! 🚨 DEFEND THE HQ! 🚨
+        </div>
+      </div>
+    `;
+  }
+  
+  if (type === 'confetti') {
+    let dots = '';
+    const colors = ['bg-yellow-400', 'bg-blue-400', 'bg-red-500', 'bg-green-400', 'bg-purple-500', 'bg-pink-500'];
+    for(let i=0; i<16; i++) {
+        const rc = colors[Math.floor(Math.random() * colors.length)];
+        const dist = 20 + Math.random() * 40;
+        const angle = (Math.PI * 2 * i) / 16 + (Math.random() * 0.5);
+        dots += `<div class="absolute w-1.5 h-1.5 ${rc} rounded-sm" style="transform: translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)"></div>`;
+    }
+    return `<div class="relative">${dots}</div>`;
+  }
 
-  return (
-    <div 
-      className="absolute inset-0 overflow-hidden z-30 pointer-events-none"
-      data-visual-effects="true"
-    >
-      {visibleEffects.map(effect => (
-        <VisualEffectItem 
-          key={effect.id} 
-          effect={effect} 
-          onComplete={onEffectComplete} 
-        />
-      ))}
+  return ``;
+};
+
+const VisualEffects = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const poolRef = useRef<{ el: HTMLDivElement, active: boolean, expires: number }[]>([]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // 1. Initialize DOM Pool
+    for (let i = 0; i < MAX_EFFECTS; i++) {
+      const el = document.createElement('div');
+      el.className = "absolute pointer-events-none transform -translate-x-1/2 -translate-y-1/2 opacity-0";
+      el.style.zIndex = '100';
+      el.style.transition = 'opacity 0.15s ease-out, transform 0.8s cubic-bezier(0.1, 0.8, 0.4, 1.0)';
+      el.style.willChange = 'transform, opacity';
+      container.appendChild(el);
+      poolRef.current.push({ el, active: false, expires: 0 });
+    }
+
+    // 2. Map Event to DOM Node
+    const handleEffect = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const detail = customEvent.detail;
       
-      <style>{`
-        @keyframes fastBounce {
-          from { transform: translateY(0); }
-          to { transform: translateY(-15px); }
+      const p = poolRef.current.find(p => !p.active);
+      if (!p) return; // Soft Cap enforcement - safely drops excess visuals to preserve FPS
+
+      p.active = true;
+      p.expires = Date.now() + (detail.duration || 800);
+
+      const el = p.el;
+      
+      // Inject pure HTML string (0 React renders!)
+      el.innerHTML = getHTMLForEffect(detail);
+      
+      // Reset transform and animation
+      el.style.transition = 'none';
+      el.style.transform = `translate(-50%, -50%) scale(0.5) translateY(20px)`;
+      el.style.opacity = '0';
+      el.style.left = `${detail.x}px`;
+      el.style.top = `${detail.y}px`;
+
+      // Trigger reflow
+      void el.offsetHeight;
+
+      // Animate in
+      el.style.transition = 'opacity 0.15s ease-out, transform 0.6s cubic-bezier(0.1, 0.8, 0.4, 1.0)';
+      el.style.opacity = '1';
+      el.style.transform = `translate(-50%, -50%) scale(1) translateY(-40px)`;
+    };
+
+    document.addEventListener('metaman-visual-effect', handleEffect);
+
+    // 3. Engine Loop (Vanilla GC and Fade Out)
+    let animationId: number;
+    const loop = () => {
+      const now = Date.now();
+      poolRef.current.forEach(p => {
+        if (p.active && now > p.expires) {
+          p.active = false;
+          p.el.style.transition = 'opacity 0.2s ease-out';
+          p.el.style.opacity = '0';
         }
-        @keyframes fadeOutEffect {
-          0% { opacity: 0; transform: scale(0.8) translateY(20px); }
-          15% { opacity: 1; transform: scale(1) translateY(0); }
-          80% { opacity: 1; transform: scale(1) translateY(0); }
-          100% { opacity: 0; transform: scale(1.1) translateY(-20px); }
-        }
-        @keyframes achievementEntrance {
-          0% { transform: scale(0) rotate(-180deg); opacity: 0; }
-          100% { transform: scale(1) rotate(0); opacity: 1; }
-        }
-        @keyframes confettiPop {
-          0% { transform: translate(0, 0) rotate(0deg) scale(0); opacity: 1; }
-          10% { transform: translate(0, 0) rotate(0deg) scale(1.5); opacity: 1; }
-          100% { transform: translate(var(--tx), calc(var(--ty) + 100px)) rotate(var(--rot)) scale(0.5); opacity: 0; }
-        }
-      `}</style>
-    </div>
-  );
+      });
+      animationId = requestAnimationFrame(loop);
+    };
+    loop();
+
+    return () => {
+      document.removeEventListener('metaman-visual-effect', handleEffect);
+      cancelAnimationFrame(animationId);
+      container.innerHTML = '';
+    };
+  }, []);
+
+  return <div ref={containerRef} className="absolute inset-0 pointer-events-none z-[100]" />;
 };
 
 export default React.memo(VisualEffects);

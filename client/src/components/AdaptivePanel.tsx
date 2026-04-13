@@ -45,23 +45,35 @@ export default function AdaptivePanel({
   const isFull = size === 'full';
 
   return (
-    <div 
-      className={`
-        absolute ${isFull ? 'inset-0 sm:inset-4' : positionClasses[position]} z-[100] 
-        bg-[#FFD700] rounded-none sm:rounded-2xl border-4 border-black 
-        shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
-        pointer-events-auto
-        flex flex-col
-        ${className}
-      `}
-      onClick={(e) => e.stopPropagation()}
-      style={{ 
-        width: isFull ? 'auto' : (responsive.isMobile ? 'auto' : `${responsive.panelWidth}px`),
-        maxHeight: isFull ? 'none' : (responsive.isMobile ? '70vh' : '75vh'),
-        padding: isFull ? (responsive.isMobile ? '12px' : '20px') : responsive.containerPadding,
-        ...(!isFull ? mobileSafeAreaStyle : {})
-      }}
-    >
+    <>
+      {/* Invisible backdrop to capture clicks and close the panel, fixing "locked canvas" bug */}
+      {onClose && (
+        <div 
+          className="fixed inset-0 z-[90] bg-black/20 backdrop-blur-[1px]" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+        />
+      )}
+      
+      <div 
+        className={`
+          fixed ${isFull ? 'inset-0 sm:inset-4' : positionClasses[position]} z-[100] 
+          bg-[#FFD700] rounded-none sm:rounded-2xl border-4 border-black 
+          shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+          pointer-events-auto
+          flex flex-col
+          ${className}
+        `}
+        onClick={(e) => e.stopPropagation()}
+        style={{ 
+          width: isFull ? 'auto' : (responsive.isMobile ? 'auto' : `${responsive.panelWidth}px`),
+          maxHeight: isFull ? 'none' : (responsive.isMobile ? '70vh' : '75vh'),
+          padding: isFull ? (responsive.isMobile ? '12px' : '20px') : responsive.containerPadding,
+          ...(!isFull ? mobileSafeAreaStyle : {})
+        }}
+      >
       {/* Header - Fixed at top */}
       <div className={`flex-shrink-0 flex items-center justify-between ${isFull ? 'mb-2 pb-2' : 'mb-4 pb-2'} border-b-4 border-black`}>
         <div className="flex items-center gap-2">
@@ -98,5 +110,6 @@ export default function AdaptivePanel({
         {children}
       </div>
     </div>
+    </>
   );
 }

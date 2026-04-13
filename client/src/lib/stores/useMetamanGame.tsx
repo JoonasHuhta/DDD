@@ -341,16 +341,6 @@ interface MetamanGameStore {
   showOfflinePopup: boolean;
   offlineProgress: any;
   automationUpgradesPurchased: number;
-  visualEffects: Array<{
-    id: number;
-    type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis';
-    x: number;
-    y: number;
-    duration: number;
-    intensity: 'low' | 'medium' | 'high' | 'extreme';
-    color?: string;
-    value?: string | number;
-  }>;
   
   speechBubbleState: {
     isVisible: boolean;
@@ -458,9 +448,7 @@ interface MetamanGameStore {
   // Removed: claimAchievement and closeAchievementPopup are gone
   showAchievementShowcase: (achievement: SimpleAchievement) => void;
   closeAchievementShowcase: () => void;
-  addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis', x?: number, y?: number, intensity?: 'low' | 'medium' | 'high' | 'extreme', value?: string | number, color?: string) => void;
-  removeVisualEffect: (id: number) => void;
-  clearAllVisualEffects: () => void;
+  addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis' | 'confetti', x?: number, y?: number, intensity?: 'low' | 'medium' | 'high' | 'extreme', value?: string | number, color?: string) => void;
   toggleTrophyPanel: () => void;
   setShowTutorial: (show: boolean) => void;
   forceRestoreAllButtons: () => void;
@@ -1535,7 +1523,6 @@ export const useMetamanGame = create<MetamanGameStore>()(
     currentAchievementPopup: null,
     currentAchievementShowcase: null,
     offlineProgress: null,
-    visualEffects: [],
     randomLawsuitManager: new (RandomLawsuitManager as any)(),
     currentRandomLawsuit: null,
     showRandomLawsuit: false,
@@ -3244,20 +3231,15 @@ export const useMetamanGame = create<MetamanGameStore>()(
       }
     },
 
-    addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis', x = 512, y = 384, intensity: 'low' | 'medium' | 'high' | 'extreme' = 'medium', value?: string | number, color?: string) => {
-      const newEffect = {
-        id: Date.now() + Math.random(),
-        type, x, y,
-        duration: (intensity === 'extreme' ? 1500 : (intensity === 'high' ? 700 : 600)),
-        intensity,
-        value,
-        color
-      };
-      set((state) => ({ visualEffects: [...state.visualEffects, newEffect] }));
+    addVisualEffect: (type: 'money' | 'users' | 'purchase' | 'achievement' | 'crisis' | 'confetti', x = 512, y = 384, intensity: 'low' | 'medium' | 'high' | 'extreme' = 'medium', value?: string | number, color?: string) => {
+      // Fire-and-forget DOM event: avoids hitting the global React store and destroying FPS!
+      if (typeof window !== 'undefined') {
+          const evt = new CustomEvent('metaman-visual-effect', {
+            detail: { type, x, y, intensity, value, color, id: Date.now() + Math.random() }
+          });
+          document.dispatchEvent(evt);
+      }
     },
-
-    removeVisualEffect: (id: number) => set((state) => ({ visualEffects: state.visualEffects.filter(e => e.id !== id) })),
-    clearAllVisualEffects: () => set({ visualEffects: [] }),
 
     toggleTrophyPanel: () => set((state) => ({ showTrophyPanel: !state.showTrophyPanel })),
     setShowTutorial: (show: boolean) => set({ showTutorial: show }),

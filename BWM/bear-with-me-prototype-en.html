@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bear with Me — Prototype</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --ink: #0a0e0d;
+    --paper: #e8e0d0;
+    --mist: rgba(180,200,195,0.18);
+    --amber: #c8922a;
+    --bear-brown: #3a2a1a;
+    --fog: #b8c8c0;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #050808;
+    font-family: 'IM Fell English', Georgia, serif;
+    cursor: none;
+  }
+
+  #cursor {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: rgba(200,180,140,0.7);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%,-50%);
+    transition: opacity 0.3s;
+  }
+
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%; height: 100%;
+  }
+
+  #text-layer {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .story-text {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: clamp(16px, 2.2vw, 22px);
+    color: #d4c9b0;
+    text-align: center;
+    line-height: 1.9;
+    max-width: 560px;
+    padding: 0 32px;
+    opacity: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .story-text.italic { font-style: italic; color: #b8a888; font-size: clamp(14px, 1.8vw, 18px); }
+  .story-text.large { font-size: clamp(20px, 3vw, 28px); color: #e8dcc8; letter-spacing: 0.08em; }
+  .story-text.small { font-size: clamp(12px, 1.5vw, 15px); color: #8a7a60; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  .highlight { color: var(--amber); font-style: italic; }
+
+  #title-screen {
+    position: fixed;
+    inset: 0;
+    background: #050808;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 1;
+    transition: opacity 2s ease;
+  }
+
+  #title-screen h1 {
+    font-family: 'IM Fell English SC', serif;
+    font-size: clamp(32px, 6vw, 64px);
+    color: #c8b898;
+    letter-spacing: 0.15em;
+    font-weight: normal;
+    opacity: 0;
+    animation: fadeInSlow 3s ease 1s forwards;
+  }
+
+  #title-screen .subtitle {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: clamp(13px, 1.8vw, 18px);
+    color: #5a4a30;
+    letter-spacing: 0.1em;
+    margin-top: 16px;
+    opacity: 0;
+    animation: fadeInSlow 3s ease 2.5s forwards;
+  }
+
+  #start-btn {
+    margin-top: 48px;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: 'IM Fell English', serif;
+    font-size: clamp(12px, 1.5vw, 14px);
+    color: #5a4a30;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: none;
+    opacity: 0;
+    animation: fadeInSlow 3s ease 4s forwards;
+    transition: color 0.4s;
+  }
+
+  #start-btn:hover { color: #c8922a; }
+
+  #sound-btn {
+    position: fixed;
+    top: 20px; right: 20px;
+    background: none;
+    border: 1px solid rgba(200,180,140,0.2);
+    color: rgba(200,180,140,0.4);
+    font-family: 'IM Fell English', serif;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    padding: 6px 12px;
+    cursor: none;
+    z-index: 200;
+    transition: all 0.3s;
+    opacity: 0;
+  }
+  #sound-btn:hover { color: rgba(200,180,140,0.8); border-color: rgba(200,180,140,0.4); }
+
+  #vignette {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(5,8,8,0.85) 100%);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  #grain {
+    position: fixed;
+    inset: 0;
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 6;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+  }
+
+  #breath {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: rgba(200,180,140,0.35);
+    letter-spacing: 0.15em;
+    z-index: 20;
+    opacity: 0;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #fade {
+    position: fixed;
+    inset: 0;
+    background: #050808;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 50;
+    transition: opacity 2.5s ease;
+  }
+
+  #end-screen {
+    position: fixed;
+    inset: 0;
+    background: #050808;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #end-screen p {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    color: #8a7a60;
+    font-size: clamp(14px, 2vw, 18px);
+    letter-spacing: 0.05em;
+    line-height: 2;
+    text-align: center;
+    max-width: 440px;
+    padding: 0 32px;
+    opacity: 0;
+    white-space: pre-line;
+  }
+
+  #restart-btn {
+    margin-top: 48px;
+    background: none;
+    border: none;
+    font-family: 'IM Fell English', serif;
+    font-size: 12px;
+    color: #3a2a1a;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: none;
+    opacity: 0;
+    pointer-events: none;
+    transition: color 0.4s;
+  }
+  #restart-btn:hover { color: #c8922a; }
+
+  @keyframes fadeInSlow {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 0.5; }
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+  }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="grain"></div>
+<div id="vignette"></div>
+<div id="fade"></div>
+
+<div id="title-screen">
+  <h1>BEAR WITH ME</h1>
+  <div class="subtitle">Please. Wait for me.</div>
+  <button id="start-btn" onclick="startGame()">— begin —</button>
+</div>
+
+<canvas id="scene"></canvas>
+<div id="text-layer"></div>
+<div id="breath"></div>
+<button id="sound-btn">sound: off</button>
+
+<div id="end-screen">
+  <p id="end-text-1"></p>
+  <p id="end-text-2"></p>
+  <button id="restart-btn" onclick="location.reload()">— from the beginning —</button>
+</div>
+
+<script>
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+const textLayer = document.getElementById('text-layer');
+const breath = document.getElementById('breath');
+const fadeEl = document.getElementById('fade');
+const endScreen = document.getElementById('end-screen');
+
+let W, H;
+let phase = 'title';
+let mouseX = 0, mouseY = 0;
+let playerX, playerTargetX;
+let bearX, bearY;
+let bearLying = false;
+let bearLieProgress = 0;
+let approachDist = 9999;
+let fogOffset = 0;
+let treeSway = 0;
+let breathPhase = 0;
+let eventDone = false;
+let stars = [];
+let snowflakes = [];
+let time = 0;
+
+let audioCtx = null;
+let soundOn = false;
+
+document.getElementById('sound-btn').addEventListener('click', toggleSound);
+
+function toggleSound() {
+  soundOn = !soundOn;
+  document.getElementById('sound-btn').textContent = 'sound: ' + (soundOn ? 'on' : 'off');
+  if (soundOn && !audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    playAmbience();
+  }
+}
+
+function playAmbience() {
+  if (!audioCtx || !soundOn) return;
+  const bufferSize = audioCtx.sampleRate * 4;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.015;
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 200;
+  filter.Q.value = 0.3;
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.4;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  source.start();
+}
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  playerX = playerTargetX = W * 0.32;
+  bearX = W * 0.62;
+  bearY = H * 0.58;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+document.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  document.getElementById('cursor').style.left = mouseX + 'px';
+  document.getElementById('cursor').style.top = mouseY + 'px';
+  if (phase === 'forest' || phase === 'approach') {
+    playerTargetX = mouseX * 0.6 + W * 0.15;
+  }
+});
+
+document.addEventListener('click', e => {
+  if (phase === 'forest' && bearLying && approachDist < 180) {
+    triggerEvent();
+  }
+});
+
+const TREES = [];
+function initTrees() {
+  TREES.length = 0;
+  for (let i = 0; i < 18; i++) {
+    TREES.push({ x: (i/17)*W*1.1-W*0.05, layer:0, height:H*(0.55+Math.random()*0.2), width:28+Math.random()*18, sway:Math.random()*Math.PI*2, swaySpeed:0.3+Math.random()*0.4 });
+  }
+  for (let i = 0; i < 10; i++) {
+    TREES.push({ x: (i/9)*W*1.05-W*0.025, layer:1, height:H*(0.45+Math.random()*0.15), width:38+Math.random()*22, sway:Math.random()*Math.PI*2, swaySpeed:0.2+Math.random()*0.3 });
+  }
+  [0, 0.1, 0.82, 0.91, 1.0].forEach(p => {
+    TREES.push({ x:p*W, layer:2, height:H*(0.38+Math.random()*0.1), width:55+Math.random()*30, sway:Math.random()*Math.PI*2, swaySpeed:0.15+Math.random()*0.2 });
+  });
+}
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 80; i++) {
+    stars.push({ x:Math.random()*W, y:Math.random()*H*0.4, r:Math.random()*1.2, flicker:Math.random()*Math.PI*2 });
+  }
+}
+
+function initSnow() {
+  snowflakes = [];
+  for (let i = 0; i < 40; i++) {
+    snowflakes.push({ x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.5+0.3, speed:0.2+Math.random()*0.4, drift:(Math.random()-0.5)*0.3, opacity:0.2+Math.random()*0.4 });
+  }
+}
+
+function drawSky() {
+  const grad = ctx.createLinearGradient(0,0,0,H*0.65);
+  grad.addColorStop(0,'#04090e');
+  grad.addColorStop(0.4,'#060d14');
+  grad.addColorStop(0.7,'#0a1a18');
+  grad.addColorStop(1,'#0d2218');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawStars() {
+  stars.forEach(s => {
+    const flicker = 0.5+0.5*Math.sin(s.flicker+time*0.8);
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(200,210,220,${0.2+flicker*0.5})`;
+    ctx.fill();
+    s.flicker += 0.02;
+  });
+}
+
+function drawMist() {
+  fogOffset += 0.12;
+  for (let i = 0; i < 5; i++) {
+    const x = ((fogOffset*(0.4+i*0.1)+i*W*0.22)%(W*1.3))-W*0.15;
+    const y = H*(0.42+i*0.06)+Math.sin(fogOffset*0.05+i)*20;
+    const w = W*(0.5+i*0.12);
+    const grad = ctx.createRadialGradient(x+w/2,y,0,x+w/2,y,w*0.6);
+    grad.addColorStop(0,`rgba(140,180,170,${0.04+i*0.01})`);
+    grad.addColorStop(1,'rgba(140,180,170,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(x+w/2,y,w*0.6,H*(0.08+i*0.02),0,0,Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawGround() {
+  const grad = ctx.createLinearGradient(0,H*0.62,0,H);
+  grad.addColorStop(0,'#0d1e1a');
+  grad.addColorStop(0.3,'#111f1b');
+  grad.addColorStop(1,'#080f0e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,H*0.62,W,H*0.38);
+  const snowGrad = ctx.createLinearGradient(0,H*0.62,0,H*0.68);
+  snowGrad.addColorStop(0,'rgba(180,210,200,0.06)');
+  snowGrad.addColorStop(1,'rgba(180,210,200,0)');
+  ctx.fillStyle = snowGrad;
+  ctx.fillRect(0,H*0.62,W,H*0.06);
+}
+
+function drawTree(tree, sw) {
+  const colors = [['#0a1a14','#081410'],['#091612','#07100e'],['#060e0c','#040a08']];
+  const alphas = [0.7,0.85,1.0];
+  const sway = Math.sin(tree.sway+time*tree.swaySpeed)*sw*(tree.layer===2?0.5:1);
+  const x = tree.x+sway;
+  const baseY = H*0.63;
+  const h = tree.height, w = tree.width;
+  ctx.save();
+  ctx.globalAlpha = alphas[tree.layer];
+  ctx.fillStyle = colors[tree.layer][1];
+  ctx.fillRect(x-w*0.06,baseY-h*0.12,w*0.12,h*0.12);
+  const numLayers = 5+tree.layer;
+  for (let i = 0; i < numLayers; i++) {
+    const t = i/(numLayers-1);
+    const layerY = baseY-h*(0.08+t*0.88);
+    const layerW = w*(1-t*0.65)*(1+Math.sin(t*Math.PI)*0.2);
+    ctx.beginPath();
+    ctx.moveTo(x, layerY-h*(0.12+t*0.06));
+    ctx.lineTo(x-layerW/2, layerY+h*0.04);
+    ctx.lineTo(x+layerW/2, layerY+h*0.04);
+    ctx.closePath();
+    ctx.fillStyle = colors[tree.layer][0];
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSnow() {
+  snowflakes.forEach(s => {
+    s.y += s.speed;
+    s.x += s.drift+Math.sin(time*0.3+s.x)*0.1;
+    if (s.y > H) { s.y = -5; s.x = Math.random()*W; }
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(200,220,215,${s.opacity})`;
+    ctx.fill();
+  });
+}
+
+function drawPlayer() {
+  if (phase === 'title' || phase === 'intro') return;
+  playerX += (playerTargetX-playerX)*0.04;
+  const px = playerX, py = H*0.635;
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.ellipse(px,py+2,12,4,0,0,Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+  const bobY = Math.sin(time*1.2)*0.8;
+  const bodyH = 44, bodyW = 14;
+  ctx.fillStyle = '#1a1410';
+  ctx.beginPath();
+  ctx.roundRect(px-bodyW/2,py-bodyH+bobY,bodyW,bodyH*0.72,3);
+  ctx.fill();
+  ctx.fillStyle = '#2a1e14';
+  ctx.beginPath();
+  ctx.ellipse(px,py-bodyH+bobY-6,7,8,-0.1,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#0e0c0a';
+  ctx.fillRect(px-8,py-bodyH+bobY-16,16,5);
+  ctx.fillRect(px-6,py-bodyH+bobY-22,12,9);
+  ctx.strokeStyle = '#2a1e10';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px+10,py+2+bobY);
+  ctx.lineTo(px+12,py-bodyH-12+bobY);
+  ctx.stroke();
+  ctx.strokeStyle = '#141008';
+  ctx.lineWidth = 5;
+  const legSway = Math.sin(time*1.2)*3;
+  ctx.beginPath(); ctx.moveTo(px-3,py-bodyH*0.3+bobY); ctx.lineTo(px-5+legSway,py+1+bobY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px+3,py-bodyH*0.3+bobY); ctx.lineTo(px+5-legSway,py+1+bobY); ctx.stroke();
+  ctx.restore();
+  approachDist = Math.abs(px-bearX);
+}
+
+function drawBear() {
+  if (phase === 'title' || phase === 'intro') return;
+  const bx = bearX, by = bearY;
+  const scale = H/700;
+  ctx.save();
+  breathPhase += 0.018;
+  const breathY = bearLying ? Math.sin(breathPhase)*1.5 : Math.sin(breathPhase)*2.5;
+  if (bearLying && bearLieProgress < 1) bearLieProgress = Math.min(1,bearLieProgress+0.008);
+  const lieAmt = bearLieProgress;
+
+  const shadowW = (80+lieAmt*40)*scale;
+  ctx.beginPath();
+  ctx.ellipse(bx,by+5+breathY,shadowW,10*scale,0,0,Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
+
+  if (approachDist < 250) {
+    const glowAlpha = Math.max(0,(250-approachDist)/250)*0.04;
+    const glow = ctx.createRadialGradient(bx,by,0,bx,by,150*scale);
+    glow.addColorStop(0,`rgba(120,80,40,${glowAlpha})`);
+    glow.addColorStop(1,'rgba(120,80,40,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(bx,by,150*scale,0,Math.PI*2); ctx.fill();
+  }
+
+  ctx.translate(bx,by+breathY);
+  const bodyY = -28*scale + lieAmt*14*scale;
+  ctx.save();
+  ctx.rotate(lieAmt*0.3);
+  const bodyW = (58+lieAmt*20)*scale, bodyHH = (36-lieAmt*12)*scale;
+  ctx.fillStyle = '#1e1208';
+  ctx.beginPath(); ctx.ellipse(lieAmt*15*scale,bodyY,bodyW,bodyHH,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(40,25,8,0.4)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i/8)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle)*bodyW*0.7+lieAmt*15*scale,bodyY+Math.sin(angle)*bodyHH*0.7);
+    ctx.lineTo(Math.cos(angle)*bodyW*0.95+lieAmt*15*scale,bodyY+Math.sin(angle)*bodyHH*0.95);
+    ctx.stroke();
+  }
+  const headX = -(40+lieAmt*-25)*scale, headY = bodyY-(14-lieAmt*18)*scale;
+  ctx.fillStyle = '#1a1006';
+  ctx.beginPath(); ctx.ellipse(headX,headY,22*scale,18*scale,lieAmt*0.4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0e0804';
+  ctx.beginPath(); ctx.ellipse(headX-10*scale,headY+3*scale,10*scale,7*scale,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#080604';
+  ctx.beginPath(); ctx.ellipse(headX-17*scale,headY+2*scale,4*scale,3*scale,0,0,Math.PI*2); ctx.fill();
+  const eyeX = headX-5*scale, eyeY = headY-4*scale;
+  ctx.fillStyle = 'rgba(60,45,25,0.8)';
+  ctx.beginPath(); ctx.ellipse(eyeX,eyeY,4*scale,3*scale,0,0,Math.PI*2); ctx.fill();
+  const eyeGlow = 0.4+Math.sin(breathPhase*0.5)*0.2;
+  ctx.fillStyle = `rgba(180,140,40,${eyeGlow})`;
+  ctx.beginPath(); ctx.ellipse(eyeX,eyeY,2.5*scale,2*scale,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a1006';
+  ctx.beginPath(); ctx.ellipse(headX+8*scale,headY-14*scale,8*scale,7*scale,-0.3,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(headX-4*scale,headY-15*scale,7*scale,6*scale,0.2,0,Math.PI*2); ctx.fill();
+
+  if (!bearLying) {
+    ctx.fillStyle = '#140e04';
+    ctx.beginPath(); ctx.ellipse(-30*scale,8*scale,14*scale,8*scale,0.2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(30*scale,10*scale,12*scale,7*scale,-0.1,0,Math.PI*2); ctx.fill();
+  } else {
+    ctx.fillStyle = '#140e04';
+    ctx.beginPath(); ctx.ellipse(-55*scale+lieAmt*10,8*scale+lieAmt*14,16*scale,7*scale,-0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(40*scale,12*scale+lieAmt*8,12*scale,6*scale,0.2,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  ctx.restore();
+
+  if (phase === 'forest' || phase === 'approach') {
+    const mistAlpha = 0.08+Math.sin(breathPhase*2)*0.04;
+    const mistX = bx-58*scale, mistY = by+breathY-28*scale+lieAmt*14*scale;
+    const mistGrad = ctx.createRadialGradient(mistX,mistY,0,mistX,mistY,20*scale);
+    mistGrad.addColorStop(0,`rgba(180,200,195,${mistAlpha})`);
+    mistGrad.addColorStop(1,'rgba(180,200,195,0)');
+    ctx.fillStyle = mistGrad;
+    ctx.beginPath(); ctx.arc(mistX,mistY,20*scale,0,Math.PI*2); ctx.fill();
+  }
+}
+
+function showText(html, duration, className='', delay=0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      textLayer.innerHTML = '';
+      const el = document.createElement('div');
+      el.className = 'story-text '+className;
+      el.innerHTML = html;
+      textLayer.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.transition = 'opacity 1.8s ease';
+        el.style.opacity = '1';
+      });
+      if (duration > 0) {
+        setTimeout(() => {
+          el.style.transition = 'opacity 1.5s ease';
+          el.style.opacity = '0';
+          setTimeout(resolve, 1600);
+        }, duration);
+      } else {
+        resolve();
+      }
+    }, delay);
+  });
+}
+
+function clearText(fadeTime=1500) {
+  return new Promise(resolve => {
+    textLayer.querySelectorAll('.story-text').forEach(el => {
+      el.style.transition = `opacity ${fadeTime/1000}s ease`;
+      el.style.opacity = '0';
+    });
+    setTimeout(() => { textLayer.innerHTML = ''; resolve(); }, fadeTime);
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function startGame() {
+  document.getElementById('title-screen').style.opacity = '0';
+  document.getElementById('sound-btn').style.opacity = '1';
+  await sleep(2000);
+  document.getElementById('title-screen').style.display = 'none';
+  phase = 'intro';
+  runIntro();
+}
+
+async function runIntro() {
+  initTrees(); initStars(); initSnow();
+
+  await showText('My grandfather said the bear knows when its time has come.', 4500, 'italic');
+  await sleep(400);
+  await showText('Said it chooses.', 3500, 'italic');
+  await sleep(400);
+  await showText('I did not believe him then.', 4000, 'italic');
+  await sleep(800);
+  await clearText();
+  await sleep(1200);
+
+  phase = 'forest';
+  bearLying = false;
+
+  setTimeout(() => {
+    bearLying = true;
+    showBreathHint();
+  }, 6000);
+
+  await sleep(3000);
+  await showText('It stood and watched.', 3500, 'italic');
+  await sleep(200);
+  await showText('Not threatening.<br>Not friendly.<br>Simply — present.', 5000, 'italic');
+  await clearText();
+}
+
+function showBreathHint() {
+  breath.style.opacity = '1';
+  breath.style.animation = 'breathe 4s ease-in-out infinite';
+  breath.textContent = 'approach slowly';
+  setTimeout(() => {
+    breath.style.transition = 'opacity 2s';
+    breath.style.opacity = '0';
+  }, 6000);
+}
+
+async function triggerEvent() {
+  if (eventDone) return;
+  eventDone = true;
+  phase = 'event';
+
+  await clearText();
+  breath.style.opacity = '0';
+
+  await showText('I no longer know how this is done.', 4000, 'italic');
+  await sleep(300);
+  await showText('My grandfather knew. His father knew.', 3800, 'italic');
+  await sleep(300);
+  await showText('I was too young and then they were gone.', 4500, 'italic');
+  await sleep(600);
+  await showText('But I remember something.', 3200, 'italic');
+  await sleep(400);
+  await showText('<span class="highlight">Is that enough?</span>', 4000, 'italic');
+  await clearText();
+  await sleep(1000);
+
+  fadeEl.style.opacity = '1';
+  await sleep(2800);
+
+  await showText('It happened.', 2500, 'italic');
+  await clearText();
+  await sleep(1500);
+
+  fadeEl.style.opacity = '0';
+  await sleep(2500);
+
+  phase = 'aftermath';
+  bearLying = false;
+  bearLieProgress = 0;
+
+  await showText('I did it.', 3000, 'italic');
+  await sleep(200);
+  await showText('But not properly.', 3500, 'italic');
+  await sleep(200);
+  await showText('No song. No procession. No community.', 4000, 'italic');
+  await sleep(300);
+  await showText('The skull remained on the ground.', 3800, 'italic');
+  await sleep(800);
+  await showText('<span class="highlight">Forgive me.</span>', 4000, 'italic');
+  await clearText();
+  await sleep(2000);
+
+  fadeEl.style.opacity = '1';
+  await sleep(3000);
+  showEnd();
+}
+
+async function showEnd() {
+  endScreen.style.opacity = '1';
+  endScreen.style.pointerEvents = 'all';
+
+  const t1 = document.getElementById('end-text-1');
+  const t2 = document.getElementById('end-text-2');
+  const rb = document.getElementById('restart-btn');
+
+  t1.textContent = 'Three months later I found the skull.\nIt lay in the moss like a question.';
+  t1.style.transition = 'opacity 2.5s ease';
+  await sleep(500);
+  t1.style.opacity = '1';
+  await sleep(3500);
+
+  t2.textContent = 'The bear had not found its way home.';
+  t2.style.transition = 'opacity 2.5s ease';
+  t2.style.opacity = '1';
+  await sleep(4000);
+
+  t2.textContent = 'So I went.';
+  await sleep(3000);
+
+  rb.style.transition = 'opacity 2s ease';
+  rb.style.opacity = '0.5';
+  rb.style.pointerEvents = 'all';
+}
+
+function render() {
+  time += 0.016;
+  treeSway = Math.sin(time*0.4)*2;
+  ctx.clearRect(0,0,W,H);
+
+  if (phase === 'title') {
+    ctx.fillStyle = '#050808';
+    ctx.fillRect(0,0,W,H);
+    requestAnimationFrame(render);
+    return;
+  }
+
+  drawSky();
+  drawStars();
+  drawMist();
+  drawGround();
+  TREES.filter(t=>t.layer===0).forEach(t=>drawTree(t,treeSway));
+  TREES.filter(t=>t.layer===1).forEach(t=>drawTree(t,treeSway*1.3));
+  drawBear();
+  drawPlayer();
+  TREES.filter(t=>t.layer===2).forEach(t=>drawTree(t,treeSway*1.6));
+  drawSnow();
+
+  if (phase === 'forest' && bearLying && approachDist < 200) {
+    const alpha = Math.max(0,(200-approachDist)/200)*0.06;
+    const warmGrad = ctx.createRadialGradient(bearX,bearY,0,bearX,bearY,200);
+    warmGrad.addColorStop(0,`rgba(120,80,30,${alpha})`);
+    warmGrad.addColorStop(1,'rgba(120,80,30,0)');
+    ctx.fillStyle = warmGrad;
+    ctx.beginPath(); ctx.arc(bearX,bearY,200,0,Math.PI*2); ctx.fill();
+
+    if (approachDist < 130 && !eventDone) {
+      breath.textContent = 'click';
+      breath.style.opacity = '0.5';
+      breath.style.animation = 'pulse 2s ease-in-out infinite';
+    }
+  }
+
+  requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>

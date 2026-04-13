@@ -1,0 +1,240 @@
+@import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap');
+
+:root {
+  --ink: #0a0e0d;
+  --paper: #e8e0d0;
+  --paper-text: #d4c9b0;
+  --paper-italic: #b8a888;
+  --paper-header: #c8b898;
+  --mist: rgba(180, 200, 195, 0.18);
+  --amber: #c8922a;
+  --bear-brown: #3a2a1a;
+  --fog: #b8c8c0;
+  --background: #050808;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--background);
+  color: var(--paper-text);
+  font-family: 'IM Fell English', Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+}
+
+canvas {
+  display: block;
+}
+
+/* Base Story Typography */
+.story-text {
+  font-size: clamp(16px, 2.2vw, 22px);
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+}
+
+.story-text.italic {
+  font-style: italic;
+  color: var(--paper-italic);
+  font-size: clamp(14px, 1.8vw, 18px);
+}
+
+.story-text.large {
+  font-size: clamp(20px, 3vw, 28px);
+  color: #e8dcc8;
+  letter-spacing: 0.08em;
+}
+
+.story-text.small {
+  font-size: clamp(12px, 1.5vw, 15px);
+  color: #8a7a60;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.highlight {
+  color: var(--amber);
+  font-style: italic;
+}
+
+/* Positioning & Layout */
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#text-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#title-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+#title-screen h1 {
+  font-family: 'IM Fell English SC', serif;
+  font-size: clamp(32px, 6vw, 64px);
+  color: var(--paper-header);
+  letter-spacing: 0.15em;
+  font-weight: normal;
+}
+
+#title-screen .subtitle {
+  font-style: italic;
+  font-size: clamp(13px, 1.8vw, 18px);
+  color: #5a4a30;
+  letter-spacing: 0.1em;
+  margin-top: 16px;
+}
+
+#start-btn {
+  margin-top: 48px;
+  font-size: clamp(12px, 1.5vw, 14px);
+  color: #5a4a30;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+#sound-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  border: 1px solid rgba(200, 180, 140, 0.2);
+  color: rgba(200, 180, 140, 0.4);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  padding: 6px 12px;
+  z-index: 200;
+  transition: all 0.3s;
+}
+
+#sound-btn:hover {
+  color: rgba(200, 180, 140, 0.8);
+  border-color: rgba(200, 180, 140, 0.4);
+}
+
+#vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(5, 8, 8, 0.85) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+#grain {
+  position: fixed;
+  inset: 0;
+  opacity: 0.035;
+  pointer-events: none;
+  z-index: 6;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+#breath {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-style: italic;
+  font-size: 13px;
+  color: rgba(200, 180, 140, 0.35);
+  letter-spacing: 0.15em;
+  z-index: 20;
+  text-align: center;
+  pointer-events: none;
+}
+
+#cursor {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background: rgba(200, 180, 140, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s;
+}
+
+#fade {
+  position: fixed;
+  inset: 0;
+  background: var(--background);
+  pointer-events: none;
+  z-index: 50;
+}
+
+#end-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+}
+
+#end-screen p {
+  font-style: italic;
+  color: #8a7a60;
+  font-size: clamp(14px, 2vw, 18px);
+  letter-spacing: 0.05em;
+  line-height: 2;
+  text-align: center;
+  max-width: 440px;
+  padding: 0 32px;
+  white-space: pre-line;
+}
+
+#restart-btn {
+  margin-top: 48px;
+  font-size: 12px;
+  color: #3a2a1a;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: color 0.4s;
+}
+
+#restart-btn:hover {
+  color: var(--amber);
+}

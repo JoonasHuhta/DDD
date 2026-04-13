@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Zap, Award, Crown, Target, Box } from 'lucide-react';
+import { Trophy, Star, Zap, Award, Crown, Target, Box, ChevronRight, Eye, X } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 
 interface AchievementShowcaseProps {
@@ -24,6 +24,8 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showContent, setShowContent] = useState(false);
   const [animationPhase, setAnimationPhase] = useState<'entrance' | 'display' | 'exit'>('entrance');
+  const [isFlipped, setIsFlipped] = useState(false);
+  const isFlippedRef = React.useRef(false); // To break closure staleness
 
   // Create celebratory particles (Simplified for performance)
   const createParticles = () => {
@@ -78,35 +80,34 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
   // Animation sequence
   useEffect(() => {
     // Entrance phase
-    setTimeout(() => {
+    const entranceTimer = setTimeout(() => {
       setShowContent(true);
       setAnimationPhase('display');
       createParticles();
     }, 100);
 
-    // Display phase - extended duration for better readability
-    setTimeout(() => {
+    // Display phase
+    const displayTimer = setTimeout(() => {
+      if (isFlippedRef.current) return;
       setAnimationPhase('exit');
     }, 7000);
 
-    // Exit phase - automatically claim achievement and close
+    // Exit phase
     const exitTimer = setTimeout(() => {
-      // Clear particles before claiming
+      if (isFlippedRef.current) return;
       setParticles([]);
-      setAnimationPhase('exit');
       
-      // Clean timeout for claiming
       setTimeout(() => {
         onComplete();
-      }, 500); // Brief delay for exit animation
+      }, 500);
     }, 8000);
 
-    // Cleanup function to prevent memory leaks
     return () => {
+      clearTimeout(entranceTimer);
+      clearTimeout(displayTimer);
       clearTimeout(exitTimer);
-      setParticles([]);
     };
-  }, [onComplete]);
+  }, [onComplete]); // Remove isFlipped so it doesn't re-trigger timers unnecessarily
 
   if (!achievement) return null;
 
@@ -140,6 +141,7 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
   };
 
   const handleDismiss = () => {
+    if (isFlippedRef.current) return; // Wait until explicitly closed if on the back
     // Force clear all particles immediately
     setParticles([]);
     setAnimationPhase('exit');
@@ -150,34 +152,53 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
   };
 
   return (
-    <div className="fixed inset-0 z-[70] pointer-events-auto cursor-pointer" onClick={handleDismiss}>
+    <div className="fixed inset-0 z-[70] pointer-events-auto">
+      {/* Subdued dark background overlay and clickable area for dismissing */}
+      <div 
+        className={`absolute inset-0 bg-black/60 cursor-pointer transition-opacity duration-1000 ${
+          animationPhase === 'entrance' || animationPhase === 'display' ? 'opacity-100' : 'opacity-0'
+        }`} 
+        onClick={handleDismiss} 
+      />
+      
       {/* Particles */}
-      {particles.map(particle => (
-        <div
-          key={particle.id}
-          className="absolute pointer-events-none rounded-full"
-          style={{
-            left: particle.x,
-            top: particle.y,
-            width: particle.size,
-            height: particle.size,
-            backgroundColor: particle.color,
-            opacity: particle.life / particle.maxLife,
-            transform: `scale(${particle.life / particle.maxLife})`
-          }}
-        />
-      ))}
+      <div className="absolute inset-0 pointer-events-none">
+        {particles.map(particle => (
+          <div
+            key={particle.id}
+            className="absolute rounded-full"
+            style={{
+              left: particle.x,
+              top: particle.y,
+              width: particle.size,
+              height: particle.size,
+              backgroundColor: particle.color,
+              opacity: particle.life / particle.maxLife,
+              transform: `scale(${particle.life / particle.maxLife})`
+            }}
+          />
+        ))}
+      </div>
 
       {/* Achievement Showcase - Corporate Style */}
-      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ${
+      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-700 pointer-events-none ${
         animationPhase === 'entrance' ? 'scale-90 opacity-0' :
         animationPhase === 'display' ? 'scale-100 opacity-100' :
         'scale-105 opacity-0'
-      }`}>
+      }`} style={{ perspective: '1000px' }}>
+        {/* Make the card container block clicks from reaching the backdrop */}
         <div 
-          className="relative w-full max-w-xl p-1 bg-black border-4 border-green-500 shadow-[20px_20px_0_0_rgba(0,0,0,0.5)] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-xl transition-all duration-700 pointer-events-auto"
+          style={{ 
+            transformStyle: 'preserve-3d',
+            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+          }}
         >
+          {/* FRONT SIDE */}
+          <div 
+            className={`relative w-full p-1 bg-black border-4 border-green-500 shadow-[20px_20px_0_0_rgba(0,0,0,0.5)] overflow-hidden flex flex-col ${isFlipped ? 'pointer-events-none' : 'pointer-events-auto'}`}
+            style={{ backfaceVisibility: 'hidden' }}
+          >
           {/* Scanning line effect */}
           <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(transparent_0%,rgba(0,255,0,0.2)_50%,transparent_100%)] bg-[length:100%_4px] animate-scanline" />
 
@@ -228,22 +249,115 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
               </button>
             </div>
 
-            {/* Hint Section */}
+            {/* Hint Section & Alt Metrics */}
             <div className="mt-4 sm:mt-6 w-full flex justify-between items-center text-[8px] sm:text-[10px] font-mono text-green-500/40 uppercase">
               <div className="flex items-center gap-1 sm:gap-2">
                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 animate-pulse rounded-full" />
                 System ready for transfer
               </div>
-              <div className="hidden sm:block">Click to transmit to suitcase</div>
+              {achievement.costMetrics ? (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    isFlippedRef.current = true;
+                    setIsFlipped(true);
+                  }}
+                  className="flex items-center gap-1 text-[9px] font-bold text-green-500/50 hover:text-green-500 transition-colors uppercase tracking-widest cursor-pointer px-2 py-1 relative z-50 pointer-events-auto"
+                >
+                  VIEW ALT METRICS <ChevronRight className="w-3 h-3" />
+                </button>
+              ) : (
+                <div className="hidden sm:block">Click to transmit to suitcase</div>
+              )}
+            </div>
+          </div>
+          </div>
+
+          {/* BACK SIDE (COST METRICS) */}
+          <div 
+            className={`absolute inset-0 bg-[#0a0f0d] border-4 border-[#1a2f24] overflow-hidden flex flex-col shadow-[20px_20px_0_0_rgba(0,255,100,0.05)] ${isFlipped ? 'pointer-events-auto' : 'pointer-events-none'}`}
+            style={{ 
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              backgroundImage: 'radial-gradient(circle at center, #0d1a14 0%, #050a08 100%)'
+            }}
+          >
+            {/* Header */}
+            <div className="border-b border-[#1a2f24] p-3 flex items-center justify-between bg-black/40">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-[#4ade80]/50" />
+                <span className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-[#4ade80]/50">
+                  INTERNAL REPORT
+                </span>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  isFlippedRef.current = false;
+                  setIsFlipped(false);
+                }} 
+                className="text-[#4ade80]/50 hover:text-[#4ade80] p-1 transition-colors"
+                title="Return"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 flex-1 flex flex-col justify-start overflow-y-auto">
+              <h2 className="text-lg sm:text-xl font-mono font-bold text-[#4ade80] uppercase tracking-widest mb-3 pb-2 border-b border-[#1a2f24]">
+                THE COST
+              </h2>
+              
+              {achievement.costMetrics ? (
+                <div className="space-y-3 sm:space-y-4 flex-1 font-mono text-xs sm:text-sm">
+                  <div>
+                    <div className="text-[10px] sm:text-xs text-[#4ade80]/40 tracking-widest mb-1">ATTENTION</div>
+                    <div className="text-[#e2e8f0]">{achievement.costMetrics.attention}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-[10px] sm:text-xs text-[#4ade80]/40 tracking-widest mb-1">BEHAVIOR</div>
+                    <div className="text-[#e2e8f0]">{achievement.costMetrics.behavior}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-[10px] sm:text-xs text-[#4ade80]/40 tracking-widest mb-1">WELLBEING</div>
+                    <div className="text-[#e2e8f0]">{achievement.costMetrics.wellbeing}</div>
+                  </div>
+                  
+                  <div className="pt-2 mt-auto">
+                    <div className="text-[9px] sm:text-[10px] text-red-500/60 tracking-widest mb-1">SYSTEM NOTE</div>
+                    <div className="text-red-400 font-italic text-xs sm:text-sm italic opacity-80 border-l-2 border-red-900/50 pl-2">
+                      {achievement.costMetrics.systemNote}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center font-mono text-[#4ade80]/30 text-sm italic">
+                  DATA UNAVAILABLE
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 sm:p-4 bg-black/60 border-t border-[#1a2f24] flex items-center justify-between mt-auto">
+              <div className="text-[10px] sm:text-xs font-mono text-[#4ade80]/40 w-1/2 leading-tight">
+                Metrics updated. Acknowledgment required.
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  isFlippedRef.current = false;
+                  setIsFlipped(false);
+                  setTimeout(handleDismiss, 300);
+                }}
+                className="bg-transparent hover:bg-[#1a2f24] text-[#4ade80] border border-[#1a2f24] font-mono py-2 px-4 uppercase tracking-widest transition-colors text-[10px] sm:text-xs"
+              >
+                ACKNOWLEDGE
+              </button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Subtle background overlay */}
-      <div className={`absolute inset-0 bg-black/20 transition-opacity duration-1000 ${
-        animationPhase === 'entrance' || animationPhase === 'display' ? 'opacity-100' : 'opacity-0'
-      }`} />
     </div>
   );
 }

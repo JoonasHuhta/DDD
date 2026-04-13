@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAudio } from '../lib/stores/useAudio';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { getStage } from '../lib/utils/stageSystem';
@@ -16,6 +16,8 @@ interface PoopThreat {
   isHit?: boolean;
 }
 
+const MAX_POOPS = 25; // Entity Cap!
+
 export default function CrisisManager() {
   const isCrisisActive = useMetamanGame(state => state.lawsuitState.isCrisisActive);
   const isCrisisWarning = useMetamanGame(state => state.lawsuitState.isCrisisWarning);
@@ -26,16 +28,26 @@ export default function CrisisManager() {
   const showCharacterDialogue = useMetamanGame(state => state.speechBubbleState.isVisible);
   const showSenateHearing = useMetamanGame(state => state.showSenateHearing);
   
-  const [threats, setThreats] = useState<PoopThreat[]>([]);
   const [score, setScore] = useState(0);
   const [hitPulse, setHitPulse] = useState(false);
   const { playHit, playSuccess, playPlop } = useAudio();
   
   const requestRef = useRef<number>();
-  const lastTimeRef = useRef<number>();
-  const spawnTimerRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
+  
+  // PURE ENGINE LAYER (Local Mutable State)
+  const engine = useRef({
+    threats: [] as PoopThreat[],
+    spawnTimer: 0,
+    hitCountThisFrame: 0,
+  });
+
+  // DOM POOL LAYER
+  const poopRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const spawnPoop = () => {
+    if (engine.current.threats.length >= MAX_POOPS) return; // ENTITY CAP!
+
     const side = Math.floor(Math.random() * 4);
     let x = 0, y = 0;
     const padding = 50;
@@ -61,22 +73,20 @@ export default function CrisisManager() {
       rotation: 0,
       hp: 5,
       maxHp: 5,
-      speed: 0.35 + Math.random() * 0.9, // ~10% slower max speed to make them catchable
+      speed: 0.35 + Math.random() * 0.9,
       scale: 0.8 + Math.random() * 0.4
     };
 
-    setThreats(prev => [...prev, newThreat]);
+    engine.current.threats.push(newThreat);
   };
 
   const triggerHitPulse = () => {
     setHitPulse(true);
-    // Apply Damage
-    handleHQDamage();
     setTimeout(() => setHitPulse(false), 300);
   };
 
-  const handleHQDamage = () => {
-    const { users, income } = useMetamanGame.getState();
+  const handleHQDamage = (hitCount: number) => {
+    const { users, income, researchState, addToForge } = useMetamanGame.getState();
     const stage = getStage(users);
     
     // User loss scales by stage
@@ -88,14 +98,16 @@ export default function CrisisManager() {
     else if (stage <= 6) userLossPercent = 0.01 + Math.random() * 0.02;
     else userLossPercent = 0.005 + Math.random() * 0.005;
 
-    const baseUserLoss = Math.max(10, Math.floor(users * userLossPercent));
-    const moneyLoss = Math.max(1000, Math.floor(income * 0.05)); // Constant impact for money
+    let baseUserLoss = Math.max(10, Math.floor(users * userLossPercent));
+    let moneyLoss = Math.max(1000, Math.floor(income * 0.05)); 
     
-    // Check for Addiction Science Tier 4: Zero Churn
-    const hasCapture = useMetamanGame.getState().researchState.completed.includes('psychological_capture');
-    const userLoss = hasCapture ? 0 : baseUserLoss;
+    // Batch the damage for multiple poops hitting the same frame!
+    baseUserLoss *= hitCount;
+    moneyLoss *= hitCount;
 
-    const addToForge = useMetamanGame.getState().addToForge;
+    // Check for Addiction Science Tier 4: Zero Churn
+    const hasCapture = researchState.completed.includes('psychological_capture');
+    const userLoss = hasCapture ? 0 : baseUserLoss;
     
     useMetamanGame.setState(state => ({
       users: Math.max(0, state.users - userLoss),
@@ -103,9 +115,11 @@ export default function CrisisManager() {
       lastUserLossTime: Date.now() // Trigger HUD shake
     }));
 
-    // Add item to Forge (Shitstorm creates Evidence/Proof)
-    if (Math.random() < 0.7) {
-      addToForge(Math.random() < 0.5 ? 'doc' : 'proof');
+    // Add item to Forge (Shitstorm creates Evidence/Proof) - Scale by hits
+    for(let i=0; i<hitCount; i++) {
+       if (Math.random() < 0.7) {
+         addToForge(Math.random() < 0.5 ? 'doc' : 'proof');
+       }
     }
 
     // Floating effects
@@ -128,51 +142,83 @@ export default function CrisisManager() {
   };
 
   const update = (time: number) => {
-    if (lastTimeRef.current !== undefined) {
-      const deltaTime = time - lastTimeRef.current;
+    const e = engine.current;
+    
+    if (e.lastTime !== 0) {
+      const deltaTime = time - e.lastTime;
       const targetX = window.innerWidth / 2;
       const targetY = window.innerHeight / 2;
 
       // Handle Spawning
       if (isCrisisActive) {
-        spawnTimerRef.current += deltaTime;
-        if (spawnTimerRef.current > 2500) { // Slightly slower spawn (was 1.5s)
+        e.spawnTimer += deltaTime;
+        if (e.spawnTimer > 2500) { 
           spawnPoop();
-          spawnTimerRef.current = 0;
+          e.spawnTimer = 0;
         }
       }
 
       let hitDetected = false;
-      setThreats(prev => {
-        const remaining = prev.map(t => {
-          const dx = targetX - t.x;
-          const dy = targetY - t.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      // Update Physics & Collisions (Pure Data loop)
+      for (let i = e.threats.length - 1; i >= 0; i--) {
+        const t = e.threats[i];
+        const dx = targetX - t.x;
+        const dy = targetY - t.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 50) {
+          e.hitCountThisFrame++;
+          e.threats.splice(i, 1); // Remove from logic
+          hitDetected = true;
+          continue;
+        }
+
+        const vx = (dx / dist) * t.speed;
+        const vy = (dy / dist) * t.speed;
+
+        t.x += vx;
+        t.y += vy;
+        t.rotation += 2;
+      }
+
+      // Sync to DOM layer (Direct mapping 1-to-1 max entities)
+      for (let i = 0; i < MAX_POOPS; i++) {
+        const el = poopRefs.current[i];
+        if (!el) continue;
+        
+        const t = e.threats[i];
+        if (t) {
+          el.style.display = 'block';
+          el.style.transform = `translate(-50%, -50%) translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${t.scale})`;
           
-          if (dist < 50) {
-            hitDetected = true;
-            return null; // Hit HQ
+          if (t.isHit) {
+            el.style.filter = 'drop-shadow(0 0 15px rgba(255,255,255,0.8)) brightness(1.5)';
+            t.isHit = false; // single frame hit flash
+          } else {
+            el.style.filter = 'none';
           }
 
-          const vx = (dx / dist) * t.speed;
-          const vy = (dy / dist) * t.speed;
+          // Update internal HP bar blindly
+          const hpBar = el.children[0]?.children[0] as HTMLElement;
+          if (hpBar) {
+            hpBar.style.width = `${(t.hp / t.maxHp) * 100}%`;
+            hpBar.style.backgroundColor = t.hp < 1 ? '#f97316' : '#ef4444';
+          }
+        } else {
+          el.style.display = 'none';
+        }
+      }
 
-          return {
-            ...t,
-            x: t.x + vx,
-            y: t.y + vy,
-            rotation: t.rotation + 2
-          };
-        }).filter(Boolean) as PoopThreat[];
-
-        return remaining;
-      });
-
-      if (hitDetected) {
+      // Apply Batched Gameplay Events
+      if (hitDetected && e.hitCountThisFrame > 0) {
         triggerHitPulse();
+        handleHQDamage(e.hitCountThisFrame); // Only 1 state update globally per frame
+        e.hitCountThisFrame = 0;
       }
     }
-    lastTimeRef.current = time;
+    
+    e.lastTime = time;
     requestRef.current = requestAnimationFrame(update);
   };
 
@@ -183,35 +229,35 @@ export default function CrisisManager() {
 
   // Clear threats when crisis ends
   useEffect(() => {
-    if (!isCrisisActive && threats.length > 0) {
-      const timeout = setTimeout(() => setThreats([]), 3000); // Wait a bit for stragglers
-      return () => clearTimeout(timeout);
+    if (!isCrisisActive) {
+      engine.current.threats = [];
+      // clear DOM visually instantly
+      poopRefs.current.forEach(el => { if (el) el.style.display = 'none'; });
     }
-  }, [isCrisisActive, threats.length]);
+  }, [isCrisisActive]);
 
-  const handleHit = (id: string) => {
+  const handleHitLayer = (index: number) => {
+    const t = engine.current.threats[index];
+    if (!t) return;
+    
     playHit();
-    setThreats(prev => prev.map(t => {
-      if (t.id === id) {
-        const damage = 1.0 + Math.random() * 0.5;
-        let newHp = t.hp - damage;
-        
-        if (newHp > 0 && newHp < 0.4 && Math.random() > 0.6) {
-          newHp = 0.15;
-        }
+    const damage = 1.0 + Math.random() * 0.5;
+    let newHp = t.hp - damage;
+    
+    if (newHp > 0 && newHp < 0.4 && Math.random() > 0.6) {
+      newHp = 0.15;
+    }
 
-        if (newHp <= 0) {
-          playPlop(); // Use the new satisfying plop sound
-          addVisualEffect('confetti' as any, t.x, t.y, 'medium', ''); // Trigger the PR Spin confetti
-          setScore(s => s + 1);
-          // Deflecting poops significantly reduces heat!
-          modifyHeat(-2.0); 
-          return null;
-        }
-        return { ...t, hp: newHp, isHit: true };
-      }
-      return t;
-    }).filter(Boolean) as PoopThreat[]);
+    if (newHp <= 0) {
+      playPlop(); 
+      addVisualEffect('confetti' as any, t.x, t.y, 'medium', ''); 
+      setScore(s => s + 1);
+      modifyHeat(-2.0); 
+      engine.current.threats.splice(index, 1);
+    } else {
+      t.hp = newHp;
+      t.isHit = true;
+    }
   };
 
   return (
@@ -276,37 +322,29 @@ export default function CrisisManager() {
         )}
       </AnimatePresence>
 
-      {threats.map(t => (
-        <motion.div
-          key={t.id}
-          className="absolute pointer-events-auto cursor-crosshair transform -translate-x-1/2 -translate-y-1/2"
-          style={{ left: t.x, top: t.y }}
-          animate={t.isHit ? { scale: [1, 1.2, 1] } : {}}
-          transition={{ duration: 0.1 }}
-          onAnimationComplete={() => {
-            setThreats(prev => prev.map(p => p.id === t.id ? { ...p, isHit: false } : p));
+      {/* POOP ENTITY POOL (DOM LAYER) */}
+      {Array.from({ length: MAX_POOPS }).map((_, i) => (
+        <div
+          key={i}
+          ref={el => { poopRefs.current[i] = el; }}
+          className="absolute pointer-events-auto cursor-crosshair hidden"
+          style={{ willChange: 'transform' }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            handleHitLayer(i);
           }}
         >
           <div 
             className="relative select-none"
-            style={{ 
-              transform: `rotate(${t.rotation}deg) scale(${t.scale})`,
-              fontSize: '48px'
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              handleHit(t.id);
-            }}
+            style={{ fontSize: '48px' }}
           >
             💩
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-12 h-2 bg-black border border-white rounded-full overflow-hidden">
-              <motion.div 
-                className={`h-full ${t.hp < 1 ? 'bg-orange-500' : 'bg-red-500'}`}
-                animate={{ width: `${(t.hp / t.maxHp) * 100}%` }}
-              />
+              {/* This inner div maps to hpBar in update loop */}
+              <div className="h-full bg-red-500 w-full" />
             </div>
           </div>
-        </motion.div>
+        </div>
       ))}
 
       {/* HQ Visualization Overlay */}
