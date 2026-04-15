@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle, DollarSign, Gift, Briefcase, Scale, Shield, CheckCircle, Info, Zap, Gavel } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, DollarSign, Gift, Briefcase, Scale, Shield, CheckCircle, Info, Zap, Gavel, Clock } from 'lucide-react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import LegalSystem from './LegalSystem';
 import SinisterLab from './SinisterLab';
@@ -17,6 +17,22 @@ export default function SuitcasePanel() {
   const [activeTab, setActiveTab] = useState<'rewards' | 'legal'>('rewards');
   const [showLegalSystem, setShowLegalSystem] = useState(false);
   const [showSinisterLab, setShowSinisterLab] = useState(false);
+  const [deadlineCountdown, setDeadlineCountdown] = useState<number | null>(null);
+
+  // Countdown timer for passive lawsuit deadline
+  useEffect(() => {
+    if (!lawsuitState.deadlineAt || lawsuitState.isAcknowledged) {
+      setDeadlineCountdown(null);
+      return;
+    }
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((lawsuitState.deadlineAt! - Date.now()) / 1000));
+      setDeadlineCountdown(left);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lawsuitState.deadlineAt, lawsuitState.isAcknowledged]);
 
   React.useEffect(() => {
     const store = useMetamanGame.getState();
@@ -75,22 +91,40 @@ export default function SuitcasePanel() {
             <button
               onClick={() => {
                 setActiveTab('legal');
-                // Clear the alert badge when visiting the tab
+                // Mark as delivered when player manually opens the legal tab
                 const store = useMetamanGame.getState();
+                if (store.lawsuitState.isActive && !store.lawsuitState.isDelivered) {
+                  store.deliverLawsuit();
+                }
                 if (!store.lawsuitState.isAcknowledged) {
-                   store.acknowledgeLawsuit(); 
+                   store.acknowledgeLawsuit();
                 }
               }}
               className={`flex-1 py-4 font-black uppercase italic text-xs transition-all relative ${
                 activeTab === 'legal'
                   ? 'bg-zinc-800 text-[#FF0055]'
-                  : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
+                  : deadlineCountdown !== null
+                    ? 'text-[#FF0055] hover:bg-zinc-900 animate-[pulse_1s_ease-in-out_infinite]'
+                    : 'text-zinc-500 hover:text-white hover:bg-zinc-900'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
                 <Scale className="w-3 h-3" /> Compliance hub
-                {lawsuitState.isActive && (
+                {lawsuitState.isActive && !lawsuitState.isAcknowledged && (
                    <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                )}
+                {/* Deadline countdown badge */}
+                {deadlineCountdown !== null && deadlineCountdown > 0 && (
+                  <span className={`flex items-center gap-0.5 text-[8px] font-mono font-black px-1.5 py-0.5 rounded-full border ${
+                    deadlineCountdown < 60
+                      ? 'bg-red-600 text-white border-red-800 animate-pulse'
+                      : 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                  }`}>
+                    <Clock className="w-2 h-2" />
+                    {deadlineCountdown < 60
+                      ? `${deadlineCountdown}s`
+                      : `${Math.ceil(deadlineCountdown / 60)}m`}
+                  </span>
                 )}
               </div>
               {activeTab === 'legal' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#FF0055]" />}
@@ -106,6 +140,22 @@ export default function SuitcasePanel() {
                     <div className="bg-zinc-900 border-4 border-black p-6 rounded-[2rem] shadow-[8px_8px_0_0_rgba(0,0,0,1)] relative overflow-hidden">
                       {/* Warning background stripe */}
                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rotate-45 pointer-events-none" />
+
+                      {/* Deadline warning banner */}
+                      {deadlineCountdown !== null && (
+                        <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-xl border-2 ${
+                          deadlineCountdown < 60
+                            ? 'bg-red-900/60 border-red-600 text-red-300 animate-pulse'
+                            : 'bg-zinc-800/60 border-zinc-600 text-zinc-400'
+                        }`}>
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">
+                            {deadlineCountdown < 60
+                              ? `AUTO-FINE IN ${deadlineCountdown}s — RESPOND NOW`
+                              : `Respond within ${Math.ceil(deadlineCountdown / 60)} min or face auto-fine`}
+                          </span>
+                        </div>
+                      )}
                       
                       <div className="flex items-start justify-between mb-4">
                         <div className="bg-[#FF0055] p-2 rounded-xl border-2 border-black rotate-2 shadow-[2px_2px_0_0_black]">

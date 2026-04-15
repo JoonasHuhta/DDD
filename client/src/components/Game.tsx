@@ -124,6 +124,11 @@ export default function Game() {
           state.checkRandomLawsuits();
         }
       }
+
+      // Passive lawsuit deadline: auto-fine if player ignored too long
+      if (state.checkLawsuitDeadline) {
+        state.checkLawsuitDeadline();
+      }
       
       // Neural Overload: Auto-clicking gem logic
       const gemBonuses = state.getGemBonuses();

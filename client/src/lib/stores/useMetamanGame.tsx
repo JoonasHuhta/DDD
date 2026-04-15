@@ -13,6 +13,7 @@ import { MarketLogic } from "../gameEngine/MarketLogic";
 import { DEFAULT_DEPARTMENTS, Department } from "../content/departments";
 import { getStage } from "../utils/stageSystem";
 import { ELITES } from "../gameEngine/EliteRegistry";
+import { getEventById, getEligibleEvents } from "../../data/dominanceEvents";
 import { DialogueNode } from "../gameEngine/CharacterLogic";
 import { LAWYERS, Lawyer } from "../../data/lawyers";
 import { ALL_RESEARCH_NODES } from "../progression/researchData";
@@ -305,6 +306,8 @@ interface MetamanGameStore {
       witnessCoaching: boolean;
       counterSueActive: boolean;
     };
+    /** Timestamp after which the lawsuit auto-resolves with a penalty (passive mode) */
+    deadlineAt?: number;
     lawsuitHistory: Array<{
       id: string;
       plaintiff: string;
@@ -439,6 +442,8 @@ interface MetamanGameStore {
   closeRandomLawsuit: () => void;
   
   triggerLawsuit: (milestoneId?: string) => void;
+  /** Called periodically: auto-applies fine+30% if deadline passed and player hasn't responded */
+  checkLawsuitDeadline: () => void;
   deliverLawsuit: () => void;
   toggleLawsuitPanel: () => void;
   settleLawsuit: () => Promise<void>;
@@ -646,11 +651,20 @@ interface MetamanGameStore {
   // ── GLOBAL DOMINANCE SYSTEM (Phase 2) ──────────────────────────────────────
   globalDominance: {
     isUnlocked: boolean;
+    /** Active resistance/rival event. Max 1 at a time. */
+    activeEvent: {
+      id: string;
+      countryId: string;
+      expiresAt: number; // Date.now() + 60_000
+    } | null;
+    lastEventTime: number; // timestamp of last resolved/expired event
     countries: Record<string, {
-      stage: number;      // 0 to 5 (MAX)
-      progress: number;   // 0 to 100 for next stage
+      stage: number;           // 0 to 5 (MAX)
+      progress: number;        // 0 to 100 for next stage
       isUnlocked: boolean;
       buildings: Record<string, number>; // buildingId -> level
+      rivalInfluence: number;  // 0–100 RivalCorp pressure
+      stageLockedAt?: number;  // timestamp when stage 5 was first reached (for Exit Is Impossible)
     }>;
   };
   advanceCountryStage: (countryId: string) => void;
@@ -658,6 +672,12 @@ interface MetamanGameStore {
   unlockCountry: (countryId: string) => void;
   checkGlobalDominanceUnlocks: () => void;
   getTotalHeatGrowthMultiplier: () => number;
+  /** Trigger a dominance event for a country (called from UI tick) */
+  triggerDominanceEvent: (countryId: string, eventId: string) => void;
+  /** Resolve active event with a choice index */
+  resolveDominanceEvent: (choiceIndex: number) => void;
+  /** Called 1x/s: ages out expired events and ticks rival growth */
+  tickDominanceSystem: () => void;
 }
 
 
@@ -745,22 +765,24 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // GLOBAL DOMINANCE INITIAL STATE
       globalDominance: {
         isUnlocked: false,
+        activeEvent: null,
+        lastEventTime: 0,
         countries: {
-          us: { stage: 0, progress: 0, isUnlocked: true, buildings: {} },
-          eu: { stage: 0, progress: 0, isUnlocked: true, buildings: {} },
-          gb: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          fi: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          cn: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          br: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          in: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          ru: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          id: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          ng: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          sa: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          jp: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          gs: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          lun: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
-          sec: { stage: 0, progress: 0, isUnlocked: false, buildings: {} },
+          us:  { stage: 0, progress: 0, isUnlocked: true,  buildings: {}, rivalInfluence: 0 },
+          eu:  { stage: 0, progress: 0, isUnlocked: true,  buildings: {}, rivalInfluence: 0 },
+          gb:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          fi:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          cn:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          br:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          in:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          ru:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          id:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          ng:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          sa:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          jp:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          gs:  { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          lun: { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
+          sec: { stage: 0, progress: 0, isUnlocked: false, buildings: {}, rivalInfluence: 0 },
         }
       },
       
@@ -1126,8 +1148,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
       const state = get();
       const country = state.globalDominance.countries[countryId];
       if (!country || country.stage >= 5) return;
-      
-      const cost = Math.pow(10, country.stage + 3);
+
+      // Rival pressure increases cost
+      const rivalMult = country.rivalInfluence > country.stage * 20 ? 1.4 : 1.0;
+      const cost = Math.pow(10, country.stage + 3) * rivalMult;
       if (state.income < cost) return;
 
       // Audio Trigger
@@ -1136,11 +1160,32 @@ export const useMetamanGame = create<MetamanGameStore>()(
         useAudio.getState().playUpgrade();
       } catch (e) {}
 
+      const newStage = country.stage + 1;
       const newCountries = { ...state.globalDominance.countries };
       newCountries[countryId] = {
         ...country,
-        stage: country.stage + 1
+        stage: newStage,
+        // Track when stage 5 first reached (for Exit Is Impossible)
+        stageLockedAt: newStage === 5 ? Date.now() : country.stageLockedAt,
       };
+
+      // ── DOMINO EFFECTS ────────────────────────────────────────────────────
+      // EU Stage 4 → Finland and GB cost multiplier (handled in UI via upgradeCostMultiplier)
+      // USA Stage 5 → Dollar Diplomacy (auto-unlock 3 Global South nodes at stage 1)
+      if (countryId === 'us' && newStage === 5) {
+        const gsNodes = ['ng', 'gs', 'br'];
+        gsNodes.forEach(id => {
+          if (newCountries[id] && !newCountries[id].isUnlocked) {
+            newCountries[id] = { ...newCountries[id], isUnlocked: true, stage: 1 };
+          }
+        });
+        get().addVisualEffect('achievement', window.innerWidth / 2, window.innerHeight / 3, 'high', 'DOLLAR DIPLOMACY ACTIVATED');
+      }
+      // CN Stage 3 → mutual arrangement bonus (already handled in getTotalHeatGrowthMultiplier, just notify)
+      if (countryId === 'cn' && newStage === 3) {
+        get().addVisualEffect('purchase', window.innerWidth / 2, window.innerHeight / 3, 'medium', 'MUTUAL ARRANGEMENT: DATA FLOW +25%');
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       set({
         income: state.income - cost,
@@ -1150,7 +1195,182 @@ export const useMetamanGame = create<MetamanGameStore>()(
         }
       });
 
-      get().addVisualEffect('purchase', window.innerWidth / 2, window.innerHeight / 2, 'medium', `STAGE ${country.stage + 1} REACHED`);
+      get().addVisualEffect('purchase', window.innerWidth / 2, window.innerHeight / 2, 'medium', `STAGE ${newStage} REACHED`);
+    },
+
+    triggerDominanceEvent: (countryId: string, eventId: string) => {
+      const state = get();
+      // Guard: only 1 event at a time, enforce 90s cooldown
+      if (state.globalDominance.activeEvent) return;
+      const cooldown = 90_000;
+      if (Date.now() - state.globalDominance.lastEventTime < cooldown) return;
+
+      set(state => ({
+        globalDominance: {
+          ...state.globalDominance,
+          activeEvent: {
+            id: eventId,
+            countryId,
+            expiresAt: Date.now() + 60_000,
+          }
+        }
+      }));
+    },
+
+    resolveDominanceEvent: (choiceIndex: number) => {
+      const state = get();
+      const active = state.globalDominance.activeEvent;
+      if (!active) return;
+
+      const eventDef = getEventById(active.id);
+      if (!eventDef) {
+        set(state => ({ globalDominance: { ...state.globalDominance, activeEvent: null, lastEventTime: Date.now() } }));
+        return;
+      }
+
+      const choice = eventDef.choices[choiceIndex];
+      if (!choice) return;
+
+      const fx = choice.effect;
+      const country = state.globalDominance.countries[active.countryId];
+
+      // Apply effects
+      const updates: Partial<typeof state> = {};
+
+      if (fx.heatDelta) {
+        get().modifyHeat(fx.heatDelta);
+      }
+      if (fx.moneyDelta && fx.moneyDelta < 0) {
+        updates.income = Math.max(0, state.income + fx.moneyDelta);
+      }
+      if (fx.incomeMult !== undefined) {
+        // Apply as a temporary buff
+        get().addBuff({
+          id: `dominance_income_${Date.now()}`,
+          type: 'income',
+          multiplier: fx.incomeMult,
+          expiresAt: Date.now() + (fx.incomeMultDuration ?? 120_000),
+        });
+      }
+
+      // Country-specific effects
+      const newCountries = { ...state.globalDominance.countries };
+      let countryUpdated = { ...country };
+
+      if (fx.rivalInfluenceDelta !== undefined) {
+        countryUpdated.rivalInfluence = Math.max(0, Math.min(100, (country.rivalInfluence || 0) + fx.rivalInfluenceDelta));
+      }
+      if (fx.stageDelta !== undefined) {
+        const roll = Math.random();
+        if (!fx.stageDropChance || roll < fx.stageDropChance) {
+          countryUpdated.stage = Math.max(0, country.stage + fx.stageDelta);
+        }
+      }
+      if (fx.unlockBuilding) {
+        countryUpdated.buildings = { ...countryUpdated.buildings, [fx.unlockBuilding]: 1 };
+      }
+
+      newCountries[active.countryId] = countryUpdated;
+
+      if (updates.income !== undefined) {
+        set({ income: updates.income });
+      }
+
+      set(state => ({
+        globalDominance: {
+          ...state.globalDominance,
+          activeEvent: null,
+          lastEventTime: Date.now(),
+          countries: newCountries,
+        }
+      }));
+    },
+
+    tickDominanceSystem: () => {
+      const state = get();
+      if (!state.globalDominance.isUnlocked) return;
+
+      const now = Date.now();
+      const gd = state.globalDominance;
+
+      // ── 1. Age out expired event ──────────────────────────────────────────
+      if (gd.activeEvent && now > gd.activeEvent.expiresAt) {
+        // Auto-ignore: small penalty
+        const country = gd.countries[gd.activeEvent.countryId];
+        const newCountries = { ...gd.countries };
+        if (country && Math.random() < 0.2) {
+          // 20% chance of small stage drop on timeout
+          newCountries[gd.activeEvent.countryId] = { ...country, stage: Math.max(0, country.stage - 1) };
+        }
+        set(state => ({
+          globalDominance: { ...state.globalDominance, activeEvent: null, lastEventTime: now, countries: newCountries }
+        }));
+        return; // Don't trigger new event in same tick
+      }
+
+      // ── 2. Rival influence tick (fake AI, 1x/s) ───────────────────────────
+      const rivalUpdates: Record<string, number> = {};
+      let exitCandidateId: string | null = null;
+
+      Object.entries(gd.countries).forEach(([id, c]) => {
+        if (!c.isUnlocked) return;
+
+        let growth = 0.15; // ~9%/min
+        if (c.stage < 3) growth = 0.25;
+        if (c.stage >= 4) growth = 0.05;
+        // Dan's building pressure slows rival
+        const totalBuildings = Object.values(c.buildings).reduce((s, v) => s + v, 0);
+        growth = Math.max(0.03, growth - totalBuildings * 0.01);
+
+        rivalUpdates[id] = Math.min(100, (c.rivalInfluence || 0) + growth);
+
+        // Check Exit Is Impossible (stage 5 held ≥ 30 min)
+        if (c.stage === 5 && c.stageLockedAt && now - c.stageLockedAt >= 30 * 60 * 1000) {
+          exitCandidateId = id;
+        }
+      });
+
+      set(state => ({
+        globalDominance: {
+          ...state.globalDominance,
+          countries: Object.fromEntries(
+            Object.entries(state.globalDominance.countries).map(([id, c]) =>
+              [id, rivalUpdates[id] !== undefined ? { ...c, rivalInfluence: rivalUpdates[id] } : c]
+            )
+          )
+        }
+      }));
+
+      // ── 3. Trigger Exit Is Impossible ────────────────────────────────────
+      if (exitCandidateId && !gd.activeEvent) {
+        get().triggerDominanceEvent(exitCandidateId, 'exit_impossible');
+        return;
+      }
+
+      // ── 4. Maybe trigger a resistance/rival event ─────────────────────────
+      if (gd.activeEvent) return; // Already one active
+      if (now - gd.lastEventTime < 90_000) return; // 90s global cooldown
+
+      const unlocked = Object.entries(gd.countries).filter(([, c]) => c.isUnlocked && c.stage >= 2);
+      if (unlocked.length === 0) return;
+
+      // Pick a random unlocked country and check for rival surge
+      const [candidateId, candidate] = unlocked[Math.floor(Math.random() * unlocked.length)];
+
+      // Rival surge takes priority when pressure is high
+      if ((candidate.rivalInfluence || 0) >= 50 && candidate.stage < 3) {
+        get().triggerDominanceEvent(candidateId, 'rivalcorp_surge');
+        return;
+      }
+
+      // Otherwise roll against eligible pool
+      const eligible = getEligibleEvents(candidateId, candidate.stage);
+      if (eligible.length === 0) return;
+
+      const rolled = eligible[Math.floor(Math.random() * eligible.length)];
+      if (Math.random() < (rolled.baseProbability * 60)) { // 60x because we tick 1x/s not per frame
+        get().triggerDominanceEvent(candidateId, rolled.id);
+      }
     },
 
     buyBuilding: (countryId: string, buildingId: string) => {
@@ -1223,8 +1443,10 @@ export const useMetamanGame = create<MetamanGameStore>()(
       let changed = false;
       const nextCountries = { ...c };
 
-      // 1. System Unlock (Moved from 1k to 100k users to ensure it remains a mid/late game feature)
-      if (!g.isUnlocked && state.users >= 100000) {
+      // 1. System Unlock
+      // DEV MODE: lowered to 500 users for testing. Restore to 100_000 before release.
+      const GLOBAL_UNLOCK_THRESHOLD = 500; // TODO: restore to 100_000
+      if (!g.isUnlocked && state.users >= GLOBAL_UNLOCK_THRESHOLD) {
         g.isUnlocked = true;
         changed = true;
       }
@@ -1704,7 +1926,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
     triggerLawsuit: (milestoneId) => {
       const state = get();
       const legalBonuses = state.getLegalBonuses();
-      
+
       // Integrate GDPR Laundry Immunity (from EU)
       let buildingImmunity = 0;
       Object.values(state.globalDominance.countries).forEach(c => {
@@ -1712,7 +1934,7 @@ export const useMetamanGame = create<MetamanGameStore>()(
           buildingImmunity += c.buildings.gdpr_laundry * 0.05;
         }
       });
-      
+
       // LAWYER IMMUNITY CHECK (Ironclad Irene + GDPR Laundry)
       const totalDefense = legalBonuses.lawsuitDefense + buildingImmunity;
       if (totalDefense > 0 && Math.random() < totalDefense) {
@@ -1728,13 +1950,20 @@ export const useMetamanGame = create<MetamanGameStore>()(
       // Calculate starting distance based on ignoreTotal (10% per ignore, max 50%)
       const startingDistance = Math.min(50, (state.lawsuitState.ignoreTotal || 0) * 10);
 
+      // ── PASSIVE MODE: After the first lawsuit, stop forcing the panel open ──
+      // The suitcase turns red; player has 5 minutes to respond before auto-fine.
+      const isFirstLawsuit = !state.lawsuitState.firstLawsuitTriggered;
+      const DEADLINE_MS = 5 * 60 * 1000; // 5 minutes
+
       set((state) => ({
         lawsuitState: {
           ...state.lawsuitState,
           isActive: true,
-          showLawsuitPanel: true,
-          isDelivered: false,
+          // Only force-open on the very first lawsuit; later ones sit in the suitcase
+          showLawsuitPanel: isFirstLawsuit,
+          isDelivered: isFirstLawsuit, // passive mode: not "delivered" until player opens it
           isAcknowledged: false,
+          firstLawsuitTriggered: true,
           larryDistance: startingDistance,
           milestone: milestoneId || 'random',
           activeLawsuitId: randomBase?.id || 'standard',
@@ -1743,7 +1972,46 @@ export const useMetamanGame = create<MetamanGameStore>()(
           amount: randomBase ? Math.floor(state.income * (randomBase.severity === 'serious' ? 0.35 : 0.2)) : amount,
           fightSuccessChance: randomBase?.fightSuccessChance || 50,
           settleCost: randomBase?.settleCost || Math.floor(amount * 0.6),
-          fightCost: randomBase?.fightCost || Math.floor(amount * 0.3)
+          fightCost: randomBase?.fightCost || Math.floor(amount * 0.3),
+          // Set deadline only for passive (non-first) lawsuits
+          deadlineAt: isFirstLawsuit ? undefined : Date.now() + DEADLINE_MS,
+        }
+      }));
+    },
+
+    checkLawsuitDeadline: () => {
+      const state = get();
+      const ls = state.lawsuitState;
+      // Only fire if there's an active passive lawsuit with a deadline that has passed
+      if (!ls.isActive || !ls.deadlineAt || ls.isAcknowledged) return;
+      if (Date.now() < ls.deadlineAt) return;
+
+      // Auto-apply fine + 30% penalty
+      const fine = Math.floor((ls.amount || 0) * 1.3);
+      get().addVisualEffect('money', window.innerWidth / 2, window.innerHeight / 2, 'extreme', `IGNORED!\n-$${get().formatNumber(fine)}`, 'red');
+      get().modifyHeat(20, 'passive');
+
+      set((s) => ({
+        income: Math.max(0, s.income - fine),
+        lawsuitState: {
+          ...s.lawsuitState,
+          isActive: false,
+          isDelivered: false,
+          isAcknowledged: true,
+          showLawsuitPanel: false,
+          deadlineAt: undefined,
+          ignoredCount: s.lawsuitState.ignoredCount + 1,
+          ignoreTotal: s.lawsuitState.ignoreTotal + 1,
+          lawsuitHistory: [
+            ...s.lawsuitState.lawsuitHistory,
+            {
+              id: s.lawsuitState.activeLawsuitId || 'auto',
+              plaintiff: s.lawsuitState.plaintiff || 'Unknown',
+              outcome: 'lost' as const,
+              amount: fine,
+              timestamp: Date.now(),
+            }
+          ]
         }
       }));
     },
