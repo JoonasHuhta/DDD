@@ -633,7 +633,13 @@ export default function GameUI() {
 
             {/* 5. Mansion (Stats + Shop) */}
             <AdaptiveButton
-              onClick={() => togglePanel('mansion', panels.isPanelOpen('mansion'))}
+              onClick={() => {
+                togglePanel('mansion', panels.isPanelOpen('mansion'));
+                // Clear the badge so it stops pulsing after player has seen it
+                if (hasNewIronicBadge) {
+                  useMetamanGame.getState().clearNewIronicBadge();
+                }
+              }}
               variant={panels.isPanelOpen('mansion') ? 'secondary' : (hasNewIronicBadge ? 'success' : 'ghost')}
               title="Mansion"
               icon={<Home className={responsive.iconSize} />}

@@ -64,23 +64,34 @@ export class DetoxGuy {
   /** Direction: -1 = walking left, +1 = walking right */
   private direction: number;
   /** Base walk speed px/ms – slow and deliberate */
-  private readonly BASE_WALK_SPEED = 0.018;
+  private BASE_WALK_SPEED = 0.018;
   /** Aura animation pulse */
   private auraPulse: number = 0;
   /** Pause timer: in vortex phase he stops for up to 8 seconds at a time */
   private pauseTimer: number = 0;
-  private readonly PAUSE_INTERVAL = 12_000;  // pause every 12s
-  private readonly PAUSE_DURATION = 8_000;   // stand still for 8s
+  private readonly PAUSE_INTERVAL = 12_000;
+  private readonly PAUSE_DURATION = 8_000;
   private isPaused: boolean = false;
+  private phaseDurations: Record<DetoxPhase, number>;
 
   /** Left/right bounce margin – stays within these bounds during play */
   private readonly MARGIN = 28;
   private canvasWidth: number;
   private canvasHeight: number;
 
-  constructor(canvasWidth: number, canvasHeight: number) {
+  constructor(canvasWidth: number, canvasHeight: number, isReturn = false) {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
+
+    // Halve visit duration and double speed on 2nd+ appearance
+    const durationMult = isReturn ? 0.5 : 1.0;
+    this.BASE_WALK_SPEED = isReturn ? 0.036 : 0.018;
+    this.phaseDurations = {
+      whisper: PHASE_DURATIONS.whisper * durationMult,
+      pull:    PHASE_DURATIONS.pull    * durationMult,
+      vortex:  PHASE_DURATIONS.vortex  * durationMult,
+      silence: PHASE_DURATIONS.silence, // exit always same speed
+    };
 
     // Start just inside either edge so he's immediately visible
     if (Math.random() < 0.5) {
@@ -102,7 +113,7 @@ export class DetoxGuy {
     this.auraPulse += deltaTime * 0.002;
 
     // Phase transitions
-    const phaseDuration = PHASE_DURATIONS[this.phase];
+    const phaseDuration = this.phaseDurations[this.phase];
     if (this.phaseTimer >= phaseDuration) {
       this.phaseTimer = 0;
       this.phaseChanged = true;
@@ -166,7 +177,7 @@ export class DetoxGuy {
 
   private getAuraRadius(): number {
     const { start, max } = PHASE_RADIUS[this.phase];
-    const t = Math.min(1, this.phaseTimer / PHASE_DURATIONS[this.phase]);
+    const t = Math.min(1, this.phaseTimer / this.phaseDurations[this.phase]);
 
     if (this.phase === 'silence') {
       return start * (1 - t);
@@ -196,7 +207,7 @@ export class DetoxGuy {
   }
 
   public getPhaseProgress(): number {
-    return Math.min(1, this.phaseTimer / PHASE_DURATIONS[this.phase]);
+    return Math.min(1, this.phaseTimer / this.phaseDurations[this.phase]);
   }
 
   // ─── RENDER ──────────────────────────────────────────────────────────────────

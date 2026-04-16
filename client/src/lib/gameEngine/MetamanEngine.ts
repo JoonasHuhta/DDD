@@ -70,6 +70,8 @@ export class MetamanEngine {
   private onDetoxPhaseChange?: (phase: DetoxPhase | null, efficiency: number) => void;
   private onCitizenOffline?: () => void;
   private onCitizenOnline?: () => void;
+  /** How many times TDG has appeared (for halved-duration logic on return visits) */
+  private detoxVisitCount: number = 0;
 
   // ── ELITE SYSTEM ──────────────────────────────────────────────────────
   private eliteSpawnTimer: number = 0;
@@ -389,13 +391,19 @@ export class MetamanEngine {
 
       if (result.isFinished) {
         this.scheduleOfflineCitizenReturn();
+        // Clear all offline-citizen gray sprites immediately so no ghost remains
+        this.citizens.forEach(c => {
+          if (c.isOffline) {
+            c.isOffline = false;
+            if (this.onCitizenOnline) this.onCitizenOnline();
+          }
+        });
         this.detoxGuy = null;
         this.detoxPhase = null;
         this.detoxCooldownTimer = 3 * 60 * 1000; // 3 min cooldown after first
         useMetamanGame.getState().updateDetoxEfficiency(1.0); // Restore efficiency
         if (this.onDetoxPhaseChange) this.onDetoxPhaseChange(null, 1.0);
         this.metaman.setPhoneEmoji('😏', 5000);
-        console.log('[DetoxGuy] Left the field.');
       }
     } else {
       // Cooldown ticks down every frame
@@ -1093,10 +1101,11 @@ export class MetamanEngine {
     // DO NOT spawn during a Shitstorm – too much happening at once
     const state = useMetamanGame.getState();
     if (state.lawsuitState?.isCrisisActive) {
-      console.log('[DetoxGuy] Spawn blocked: Shitstorm in progress.');
       return;
     }
-    this.detoxGuy = new DetoxGuy(this.width, this.height);
+    const isReturn = this.detoxVisitCount > 0;
+    this.detoxGuy = new DetoxGuy(this.width, this.height, isReturn);
+    this.detoxVisitCount++;
     this.detoxPhase = 'whisper';
     // Notify store
     state.startDetoxEvent();
@@ -1105,9 +1114,8 @@ export class MetamanEngine {
     }
     // Dan reacts
     this.metaman.setPhoneEmoji('😤', 4000);
-    // Show existing speech bubble with Dan's reaction
-    this.showDetoxSpeechBubble('whisper');
-    console.log('[DetoxGuy] Spawned.');
+    // Show speech bubble — use different lines on return visits
+    this.showDetoxSpeechBubble(isReturn ? 'whisper_return' : 'whisper');
   }
 
   /**
@@ -1158,11 +1166,17 @@ export class MetamanEngine {
    * Shows Dan's reaction through the EXISTING SpeechBubble system.
    * Bypasses the 15s cooldown since TDG events are rare and important.
    */
-  private showDetoxSpeechBubble(phase: DetoxPhase | 'whisper'): void {
+  private showDetoxSpeechBubble(phase: DetoxPhase | 'whisper' | 'whisper_return'): void {
     const LINES: Record<string, string[]> = {
       whisper: [
         "Oh no. The Detox Guy is here.",
         "Not the Detox Guy. Not now.",
+      ],
+      whisper_return: [
+        "Him again. Does he not have a job?",
+        "The Detox Guy is back. My engagement metrics are already sweating.",
+        "Why does he always show up during peak hours?",
+        "He's... faster this time. Is he training?",
       ],
       pull: [
         "The Detox Guy. Of course. Nobody actually does detox for more than a week.",

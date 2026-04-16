@@ -1608,11 +1608,11 @@ export const useMetamanGame = create<MetamanGameStore>()(
         const state = get();
         const rewards = [...state.rewardState.rewards];
         const rewardIdx = rewards.findIndex(r => String(r.id) === String(id));
-        
+
         if (rewardIdx !== -1 && !rewards[rewardIdx].claimed) {
           const reward = rewards[rewardIdx];
           const value = reward.value || (reward as any).amount || 0;
-          
+
           // Mark as claimed
           rewards[rewardIdx] = { ...reward, claimed: true };
 
@@ -1621,8 +1621,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
             const achievementId = String(reward.id).replace('achievement_', '');
             state.achievementManager.claimAchievement(achievementId);
           }
-          
-          // Add money
+
+          // Apply income — pure state update, no side-effects
           set((s) => ({
             income: s.income + value,
             totalLifetimeIncome: s.totalLifetimeIncome + value,
@@ -1633,10 +1633,13 @@ export const useMetamanGame = create<MetamanGameStore>()(
               hasNewRewards: rewards.some(r => !r.claimed)
             }
           }));
-          
-          // Trigger visual effect
-          get().addVisualEffect('money', 512, 384, 'high', `+$${get().formatNumber(value)}`);
-          
+
+          // Defer visual effect OUTSIDE the set() cycle to avoid Zustand re-entrancy freeze
+          const formatted = get().formatNumber(value);
+          setTimeout(() => {
+            get().addVisualEffect('money', 512, 384, 'high', `+$${formatted}`);
+          }, 0);
+
           return true;
         }
         return false;
