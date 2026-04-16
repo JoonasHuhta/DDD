@@ -52,6 +52,8 @@ function DataLink({ id, stage }: { id: string, stage: number }) {
   const staticData = COUNTRIES_DATA.find(c => c.id === id)!;
   if (stage <= 0) return null;
   
+  const duration = 1.8 - (stage * 0.3);
+  
   return (
     <g>
       <defs>
@@ -60,7 +62,7 @@ function DataLink({ id, stage }: { id: string, stage: number }) {
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
-      <motion.line 
+      <line 
         x1={staticData.x} y1={staticData.y} 
         x2={50} y2={50} 
         stroke="#FFD700" 
@@ -71,20 +73,17 @@ function DataLink({ id, stage }: { id: string, stage: number }) {
         className="data-link-flow"
         style={{ 
           // @ts-ignore
-          "--flow-speed": `${1.8 - (stage * 0.3)}s` 
+          "--flow-speed": `${duration}s` 
         }}
       />
-      <motion.circle 
-        r={0.4 + (stage * 0.1)}
-        fill="#FFD700"
-        initial={{ offsetDistance: "0%" }}
-        animate={{ offsetDistance: "100%" }}
-        transition={{ duration: 1.8 - (stage * 0.3), repeat: Infinity, ease: "linear" }}
-        style={{ 
-          offsetPath: `path('M ${staticData.x} ${staticData.y} L 50 50')`,
-          filter: "drop-shadow(0 0 2px #FFD700)" 
-        }}
-      />
+      {/* Animated data pulse using SVG native animation to avoid DOM prop warnings */}
+      <circle r={0.4 + (stage * 0.1)} fill="#FFD700">
+        <animateMotion 
+          dur={`${duration}s`}
+          repeatCount="indefinite"
+          path={`M ${staticData.x} ${staticData.y} L 50 50`}
+        />
+      </circle>
     </g>
   );
 }
