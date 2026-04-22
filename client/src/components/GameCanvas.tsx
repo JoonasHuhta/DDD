@@ -3,6 +3,7 @@ import { useMetamanGame } from "../lib/stores/useMetamanGame";
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelState } from "../hooks/usePanelState";
 import { MetamanEngine } from "../lib/gameEngine/MetamanEngine";
+import { useAudio } from "../lib/stores/useAudio";
 import SpeechBubble from "./SpeechBubble";
 
 export default function GameCanvas() {
@@ -144,6 +145,12 @@ export default function GameCanvas() {
       if (distanceToTower <= towerClickRadius) {
         // Manual click on tower - no income, just visual feedback
         handleManualClick(x, y); // Use screen coordinates for particle effects only
+        return;
+      }
+
+      // If out of charges, give audio feedback and bail early
+      if (campaignCharges <= 0 && selectedCampaign) {
+        useAudio.getState().playEmptyClip();
         return;
       }
 

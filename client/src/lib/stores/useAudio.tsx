@@ -17,7 +17,7 @@ let lastFadeInterval: ReturnType<typeof setInterval> | null = null;
 
 if (musicSprite) {
   musicSprite.volume = 0.3;
-  musicSprite.loop = true; 
+  musicSprite.loop = false; // Track cycling handled manually via 'ended' event
   musicSprite.preload = "auto";
 }
 
@@ -31,7 +31,8 @@ const SFX_FILES = [
   'newzap.mp3',
   'alert.mp3',
   'collect.mp3',
-  'orbding.mp3'
+  'orbding.mp3',
+  'emptyclip.mp3'
 ];
 
 interface AudioState {
@@ -60,6 +61,7 @@ interface AudioState {
   playAlert: () => void;
   playCollect: () => void;
   playOrbding: () => void;
+  playEmptyClip: () => void;
   
   isTransitioning: boolean;
   setIsTransitioning: (v: boolean) => void;
@@ -134,6 +136,17 @@ export const useAudio = create<AudioState>((set, get) => ({
 
       musicSprite.addEventListener('error', (e) => {
         console.error('[AUDIO]', 'ELEMENT_ERROR', musicSprite.error);
+      });
+
+      // AUTO-ADVANCE: When a track ends, seamlessly play the next one in the playlist
+      musicSprite.addEventListener('ended', () => {
+        const { currentTrack, isMusicMuted, isPrimed } = get();
+        if (isMusicMuted || !isPrimed) return;
+        const currentIndex = MUSIC_TRACKS.indexOf(currentTrack);
+        const nextIndex = (currentIndex + 1) % MUSIC_TRACKS.length;
+        const nextTrack = MUSIC_TRACKS[nextIndex];
+        console.log(`[AUDIO] Track ended. Auto-advancing to: ${nextTrack}`);
+        get().setTrack(nextTrack);
       });
 
       console.log(`[ITCH] Initializing Background Music: Forgo1.mp3`);
@@ -308,5 +321,6 @@ export const useAudio = create<AudioState>((set, get) => ({
   playZap: () => playBuffer('newzap.mp3', 0.4),
   playAlert: () => playBuffer('alert.mp3', 1.0),
   playCollect: () => playBuffer('collect.mp3', 1.0),
-  playOrbding: () => playBuffer('orbding.mp3', 1.0)
+  playOrbding: () => playBuffer('orbding.mp3', 1.0),
+  playEmptyClip: () => playBuffer('emptyclip.mp3', 0.7)
 }));

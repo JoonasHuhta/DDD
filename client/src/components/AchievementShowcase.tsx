@@ -86,11 +86,11 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
       createParticles();
     }, 100);
 
-    // Display phase
+    // Display phase — auto-dismiss after 4s (was 7s which felt like a freeze)
     const displayTimer = setTimeout(() => {
       if (isFlippedRef.current) return;
       setAnimationPhase('exit');
-    }, 7000);
+    }, 4000);
 
     // Exit phase
     const exitTimer = setTimeout(() => {
@@ -100,7 +100,7 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
       setTimeout(() => {
         onComplete();
       }, 500);
-    }, 8000);
+    }, 4500);
 
     return () => {
       clearTimeout(entranceTimer);

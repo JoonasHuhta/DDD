@@ -3059,9 +3059,9 @@ export const useMetamanGame = create<MetamanGameStore>()(
       
       get().setCharacterDialogue(danReply);
 
-      // 4. Effects: Metaman Celebration
+      // 4. Effects: Metaman Celebration (2s max to avoid perceived freeze)
       if (state.metamanEngine) {
-        state.metamanEngine.triggerMetamanSmile(5000);
+        state.metamanEngine.triggerMetamanSmile(2000);
       }
       
       // 5. Heat: Capturing elites calms the regulators (PR win)
