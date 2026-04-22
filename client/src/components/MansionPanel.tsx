@@ -52,7 +52,9 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
     importSave,
     decrementIncome,
     collectedElites,
-    hasNewIronicBadge
+    hasNewIronicBadge,
+    globalDominance,
+    forgeArtifacts
   } = useMetamanGame();
 
   const [activeMainTab, setActiveMainTab] = useState<'mansion' | 'bonuses' | 'stats' | 'trophies'>('mansion');
@@ -721,6 +723,40 @@ export default function MansionPanel({ onClose }: MansionPanelProps) {
       ...(activeMansion.includes('university')         ? [{ label: 'Income mult.',     value: '+15%', source: 'University', color: 'bg-amber-100' }] : []),
       ...(activeMansion.includes('advisor_walsh')      ? [{ label: 'Heat Gen',         value: '-100%', source: 'Walsh', color: 'bg-red-100' }] : []),
     ];
+
+    // ── NEW: Forge Artifacts ──────────────────────────────────────────────────
+    const activeForge = forgeArtifacts || [];
+    if (activeForge.includes('blackmail_file'))     bonusRows.push({ label: 'Income mult.',     value: '+25%', source: 'Forge: Blackmail', color: 'bg-amber-100' });
+    if (activeForge.includes('smear_campaign'))     bonusRows.push({ label: 'Campaign yield',   value: '+40%', source: 'Forge: Smear', color: 'bg-yellow-100' });
+    if (activeForge.includes('insider_leak'))       bonusRows.push({ label: 'Heat Damping',    value: '+15%', source: 'Forge: Insider', color: 'bg-red-100' });
+    if (activeForge.includes('demographic_profile')) bonusRows.push({ label: 'Passive UPS',     value: '+35%', source: 'Forge: Profiles', color: 'bg-green-100' });
+    if (activeForge.includes('smoking_gun'))        bonusRows.push({ label: 'Click power',      value: '+50%', source: 'Forge: Smoking Gun', color: 'bg-blue-100' });
+    if (activeForge.includes('legal_manifesto'))    bonusRows.push({ label: 'Lawsuit Def.',     value: '+50%', source: 'Forge: Manifesto', color: 'bg-indigo-100' });
+    if (activeForge.includes('golden_algorithm'))   bonusRows.push({ label: 'GLOBAL MULT.',     value: '×2.0', source: 'Forge: GOLDEN ALG', color: 'bg-yellow-300' });
+
+    // ── NEW: World Domination Buildings ───────────────────────────────────────
+    let totalHeatGrowthRed = 0;
+    let totalImmunity = 0;
+    let totalZaps = 0;
+    let totalUsersRate = 0;
+
+    Object.entries(globalDominance.countries).forEach(([id, c]: [string, any]) => {
+      if (c.buildings.ethics_theater) totalHeatGrowthRed += c.buildings.ethics_theater * 10;
+      if (c.buildings.gdpr_laundry) totalImmunity += c.buildings.gdpr_laundry * 5;
+      if (c.buildings.data_center) totalZaps += c.buildings.data_center * 10;
+      if (c.buildings.ai_factory) totalUsersRate += c.buildings.ai_factory * 100;
+    });
+
+    if (totalHeatGrowthRed > 0) bonusRows.push({ label: 'Heat Growth',    value: `-${totalHeatGrowthRed}%`, source: 'Global: Ethics', color: 'bg-red-100' });
+    if (totalImmunity > 0)      bonusRows.push({ label: 'Lawsuit Imm.',   value: `+${totalImmunity}%`,   source: 'Global: Laundry', color: 'bg-indigo-100' });
+    if (totalZaps > 0)          bonusRows.push({ label: 'Orbs/sec',       value: `+${totalZaps}`,        source: 'Global: Data Centers', color: 'bg-blue-100' });
+    if (totalUsersRate > 0)     bonusRows.push({ label: 'Users/sec',      value: `+${totalUsersRate}`,   source: 'Global: AI Factories', color: 'bg-green-100' });
+
+    // ── NEW: Global Integration Stage Bonus ───────────────────────────────────
+    const totalStages = Object.values(globalDominance.countries).reduce((sum: number, c: any) => sum + (c.stage || 0), 0);
+    if (totalStages > 0) {
+      bonusRows.push({ label: 'Global Stage', value: `+${totalStages}%`, source: 'World Integration', color: 'bg-cyan-100' });
+    }
 
     return (
       <div className="space-y-4 pb-10">

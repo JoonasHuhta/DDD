@@ -643,7 +643,7 @@ export default function GameUI() {
               variant={panels.isPanelOpen('mansion') ? 'secondary' : (hasNewIronicBadge ? 'success' : 'ghost')}
               title="Mansion"
               icon={<Home className={responsive.iconSize} />}
-              animate={hasNewIronicBadge ? 'comic-pulse' : 'none'}
+              animate="none"
             />
 
           </div>

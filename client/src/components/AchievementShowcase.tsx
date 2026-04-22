@@ -140,7 +140,11 @@ export default function AchievementShowcase({ achievement, onComplete }: Achieve
     return 'from-green-500 to-blue-500'; // Default
   };
 
-  const handleDismiss = () => {
+  const handleDismiss = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (isFlippedRef.current) return; // Wait until explicitly closed if on the back
     // Force clear all particles immediately
     setParticles([]);

@@ -81,10 +81,10 @@ export default function CampaignVisualEffects() {
     try {
       const canvas = document.querySelector('canvas');
       if (canvas && canvas.parentNode) {
-        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('pointerdown', handleClick);
         return () => {
           try {
-            canvas.removeEventListener('click', handleClick);
+            canvas.removeEventListener('pointerdown', handleClick);
           } catch (cleanup) {
             console.warn('Campaign effect cleanup failed safely:', cleanup);
           }

@@ -45,6 +45,7 @@ export default function GameCanvas() {
     endDetoxEvent,
     incrementOfflineCitizens,
     decrementOfflineCitizens,
+    currentAchievementShowcase,
   } = useMetamanGame(useShallow(state => ({
     gameState: state.gameState,
     selectedCampaign: state.selectedCampaign,
@@ -80,22 +81,42 @@ export default function GameCanvas() {
     endDetoxEvent: state.endDetoxEvent,
     incrementOfflineCitizens: state.incrementOfflineCitizens,
     decrementOfflineCitizens: state.decrementOfflineCitizens,
+    currentAchievementShowcase: state.currentAchievementShowcase,
   })));
   
   const panels = usePanelState();
+  const isPanelOpen = panels.isAnyPanelOpen() || showCampaignPanel || lawsuitState.showLawsuitPanel || rewardState.showSuitcasePanel || !!currentAchievementShowcase;
+  
+  const wasPanelOpenRef = useRef<boolean>(isPanelOpen);
+  const panelCloseTimeRef = useRef<number>(0);
+
+  // Track when panels close to implement a ghost-click buffer
+  if (isPanelOpen !== wasPanelOpenRef.current) {
+    if (!isPanelOpen && wasPanelOpenRef.current) {
+      panelCloseTimeRef.current = Date.now();
+    }
+    wasPanelOpenRef.current = isPanelOpen;
+  }
 
   const handleCanvasInteraction = useCallback((event: React.PointerEvent) => {
     if (!engineRef.current) return;
 
-    // Debounce to prevent double-triggering (e.g., fast tap + ghost click)
     const now = Date.now();
+    // Debounce to prevent double-triggering
     if (now - lastInteractionTimeRef.current < 50) return;
-    lastInteractionTimeRef.current = now;
     
-    // Check if any panels are open - if so, don't allow game interaction
-    if (panels.isAnyPanelOpen() || showCampaignPanel || lawsuitState.showLawsuitPanel || rewardState.showSuitcasePanel) {
-      return; // Block all game clicks when panels are open
+    // Check if any panels are OPEN currently
+    if (isPanelOpen) return;
+
+    // THE MOST IMPORTANT MOBILE FIX: Ghost-click buffer
+    // After a UI overlay unmounts, mobile browsers fire a delayed 'click' event 300ms later.
+    // If we don't buffer this, the click hits the canvas beneath the closed UI.
+    if (now - panelCloseTimeRef.current < 400) {
+      console.log("Canvas tap blocked: ghost-click buffer active after UI close");
+      return;
     }
+
+    lastInteractionTimeRef.current = now;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -185,7 +206,7 @@ export default function GameCanvas() {
         console.log('Data orb click failed');
       }
     }
-  }, [selectedCampaign, currentView, handleManualClick, campaignCharges, showCampaignPanel, panels, lawsuitState.showLawsuitPanel, rewardState.showSuitcasePanel]);
+  }, [selectedCampaign, currentView, handleManualClick, campaignCharges, showCampaignPanel, panels, lawsuitState.showLawsuitPanel, rewardState.showSuitcasePanel, currentAchievementShowcase]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -285,6 +306,15 @@ export default function GameCanvas() {
     updateSize();
     window.addEventListener('resize', updateSize);
     
+    // THE ULTIMATE GHOST-CLICK KILLER
+    // Kill legacy synthetic click events completely in the capture phase.
+    // Use ONLY pointerdown for interactions in React.
+    const swallowLegacyClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    canvas.addEventListener('click', swallowLegacyClick, true);
+
     let animationFrameId: number;
 
     const gameLoop = () => {
@@ -301,6 +331,7 @@ export default function GameCanvas() {
 
     return () => {
       window.removeEventListener('resize', updateSize);
+      canvas.removeEventListener('click', swallowLegacyClick, true);
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
@@ -331,7 +362,7 @@ export default function GameCanvas() {
   // Trigger smile on reward
   useEffect(() => {
     if (engineRef.current && lastRewardTimestamp > 0) {
-      engineRef.current.triggerMetamanSmile(10000); // 10 second smile
+      engineRef.current.triggerMetamanSmile(1500); // 1.5 second smile (reduced from 10s to prevent visual locking)
     }
   }, [lastRewardTimestamp]);
 

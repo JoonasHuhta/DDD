@@ -2766,6 +2766,8 @@ export const useMetamanGame = create<MetamanGameStore>()(
         darkWebPurchases: saveData.gameState.darkWebPurchases || [],
         forgeGrid: saveData.gameState.forgeGrid || Array(20).fill(null),
         forgeTray: saveData.gameState.forgeTray || [],
+        forgeArtifacts: saveData.gameState.forgeArtifacts || [],
+        globalDominance: saveData.gameState.globalDominance || state.globalDominance,
         gameState: "playing" // Switch to playing when loaded
       });
 

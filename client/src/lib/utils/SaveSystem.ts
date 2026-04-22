@@ -72,6 +72,8 @@ export interface GameSaveData {
     ironicBadges: string[];
     forgeGrid?: (any | null)[];
     forgeTray?: any[];
+    forgeArtifacts?: string[];
+    globalDominance?: any;
   };
   progression: {
     prestigeState: any;
@@ -201,7 +203,9 @@ export class SaveSystem {
         darkWebPurchases: gameData.darkWebPurchases || [],
         ironicBadges: gameData.ironicBadges || [],
         forgeGrid: gameData.forgeGrid || Array(20).fill(null),
-        forgeTray: gameData.forgeTray || []
+        forgeTray: gameData.forgeTray || [],
+        forgeArtifacts: gameData.forgeArtifacts || [],
+        globalDominance: gameData.globalDominance || null
       },
       progression: {
         prestigeState: gameData.prestigeState || {},

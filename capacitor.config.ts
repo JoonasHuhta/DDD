@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.metaman.dopaminedan',
   appName: 'Dopamine Dealer Dan',
-  webDir: 'dist/public',
+  webDir: 'dist',
   orientation: 'portrait',
   server: {
     androidScheme: 'https'

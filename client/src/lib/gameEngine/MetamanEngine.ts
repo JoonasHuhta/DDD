@@ -1173,10 +1173,10 @@ export class MetamanEngine {
         "Not the Detox Guy. Not now.",
       ],
       whisper_return: [
-        "Him again. Does he not have a job?",
-        "The Detox Guy is back. My engagement metrics are already sweating.",
-        "Why does he always show up during peak hours?",
-        "He's... faster this time. Is he training?",
+        "He's back already?! Didn't he just leave?",
+        "He's walking twice as fast. Is he speed-running mindfulness?",
+        "No, no, no! My DAU metrics just recovered from last time!",
+        "Why is he practically sprinting? Doesn't detox mean relaxing?!",
       ],
       pull: [
         "The Detox Guy. Of course. Nobody actually does detox for more than a week.",

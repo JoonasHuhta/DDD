@@ -543,6 +543,8 @@ export class Citizen {
 
     // ── OFFLINE SILHOUETTE ───────────────────────────────────────────────────
     if (this.isOffline) {
+      if (!this.pullTarget) return; // Hide the 'gray object' once Detox Guy leaves
+
       let alpha = 0.55;
       if (this.pullTarget) {
         const dx = this.pullTarget.x - this.x;
