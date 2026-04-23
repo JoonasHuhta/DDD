@@ -48,25 +48,6 @@ function getRandomDelay(): number {
   return Math.floor(Math.random() * (MAX_SPAWN_DELAY_MS - MIN_SPAWN_DELAY_MS + 1)) + MIN_SPAWN_DELAY_MS;
 }
 
-function getCohortTagClass(cohort: CohortType): string {
-  switch (cohort) {
-    case 'teen':
-      return 'bg-[#FF69B4] text-white';
-    case 'pro':
-      return 'bg-[#4169E1] text-white';
-    case 'senior':
-      return 'bg-[#808080] text-white';
-    case 'addict':
-      return 'bg-[#FF4444] text-white';
-    case 'bot':
-      return 'bg-[#00FF41] text-black';
-    case 'system':
-      return 'bg-black text-[#FFD700] italic';
-    default:
-      return 'bg-black text-white';
-  }
-}
-
 function getRowClass(message: FeedMessage, index: number): string {
   const opacityClass = index === 0 ? 'opacity-100' : index < 4 ? 'opacity-60' : 'opacity-30';
   const glitchClass = index === 0 && message.isGlitch ? 'animate-pulse bg-red-100' : 'bg-transparent';
@@ -103,6 +84,17 @@ export default function LiveFeed() {
   );
 
   const [messages, setMessages] = useState<FeedMessage[]>([]);
+
+  function getCohortColor(cohort: string): string {
+    switch (cohort) {
+      case 'teen':   return 'text-pink-400';
+      case 'pro':    return 'text-blue-400';
+      case 'senior': return 'text-green-400';
+      case 'addict': return 'text-red-400';
+      case 'bot':    return 'text-yellow-400';
+      default:       return 'text-gray-400';
+    }
+  }
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -147,17 +139,19 @@ export default function LiveFeed() {
 
       <div className="max-h-48 space-y-2 overflow-y-auto">
         {messages.length > 0 ? (
-          messages.map((message, index) => (
+          messages.map((msg, index) => (
             <div
-              key={`${message.cohort}-${message.text}-${index}`}
-              className={`rounded-lg border-2 border-black p-2 transition-all duration-200 ${getRowClass(message, index)}`}
+              key={`${msg.cohort}-${msg.text}-${index}`}
+              className={`rounded-lg border-2 border-black p-2 transition-all duration-200 ${getRowClass(msg, index)}`}
             >
-              <div className="flex items-start gap-2">
-                <span className={`shrink-0 rounded-md border-2 border-black px-1.5 py-0.5 text-[10px] font-black uppercase ${getCohortTagClass(message.cohort)}`}>
-                  [{message.cohort.toUpperCase()}]
-                </span>
-                <span className="pt-[1px] font-mono text-xs">
-                  {message.text}
+              <div className="flex gap-2 items-baseline">
+                {msg.username ? (
+                  <span className={`font-bold text-xs shrink-0 ${getCohortColor(msg.cohort)}`}>
+                    {msg.username}
+                  </span>
+                ) : null}
+                <span className={`text-xs ${msg.isGlitch ? 'italic opacity-70 text-yellow-400' : ''}`}>
+                  {msg.text}
                 </span>
               </div>
             </div>
