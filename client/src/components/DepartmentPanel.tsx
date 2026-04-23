@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useMetamanGame } from '../lib/stores/useMetamanGame';
 import { Building2, TrendingUp, Users, Lock, Gavel } from 'lucide-react';
 import { LegalRoster } from './LegalRoster';
+import DanTV from './DanTV';
+import LiveFeed from './LiveFeed';
 import PurchaseFeedback from './PurchaseFeedback';
 import AdaptivePanel from './AdaptivePanel';
 import AdaptiveText from './AdaptiveText';
@@ -30,7 +32,7 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
     getMarginalIncome
   } = useMetamanGame();
 
-  const [activeTab, setActiveTab] = useState<'departments' | 'demographics' | 'legal'>('departments');
+  const [activeTab, setActiveTab] = useState<'departments' | 'demographics' | 'legal' | 'dantv'>('departments');
   const [feedbackPopups, setFeedbackPopups] = useState<FeedbackPopup[]>([]);
   const { playSuccess } = useAudio();
 
@@ -225,6 +227,8 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <LiveFeed />
+
         <div className="grid gap-3">
           {cohortList.map((c) => (
             <div key={c.id} className="p-4 bg-white border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
@@ -279,12 +283,23 @@ export default function DepartmentPanel({ onClose }: { onClose: () => void }) {
         >
           Legal
         </button>
+        <button
+          onClick={() => setActiveTab('dantv')}
+          className={`flex-1 py-2 border-4 border-black rounded-xl font-black uppercase italic text-[9.5px] tracking-tighter transition-all ${
+            activeTab === 'dantv'
+              ? 'bg-black text-[#FFD700] shadow-[2px_2px_0_0_rgba(0,0,0,1)]'
+              : 'bg-white hover:bg-gray-100'
+          }`}
+        >
+          Dan TV
+        </button>
       </div>
 
       <div className="px-1">
         {activeTab === 'departments' ? renderDepartments() : 
          activeTab === 'demographics' ? renderDemographics() : 
-         <LegalRoster />}
+         activeTab === 'legal' ? <LegalRoster /> :
+         <DanTV />}
       </div>
 
       {feedbackPopups.map((popup) => (
